@@ -185,7 +185,7 @@ def test_leaf_cloud_translated(mode_mono, leaf_positions, xyz, expected_leaf_pos
 
 
 @pytest.mark.slow
-def test_leaf_cloud_generate(mode_mono):
+def test_leaf_cloud_cuboid(mode_mono):
     """Test the instantiation of the leaf cloud class from parameters"""
 
     # Try constructing leaf clouds with various param combinations
@@ -257,6 +257,34 @@ def test_leaf_cloud_generate(mode_mono):
     )
 
 
+def test_leaf_cloud_sphere(mode_mono):
+    leaf_cloud = LeafCloud.sphere(radius=2.0, leaf_radius=0.05)
+    assert leaf_cloud.n_leaves() == 1000
+    # Automatic conversion of unitless params works
+    assert np.all(leaf_cloud.leaf_radii == 0.05 * ureg.m)
+
+
+def test_leaf_cloud_ellipsoid(mode_mono):
+    leaf_cloud = LeafCloud.ellipsoid(a=1.0, b=1.5, c=2.0, leaf_radius=0.05)
+    assert leaf_cloud.n_leaves() == 1000
+    # Automatic conversion of unitless params works
+    assert np.all(leaf_cloud.leaf_radii == 0.05 * ureg.m)
+
+
+def test_leaf_cloud_cylinder(mode_mono):
+    leaf_cloud = LeafCloud.cylinder(radius=1.0, l_vertical=2.0, leaf_radius=0.05)
+    assert leaf_cloud.n_leaves() == 1000
+    # Automatic conversion of unitless params works
+    assert np.all(leaf_cloud.leaf_radii == 0.05 * ureg.m)
+
+
+def test_leaf_cloud_cone(mode_mono):
+    leaf_cloud = LeafCloud.cone(radius=1.0, l_vertical=2.0, leaf_radius=0.05)
+    assert leaf_cloud.n_leaves() == 1000
+    # Automatic conversion of unitless params works
+    assert np.all(leaf_cloud.leaf_radii == 0.05 * ureg.m)
+
+
 def test_leaf_cloud_from_file(mode_mono, tempfile_leaves):
     """Unit testing for :meth:`LeafCloud.from_file`."""
     ctx = KernelDictContext()
@@ -308,4 +336,4 @@ def test_surface_area(mode_mono):
         leaf_radii=[0.1, 0.1],
     )
 
-    assert cloud.surface_area() == (2.0 * np.pi * 0.1 ** 2) * (ureg.m ** 2)
+    assert cloud.surface_area() == (2.0 * np.pi * 0.1**2) * (ureg.m**2)

@@ -1,16 +1,15 @@
 from __future__ import annotations
+from ast import Import
 
 import os
 import typing as t
 
-import aabbtree
 import attr
 import mitsuba as mi
 import numpy as np
 import pint
 import pinttr
 import scipy as sp
-import scipy.special
 
 from ._core import CanopyElement, biosphere_factory
 from ..core import SceneElement
@@ -23,10 +22,42 @@ from ...units import unit_context_kernel as uck
 from ...units import unit_registry as ureg
 
 
+def _solve(eqs, symbols, vars, **values):
+    import sympy as sm
+
+    unknowns = [symbols[x] for x in symbols.keys() if x not in values.keys()]
+    solutions = list(
+        sm.solve(
+            eqs,
+            unknowns,
+            domain=sm.Interval(0, sm.oo, left_open=True),
+            dict=True,
+        )
+    )
+
+    if len(solutions) > 1:
+        raise RuntimeError("more than 1 solution")
+
+    solution = solutions[0]
+    result = {}
+    subs = {symbols[var]: values[var] for var in values}
+
+    for var in vars:
+        if var in values:
+            result[var] = values[var]
+        else:
+            try:
+                result[var] = solution[symbols[var]].evalf(subs=subs)
+            except KeyError:
+                raise ValueError(f"cannot compute variable '{var}', too many unknowns")
+
+    return result
+
+
 def _sample_lad(mu, nu, rng):
     """
-    Generate an angle sample from the Leaf angle distribution function according to
-    :cite:`GoelStrebel1984`, using the rejection method.
+    Generate an angle sample from the leaf angle distribution (LAD) function
+    according to :cite:`GoelStrebel1984` using a rejection method.
     """
 
     while True:
@@ -76,6 +107,14 @@ def _leaf_cloud_positions_cuboid_avoid_overlap(
     specify a very dense leaf cloud. Consider using
     :func:`_leaf_cloud_positions_cuboid`.
     """
+    try:
+        import aabbtree
+    except ImportError as e:
+        raise ImportError(
+            "Generating a leaf cloud with collision detection requires the "
+            "aabbtree library. To proceed, please install aabbtree."
+        ) from e
+
     n_attempts = int(n_attempts)  # For safety, ensure conversion to int
 
     # try placing the leaves such that they do not overlap by creating
@@ -117,7 +156,7 @@ def _leaf_cloud_positions_cuboid_avoid_overlap(
 
 @ureg.wraps(ureg.m, (None, None, ureg.m, ureg.m, ureg.m))
 def _leaf_cloud_positions_ellipsoid(n_leaves: int, rng, a: float, b: float, c: float):
-    """
+    r"""
     Compute leaf positions for an ellipsoid leaf cloud.
     The ellipsoid follows the equation:
     :math:`\frac{x^2}{a^2} + \frac{y^2}{b^2} + \frac{z^2}{c^2}= 1`
@@ -131,7 +170,7 @@ def _leaf_cloud_positions_ellipsoid(n_leaves: int, rng, a: float, b: float, c: f
         y = (rand[1] - 0.5) * 2 * b
         z = (rand[2] - 0.5) * 2 * c
 
-        if (x ** 2 / a ** 2) + (y ** 2 / b ** 2) + (z ** 2 / c ** 2) <= 1.0:
+        if (x**2 / a**2) + (y**2 / b**2) + (z**2 / c**2) <= 1.0:
             positions.append([x, y, z])
 
     return positions
@@ -198,397 +237,6 @@ def _leaf_cloud_orientations(n_leaves, mu, nu, rng):
 def _leaf_cloud_radii(n_leaves, leaf_radius):
     """Compute leaf radii."""
     return np.full((n_leaves,), leaf_radius)
-
-
-@parse_docs
-@attr.s
-class LeafCloudParams:
-    """
-    Base class to implement advanced parameter checking for :class:`.LeafCloud`
-    generators.
-    """
-
-    _id = documented(
-        attr.ib(default="leaf_cloud"),
-        doc="Leaf cloud identifier.",
-        type="str",
-        default='"leaf_cloud"',
-    )
-
-    _leaf_reflectance = documented(
-        attr.ib(default=0.5), doc="Leaf reflectance.", type="float", default="0.5"
-    )
-
-    _leaf_transmittance = documented(
-        attr.ib(default=0.5), doc="Leaf transmittance.", type="float", default="0.5"
-    )
-
-    _mu = documented(
-        attr.ib(default=1.066),
-        doc="First parameter of the inverse beta distribution approximation used "
-        "to generate leaf orientations.",
-        type="float",
-        default="1.066",
-    )
-
-    _nu = documented(
-        attr.ib(default=1.853),
-        doc="Second parameter of the inverse beta distribution approximation used "
-        "to generate leaf orientations.",
-        type="float",
-        default="1.853",
-    )
-
-    _n_leaves = documented(attr.ib(default=None), doc="Number of leaves.", type="int")
-
-    _leaf_radius = documented(
-        pinttr.ib(default=None, units=ucc.deferred("length")),
-        doc="Leaf radius.\n\nUnit-enabled field (default: ucc['length']).",
-        type="float",
-    )
-
-    def update(self):
-        try:
-            for field in [x.name.lstrip("_") for x in self.__attrs_attrs__]:
-                self.__getattribute__(field)
-        except Exception as e:
-            raise Exception(
-                f"cannot compute field '{field}', parameter set is likely under-constrained"
-            ) from e
-
-    def __attrs_post_init__(self):
-        self.update()
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def leaf_reflectance(self):
-        return self._leaf_reflectance
-
-    @property
-    def leaf_transmittance(self):
-        return self._leaf_transmittance
-
-    @property
-    def nu(self):
-        return self._nu
-
-    @property
-    def mu(self):
-        return self._mu
-
-    @property
-    def n_leaves(self):
-        return self._n_leaves
-
-    @property
-    def leaf_radius(self):
-        return self._leaf_radius
-
-
-@parse_docs
-@attr.s
-class CuboidLeafCloudParams(LeafCloudParams):
-    """
-    Advanced parameter checking class for the cuboid :class:`.LeafCloud`
-    generator. Some of the parameters can be inferred from each other.
-
-    Parameters defined below can be used (without leading underscore) as
-    keyword arguments to the :meth:`.LeafCloud.cuboid` class method
-    constructor. Parameters without defaults are connected by a dependency
-    graph used to compute required parameters (outlined in the figure below).
-
-    The following parameter sets are valid:
-
-    * ``n_leaves``, ``leaf_radius``, ``l_horizontal``, ``l_vertical``;
-    * ``lai``, ``leaf_radius``, ``l_horizontal``, ``l_vertical``;
-    * ``lai``, ``leaf_radius``, ``l_horizontal``, ``hdo``, ``hvr``;
-    * and more!
-
-    .. only:: latex
-
-       .. figure:: ../../../../fig/cuboid_leaf_cloud_params.png
-
-    .. only:: not latex
-
-       .. figure:: ../../../../fig/cuboid_leaf_cloud_params.svg
-
-    Warnings
-    --------
-    In case of over-specification, no consistency check is
-    performed.
-
-    See Also
-    --------
-    :meth:`.LeafCloud.cuboid`
-    """
-
-    _l_horizontal = documented(
-        pinttr.ib(default=None, units=ucc.deferred("length")),
-        doc="Leaf cloud horizontal extent. *Suggested default: 30 m.*\n"
-        "\n"
-        "Unit-enabled field (default: ucc['length']).",
-        type="float",
-    )
-
-    _l_vertical = documented(
-        pinttr.ib(default=None, units=ucc.deferred("length")),
-        doc="Leaf cloud vertical extent. *Suggested default: 3 m.*\n"
-        "\n"
-        "Unit-enabled field (default: ucc['length']).",
-        type="float",
-    )
-
-    _lai = documented(
-        pinttr.ib(default=None, units=ureg.dimensionless),
-        doc="Leaf cloud leaf area index (LAI). *Physical range: [0, 10]; "
-        "suggested default: 3.*\n"
-        "\n"
-        "Unit-enabled field (default: ucc['dimensionless']).",
-        type="float",
-    )
-
-    _hdo = documented(
-        pinttr.ib(default=None, units=ucc.deferred("length")),
-        doc="Mean horizontal distance between leaves.\n"
-        "\n"
-        "Unit-enabled field (default: ucc['length']).",
-        type="float",
-    )
-
-    _hvr = documented(
-        pinttr.ib(default=None),
-        doc="Ratio of mean horizontal leaf distance and vertical leaf cloud extent. "
-        "*Suggested default: 0.1.*",
-        type="float",
-    )
-
-    @property
-    def n_leaves(self):
-        if self._n_leaves is None:
-            self._n_leaves = int(
-                self.lai * (self.l_horizontal / self.leaf_radius) ** 2 / np.pi
-            )
-        return self._n_leaves
-
-    @property
-    def lai(self):
-        if self._lai is None:
-            self._lai = (
-                np.pi * (self.leaf_radius / self.l_horizontal) ** 2 * self.n_leaves
-            )
-        return self._lai
-
-    @property
-    def leaf_radius(self):
-        if self._leaf_radius is None:
-            self._leaf_radius = (
-                np.sqrt(self.lai / (self.n_leaves * np.pi)) * self.l_horizontal
-            )
-        return self._leaf_radius
-
-    @property
-    def l_horizontal(self):
-        if self._l_horizontal is None:
-            self._l_horizontal = (
-                np.pi * self.leaf_radius ** 2 * self.n_leaves / self.lai
-            )
-        return self._l_horizontal
-
-    @property
-    def l_vertical(self):
-        if self._l_vertical is None:
-            self._l_vertical = (
-                self.lai * self.hdo ** 3 / (np.pi * self.leaf_radius ** 2 * self.hvr)
-            )
-        return self._l_vertical
-
-    @property
-    def hdo(self):
-        return self._hdo
-
-    @property
-    def hvr(self):
-        return self._hvr
-
-    def __str__(self):
-        result = []
-
-        for field in [
-            "id",
-            "lai",
-            "leaf_radius",
-            "l_horizontal",
-            "l_vertical",
-            "n_leaves",
-            "leaf_reflectance",
-            "leaf_transmittance",
-        ]:
-            value = self.__getattribute__(field)
-            result.append(f"{field}={value.__repr__()}")
-
-        return f"CuboidLeafCloudParams({', '.join(result)})"
-
-
-@parse_docs
-@attr.s
-class SphereLeafCloudParams(LeafCloudParams):
-    """
-    Advanced parameter checking class for the sphere :class:`.LeafCloud`
-    generator.
-
-    See Also
-    --------
-    :meth:`.LeafCloud.sphere`
-    """
-
-    _radius = documented(
-        pinttr.ib(default=1.0 * ureg.m, units=ucc.deferred("length")),
-        doc="Leaf cloud radius.\n\nUnit-enabled field (default: ucc[length]).",
-        type="float",
-        default="1 m",
-    )
-
-    @property
-    def radius(self):
-        return self._radius
-
-
-@parse_docs
-@attr.s
-class EllipsoidLeafCloudParams(LeafCloudParams):
-    """
-    Advanced parameter checking class for the ellipsoid :class:`.LeafCloud`
-    generator. Parameters ``a``, ``b`` and ``c`` denote the ellipsoid's half
-    axes along the x, y, and z directions respectively. If either ``b`` or ``c``
-    are not set by the user, they default to being equal to ``a``.
-    Accordingly a sphere of radius ``r`` can be parametrized by setting ``a=r``.
-
-    See Also
-    --------
-    :meth:`.LeafCloud.ellipsoid`
-    """
-
-    _a = documented(
-        pinttr.ib(default=1.0 * ureg.m, units=ucc.deferred("length")),
-        doc="Leaf cloud radius.\n\nUnit-enabled field (default: ucc[length]).",
-        type="float",
-        default="1 m",
-    )
-
-    _b = documented(
-        pinttr.ib(default=None, units=ucc.deferred("length")),
-        doc="Leaf cloud radius.\n\nUnit-enabled field (default: ucc[length]).",
-        type="float",
-        default="1 m",
-    )
-
-    _c = documented(
-        pinttr.ib(default=None, units=ucc.deferred("length")),
-        doc="Leaf cloud radius.\n\nUnit-enabled field (default: ucc[length]).",
-        type="float",
-        default="1 m",
-    )
-
-    @property
-    def a(self):
-        if self._a <= 0:
-            raise ValueError(
-                "Ellipsoid half axis parameters must be strictly larger than zero!"
-            )
-        return self._a
-
-    @property
-    def b(self):
-        if self._b is None:
-            self._b = self.a
-        elif self._b <= 0:
-            raise ValueError(
-                "Ellipsoid half axis parameters must be strictly larger than zero!"
-            )
-        return self._b
-
-    @property
-    def c(self):
-        if self._c is None:
-            self._c = self.a
-        elif self._c <= 0:
-            raise ValueError(
-                "Ellipsoid half axis parameters must be strictly larger than zero!"
-            )
-        return self._c
-
-
-@parse_docs
-@attr.s
-class CylinderLeafCloudParams(LeafCloudParams):
-    """
-    Advanced parameter checking class for the cylinder :class:`.LeafCloud`
-    generator.
-
-    See Also
-    --------
-    :meth:`.LeafCloud.cylinder`
-    """
-
-    _radius = documented(
-        pinttr.ib(default=1.0 * ureg.m, units=ucc.deferred("length")),
-        doc="Leaf cloud radius.\n\nUnit-enabled field (default: ucc[length]).",
-        type="float",
-        default="1 m",
-    )
-
-    _l_vertical = documented(
-        pinttr.ib(default=1.0 * ureg.m, units=ucc.deferred("length")),
-        doc="Leaf cloud vertical extent.\n\nUnit-enabled field (default: ucc[length]).",
-        type="float",
-        default="1 m",
-    )
-
-    @property
-    def radius(self):
-        return self._radius
-
-    @property
-    def l_vertical(self):
-        return self._l_vertical
-
-
-@parse_docs
-@attr.s
-class ConeLeafCloudParams(LeafCloudParams):
-    """
-    Advanced parameter checking class for the cone :class:`.LeafCloud`
-    generator.
-
-    See Also
-    --------
-    :meth:`.LeafCloud.cone`
-    """
-
-    _radius = documented(
-        pinttr.ib(default=1.0 * ureg.m, units=ucc.deferred("length")),
-        doc="Leaf cloud radius.\n\nUnit-enabled field (default: ucc[length]).",
-        type="float",
-        default="1 m",
-    )
-
-    _l_vertical = documented(
-        pinttr.ib(default=1.0 * ureg.m, units=ucc.deferred("length")),
-        doc="Leaf cloud vertical extent.\n\nUnit-enabled field (default: ucc[length]).",
-        type="float",
-        default="1 m",
-    )
-
-    @property
-    def radius(self):
-        return self._radius
-
-    @property
-    def l_vertical(self):
-        return self._l_vertical
 
 
 @biosphere_factory.register(type_id="leaf_cloud")
@@ -756,17 +404,33 @@ class LeafCloud(CanopyElement):
 
     @classmethod
     def cuboid(
-        cls, seed: int = 12345, avoid_overlap: bool = False, **kwargs
+        cls,
+        id: str = "leaf_cloud",
+        leaf_reflectance: t.Union[Spectrum, dict] = 0.5,
+        leaf_transmittance: t.Union[Spectrum, dict] = 0.5,
+        n_leaves: t.Optional[int] = None,
+        leaf_radius: t.Union[pint.Quantity, float, None] = None,
+        l_horizontal: t.Union[pint.Quantity, float, None] = None,
+        l_vertical: t.Union[pint.Quantity, float, None] = None,
+        lai: t.Optional[float] = None,
+        hdo: t.Union[pint.Quantity, float, None] = None,
+        hvr: t.Union[float, None] = None,
+        mu: t.Optional[float] = 1.066,
+        nu: t.Optional[float] = 1.853,
+        seed: int = 12345,
+        avoid_overlap: bool = False,
+        n_attempts: int = 100000,
     ) -> LeafCloud:
         """
         Generate a leaf cloud with an axis-aligned cuboid shape (and a square
-        footprint on the ground). Parameters are checked by the
-        :class:`.CuboidLeafCloudParams` class, which allows for many parameter
-        combinations.
+        footprint on the ground).
 
         The produced leaf cloud uniformly covers the
         :math:`(x, y, z) \\in \\left[ -\\dfrac{l_h}{2}, + \\dfrac{l_h}{2} \\right] \\times \\left[ -\\dfrac{l_h}{2}, + \\dfrac{l_h}{2} \\right] \\times [0, l_v]`
-        region. Leaf orientation is controlled by the ``mu`` and ``nu`` parameters
+        region. Parameters `n_leaves` to `hvr` can be specified in various
+        combinations to define the number and position of leaves.
+
+        Leaf orientation is controlled by the `mu` and `nu` parameters
         of an approximated inverse beta distribution
         :cite:`Ross1991MonteCarloMethods`.
 
@@ -775,7 +439,53 @@ class LeafCloud(CanopyElement):
 
         Parameters
         ----------
-        seed : int
+        id : str, optional, default: "leaf_cloud"
+            Leaf cloud identifier.
+
+        leaf_reflectance : .Spectrum or dict, optional, default: 0.5
+            Leaf reflectance.
+
+        leaf_transmittance : .Spectrum or dict, optional, default: 0.5
+            Leaf transmittance.
+
+        n_leaves : int, optional
+            Number of leaves.
+
+        leaf_radius : quantity or float, optional
+            Leaf radius.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        l_horizontal : quantity or float, optional
+            Leaf cloud horizontal extent.
+            *Suggested value: 30 m.*
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        l_vertical : quantity or float, optional
+            Leaf cloud vertical extent.
+            *Suggested value: 3 m.*
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        lai : float, optional
+            Leaf cloud leaf area index (LAI).
+            *Physical range: [0, 10]; suggested value: 3.*
+
+        hdo : quantity or float, optional
+            Mean horizontal distance between leaves.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        hvr : float, optional
+            Ratio of mean horizontal leaf distance and vertical leaf cloud extent.
+            *Suggested value: 0.1.*
+
+        mu : float, optional, default: 1.066
+            First parameter of the inverse beta distribution approximation used
+            to generate leaf orientations.
+
+        nu : float, optional, default: 1.853
+            Second parameter of the inverse beta distribution approximation used
+            to generate leaf orientations.
+
+        seed : int, optional
             Seed for the random number generator.
 
         avoid_overlap : bool
@@ -786,258 +496,503 @@ class LeafCloud(CanopyElement):
             If ``avoid_overlap`` is ``True``, number of attempts made at placing
             a leaf without collision before giving up. Default: 1e5.
 
-        **kwargs
-            Keyword arguments interpreted by :class:`.CuboidLeafCloudParams`.
-
         Returns
         -------
         :class:`.LeafCloud`:
             Generated leaf cloud.
 
-        See Also
-        --------
-        :class:`.CuboidLeafCloudParams`
-        """
-        rng = np.random.default_rng(seed=seed)
-        n_attempts = kwargs.pop("n_attempts", int(1e5))
+        Notes
+        -----
+        The following parameter combinations are valid:
 
-        params = CuboidLeafCloudParams(**kwargs)
+        * `n_leaves`, `leaf_radius`, `l_horizontal`, `l_vertical`;
+        * `lai`, `leaf_radius`, `l_horizontal`, `l_vertical`;
+        * `lai`, `leaf_radius`, `l_horizontal`, `hdo`, `hvr`;
+        * and more! (See figure below; the outlined parameters are used to
+          generate the leaf cloud.)
+
+        .. only:: latex
+
+           .. figure:: ../../../../fig/cuboid_leaf_cloud_params.png
+
+        .. only:: not latex
+
+           .. figure:: ../../../../fig/cuboid_leaf_cloud_params.svg
+        """
+        try:
+            import sympy as sm
+        except ImportError as e:
+            raise ImportError(
+                "Generating a cuboid-shaped leaf cloud requires sympy. Please "
+                "install sympy to proceed."
+            ) from e
+
+        # Process leaf cloud parametrisation
+        # -- Define default units
+        length_units = ucc.get("length")
+        dimless_units = ucc.get("dimensionless")
+        units = {
+            "n_leaves": None,
+            "lai": dimless_units,
+            "leaf_radius": length_units,
+            "l_horizontal": length_units,
+            "l_vertical": length_units,
+            "hdo": length_units,
+            "hvr": dimless_units,
+        }
+
+        # --  Declare symbols
+        symbols = {
+            name: sm.Symbol(symbol, positive=True)
+            for name, symbol in [
+                ("n_leaves", "n"),
+                ("lai", "LAI"),
+                ("leaf_radius", "r"),
+                ("l_horizontal", "l_h"),
+                ("l_vertical", "l_v"),
+                ("hdo", "HDO"),
+                ("hvr", "HVR"),
+            ]
+        }
+
+        # -- Declare constitutive relations
+        eqs = [
+            sm.Eq(
+                symbols["n_leaves"],
+                symbols["lai"]
+                * (symbols["l_horizontal"] / symbols["leaf_radius"]) ** 2
+                / sm.pi,
+            ),
+            sm.Eq(
+                symbols["l_vertical"],
+                symbols["lai"]
+                * symbols["hdo"] ** 3
+                / (sm.pi * symbols["leaf_radius"] ** 2 * symbols["hvr"]),
+            ),
+        ]
+
+        # -- Collect input parameters
+        names = list(symbols.keys())
+        input_params = {
+            name: value
+            for name, value in locals().items()
+            if (
+                name in names  # This is an unknown of the system
+                and value is not None  # This is user-specified
+            )
+        }  # User-specified inputs
+
+        # -- Apply default units if relevant, extract magnitude
+        for name in input_params.keys():
+            u = units[name]
+            if u is not None:
+                input_params[name] = pinttr.util.ensure_units(
+                    input_params[name], default_units=u
+                ).m_as(u)
+
+        # Compute leaf cloud parameters
+        params = _solve(
+            eqs,
+            symbols,
+            ["n_leaves", "leaf_radius", "l_horizontal", "l_vertical"],
+            **input_params,
+        )
+
+        # Convert from Sympy to numeric types, apply units
+        for key in params.keys():
+            params[key] = (
+                float(params[key]) * units[key]
+                if units[key] is not None
+                else float(params[key])
+            )
+
+        # Special case: number of leaves must be an integer
+        params["n_leaves"] = int(params["n_leaves"])
+
+        # Compute leaf positions
+        rng = np.random.default_rng(seed=seed)
 
         if avoid_overlap:
             leaf_positions = _leaf_cloud_positions_cuboid_avoid_overlap(
-                params.n_leaves,
-                params.l_horizontal,
-                params.l_vertical,
-                params.leaf_radius,
+                params["n_leaves"],
+                params["l_horizontal"],
+                params["l_vertical"],
+                params["leaf_radius"],
                 n_attempts,
                 rng,
             )
+
         else:
             leaf_positions = _leaf_cloud_positions_cuboid(
-                params.n_leaves, params.l_horizontal, params.l_vertical, rng
+                params["n_leaves"],
+                params["l_horizontal"],
+                params["l_vertical"],
+                rng,
             )
 
-        leaf_orientations = _leaf_cloud_orientations(
-            params.n_leaves, params.mu, params.nu, rng
-        )
+        # Compute leaf radii
+        leaf_radii = _leaf_cloud_radii(params["n_leaves"], params["leaf_radius"])
 
-        leaf_radii = _leaf_cloud_radii(params.n_leaves, params.leaf_radius)
+        # Compute leaf orientations
+        leaf_orientations = _leaf_cloud_orientations(params["n_leaves"], mu, nu, rng)
 
         # Create leaf cloud object
         return cls(
-            id=params.id,
+            id=id,
             leaf_positions=leaf_positions,
             leaf_orientations=leaf_orientations,
             leaf_radii=leaf_radii,
-            leaf_reflectance=params.leaf_reflectance,
-            leaf_transmittance=params.leaf_transmittance,
+            leaf_reflectance=leaf_reflectance,
+            leaf_transmittance=leaf_transmittance,
         )
 
     @classmethod
-    def sphere(cls, seed: int = 12345, **kwargs) -> LeafCloud:
+    def sphere(
+        cls,
+        id: str = "leaf_cloud",
+        leaf_reflectance: t.Union[Spectrum, dict] = 0.5,
+        leaf_transmittance: t.Union[Spectrum, dict] = 0.5,
+        n_leaves: int = 1000,
+        leaf_radius: t.Union[pint.Quantity, float] = 0.05 * ureg.m,
+        radius: t.Union[pint.Quantity, float] = 1.0 * ureg.m,
+        mu: t.Optional[float] = 1.066,
+        nu: t.Optional[float] = 1.853,
+        seed: int = 12345,
+    ) -> LeafCloud:
         """
-        Generate a leaf cloud with spherical shape. Parameters are checked by
-        the :class:`.SphereLeafCloudParams` class.
-
+        Generate a leaf cloud with a sphere shape.
         The produced leaf cloud covers uniformly the :math:`r < \\mathtt{radius}`
-        region. Leaf orientation is controlled by the ``mu`` and ``nu`` parameters
+        region. Leaf orientation is controlled by the `mu` and `nu` parameters
         of an approximated inverse beta distribution
         :cite:`Ross1991MonteCarloMethods`.
-
         An additional parameter controls the random number generator.
 
         Parameters
         ----------
+        id : str, optional, default: "leaf_cloud"
+            Leaf cloud identifier.
+
+        leaf_reflectance : .Spectrum or dict, optional, default: 0.5
+            Leaf reflectance.
+
+        leaf_transmittance : .Spectrum or dict, optional, default: 0.5
+            Leaf transmittance.
+
+        n_leaves : int, optional, default: 1000
+            Number of leaves.
+
+        leaf_radius : quantity or float, optional, default: 0.05 m
+            Leaf radius.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        radius : quantity or float, optional, default: 1 m
+            Leaf cloud radius.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        mu : float, optional, default: 1.066
+            First parameter of the inverse beta distribution approximation used
+            to generate leaf orientations.
+
+        nu : float, optional, default: 1.853
+            Second parameter of the inverse beta distribution approximation used
+            to generate leaf orientations.
+
         seed : int
             Seed for the random number generator.
 
-        **kwargs
-            Keyword arguments interpreted by :class:`.SphereLeafCloudParams`.
-
         Returns
         -------
-        :class:`.LeafCloud`
+        .LeafCloud
             Generated leaf cloud.
-
-        See Also
-        --------
-        :class:`.SphereLeafCloudParams`
         """
         rng = np.random.default_rng(seed=seed)
-        params = SphereLeafCloudParams(**kwargs)
-        leaf_positions = _leaf_cloud_positions_ellipsoid(
-            params.n_leaves,
-            rng,
-            params.radius,
+        length_units = ucc.get("length")
+        r = pinttr.util.ensure_units(radius, default_units=length_units)
+        leaf_positions = _leaf_cloud_positions_ellipsoid(n_leaves, rng, r, r, r)
+        leaf_orientations = _leaf_cloud_orientations(n_leaves, mu, nu, rng)
+        leaf_radii = _leaf_cloud_radii(
+            n_leaves, pinttr.util.ensure_units(leaf_radius, default_units=length_units)
         )
-        leaf_orientations = _leaf_cloud_orientations(
-            params.n_leaves, params.mu, params.nu, rng
-        )
-        leaf_radii = _leaf_cloud_radii(params.n_leaves, params.leaf_radius)
 
         # Create leaf cloud object
         return cls(
-            id=params.id,
+            id=id,
             leaf_positions=leaf_positions,
             leaf_orientations=leaf_orientations,
             leaf_radii=leaf_radii,
-            leaf_reflectance=params.leaf_reflectance,
-            leaf_transmittance=params.leaf_transmittance,
+            leaf_reflectance=leaf_reflectance,
+            leaf_transmittance=leaf_transmittance,
         )
 
     @classmethod
-    def ellipsoid(cls, seed: int = 12345, **kwargs) -> LeafCloud:
+    def ellipsoid(
+        cls,
+        id: str = "leaf_cloud",
+        leaf_reflectance: t.Union[Spectrum, dict] = 0.5,
+        leaf_transmittance: t.Union[Spectrum, dict] = 0.5,
+        n_leaves: int = 1000,
+        leaf_radius: t.Union[pint.Quantity, float] = 0.05 * ureg.m,
+        a: t.Union[pint.Quantity, float] = 1.0 * ureg.m,
+        b: t.Union[pint.Quantity, float] = 1.0 * ureg.m,
+        c: t.Union[pint.Quantity, float] = 1.0 * ureg.m,
+        mu: t.Optional[float] = 1.066,
+        nu: t.Optional[float] = 1.853,
+        seed: int = 12345,
+    ) -> LeafCloud:
         """
-        Generate a leaf cloud with ellipsoid shape. Parameters are checked by
-        the :class:`.EllipsoidLeafCloudParams` class.
-
+        Generate a leaf cloud with an ellipsoid shape.
         The produced leaf cloud covers uniformly the volume enclosed by
-        :math:`\\frac{x^2}{a^2} + \\frac{y^2}{b^2} + \\frac{z^2}{c^2}= 1` .
-
-        Leaf orientation is controlled by the ``mu`` and ``nu`` parameters
+        :math:`\\frac{x^2}{a^2} + \\frac{y^2}{b^2} + \\frac{z^2}{c^2} = 1` .
+        Leaf orientation is controlled by the `mu` and `nu` parameters
         of an approximated inverse beta distribution
         :cite:`Ross1991MonteCarloMethods`.
-
         An additional parameter controls the random number generator.
 
         Parameters
         ----------
+        id : str, optional, default: "leaf_cloud"
+            Leaf cloud identifier.
+
+        leaf_reflectance : .Spectrum or dict, optional, default: 0.5
+            Leaf reflectance.
+
+        leaf_transmittance : .Spectrum or dict, optional, default: 0.5
+            Leaf transmittance.
+
+        n_leaves : int, optional, default: 1000
+            Number of leaves.
+
+        leaf_radius : quantity or float, optional, default: 0.05 m
+            Leaf radius.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        a : quantity or float, optional, default: 1 m
+            First leaf cloud semi axis.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        b : quantity or float, optional, default: 1 m
+            Second leaf cloud semi axis.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        c : quantity or float, optional, default: 1 m
+            Third leaf cloud semi axis.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        mu : float, optional, default: 1.066
+            First parameter of the inverse beta distribution approximation used
+            to generate leaf orientations.
+
+        nu : float, optional, default: 1.853
+            Second parameter of the inverse beta distribution approximation used
+            to generate leaf orientations.
+
         seed : int
             Seed for the random number generator.
 
-        **kwargs
-            Keyword arguments interpreted by :class:`.EllipsoidLeafCloudParams`.
-
         Returns
         -------
-        :class:`.LeafCloud`
+        .LeafCloud
             Generated leaf cloud.
-
-        See Also
-        --------
-        :class:`.EllipsoidLeafCloudParams`
         """
         rng = np.random.default_rng(seed=seed)
-        params = EllipsoidLeafCloudParams(**kwargs)
+        length_units = ucc.get("length")
         leaf_positions = _leaf_cloud_positions_ellipsoid(
-            params.n_leaves, rng, params.a, params.b, params.c
+            n_leaves,
+            rng,
+            pinttr.util.ensure_units(a, default_units=length_units),
+            pinttr.util.ensure_units(b, default_units=length_units),
+            pinttr.util.ensure_units(c, default_units=length_units),
         )
-        leaf_orientations = _leaf_cloud_orientations(
-            params.n_leaves, params.mu, params.nu, rng
+        leaf_orientations = _leaf_cloud_orientations(n_leaves, mu, nu, rng)
+        leaf_radii = _leaf_cloud_radii(
+            n_leaves, pinttr.util.ensure_units(leaf_radius, default_units=length_units)
         )
-        leaf_radii = _leaf_cloud_radii(params.n_leaves, params.leaf_radius)
 
         # Create leaf cloud object
         return cls(
-            id=params.id,
+            id=id,
             leaf_positions=leaf_positions,
             leaf_orientations=leaf_orientations,
             leaf_radii=leaf_radii,
-            leaf_reflectance=params.leaf_reflectance,
-            leaf_transmittance=params.leaf_transmittance,
+            leaf_reflectance=leaf_reflectance,
+            leaf_transmittance=leaf_transmittance,
         )
 
     @classmethod
-    def cylinder(cls, seed: int = 12345, **kwargs) -> LeafCloud:
+    def cylinder(
+        cls,
+        id: str = "leaf_cloud",
+        leaf_reflectance: t.Union[Spectrum, dict] = 0.5,
+        leaf_transmittance: t.Union[Spectrum, dict] = 0.5,
+        n_leaves: int = 1000,
+        leaf_radius: t.Union[pint.Quantity, float] = 0.05 * ureg.m,
+        radius: t.Union[pint.Quantity, float] = 1.0 * ureg.m,
+        l_vertical: t.Union[pint.Quantity, float] = 1.0 * ureg.m,
+        mu: t.Optional[float] = 1.066,
+        nu: t.Optional[float] = 1.853,
+        seed: int = 12345,
+    ) -> LeafCloud:
         """
         Generate a leaf cloud with a cylindrical shape (vertical orientation).
-        Parameters are checked by the :class:`.CylinderLeafCloudParams` class.
-
         The produced leaf cloud covers uniformly the
         :math:`r < \\mathtt{radius}, z \\in [0, l_v]`
-        region. Leaf orientation is controlled by the ``mu`` and ``nu`` parameters
+        region. Leaf orientation is controlled by the `mu` and `nu` parameters
         of an approximated inverse beta distribution
         :cite:`Ross1991MonteCarloMethods`.
-
         An additional parameter controls the random number generator.
 
         Parameters
         ----------
+        id : str, optional, default: "leaf_cloud"
+            Leaf cloud identifier.
+
+        leaf_reflectance : .Spectrum or dict, optional, default: 0.5
+            Leaf reflectance.
+
+        leaf_transmittance : .Spectrum or dict, optional, default: 0.5
+            Leaf transmittance.
+
+        n_leaves : int, optional, default: 1000
+            Number of leaves.
+
+        leaf_radius : quantity or float, optional, default: 0.05 m
+            Leaf radius.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        radius : quantity or float, optional, default: 1 m
+            Leaf cloud radius.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        l_vertical : quantity or float, optional, default: 1 m
+            Leaf cloud vertical extent.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        mu : float, optional, default: 1.066
+            First parameter of the inverse beta distribution approximation used
+            to generate leaf orientations.
+
+        nu : float, optional, default: 1.853
+            Second parameter of the inverse beta distribution approximation used
+            to generate leaf orientations.
+
         seed : int
             Seed for the random number generator.
 
-        **kwargs
-            Keyword arguments interpreted by :class:`.CylinderLeafCloudParams`.
-
         Returns
         -------
-        :class:`.LeafCloud`
+        .LeafCloud
             Generated leaf cloud.
-
-        See Also
-        --------
-        :class:`.CylinderLeafCloudParams`
         """
         rng = np.random.default_rng(seed=seed)
-        params = CylinderLeafCloudParams(**kwargs)
+        length_units = ucc.get("length")
         leaf_positions = _leaf_cloud_positions_cylinder(
-            params.n_leaves, params.radius, params.l_vertical, rng
+            n_leaves,
+            pinttr.util.ensure_units(radius, default_units=length_units),
+            pinttr.util.ensure_units(l_vertical, default_units=length_units),
+            rng,
         )
-        leaf_orientations = _leaf_cloud_orientations(
-            params.n_leaves, params.mu, params.nu, rng
+        leaf_orientations = _leaf_cloud_orientations(n_leaves, mu, nu, rng)
+        leaf_radii = _leaf_cloud_radii(
+            n_leaves, pinttr.util.ensure_units(leaf_radius, default_units=length_units)
         )
-        leaf_radii = _leaf_cloud_radii(params.n_leaves, params.leaf_radius)
 
         # Create leaf cloud object
         return cls(
-            id=params.id,
+            id=id,
             leaf_positions=leaf_positions,
             leaf_orientations=leaf_orientations,
             leaf_radii=leaf_radii,
-            leaf_reflectance=params.leaf_reflectance,
-            leaf_transmittance=params.leaf_transmittance,
+            leaf_reflectance=leaf_reflectance,
+            leaf_transmittance=leaf_transmittance,
         )
 
     @classmethod
-    def cone(cls, seed: int = 12345, **kwargs) -> LeafCloud:
+    def cone(
+        cls,
+        id: str = "leaf_cloud",
+        leaf_reflectance: t.Union[Spectrum, dict] = 0.5,
+        leaf_transmittance: t.Union[Spectrum, dict] = 0.5,
+        n_leaves: int = 1000,
+        leaf_radius: t.Union[pint.Quantity, float] = 0.05 * ureg.m,
+        radius: t.Union[pint.Quantity, float] = 1.0 * ureg.m,
+        l_vertical: t.Union[pint.Quantity, float] = 1.0 * ureg.m,
+        mu: t.Optional[float] = 1.066,
+        nu: t.Optional[float] = 1.853,
+        seed: int = 12345,
+    ) -> LeafCloud:
         """
-        Generate a leaf cloud with a right conical shape (vertical orientation).
-        Parameters are checked by the :class:`.ConeLeafCloudParams` class.
-
+        Generate a leaf cloud with a cone shape (vertical orientation).
         The produced leaf cloud covers uniformly the
         :math:`r < \\mathtt{radius} \\cdot \\left( 1 - \\frac{z}{l_v} \\right), z \\in [0, l_v]`
-        region. Leaf orientation is controlled by the ``mu`` and ``nu`` parameters
+        region. Leaf orientation is controlled by the `mu` and `nu` parameters
         of an approximated inverse beta distribution
         :cite:`Ross1991MonteCarloMethods`.
-
         An additional parameter controls the random number generator.
 
         Parameters
         ----------
+        id : str, optional, default: "leaf_cloud"
+            Leaf cloud identifier.
+
+        leaf_reflectance : .Spectrum or dict, optional, default: 0.5
+            Leaf reflectance.
+
+        leaf_transmittance : .Spectrum or dict, optional, default: 0.5
+            Leaf transmittance.
+
+        n_leaves : int, optional, default: 1000
+            Number of leaves.
+
+        leaf_radius : quantity or float, optional, default: 0.05 m
+            Leaf radius.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        radius : quantity or float, optional, default: 1 m
+            Leaf cloud base radius.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        l_vertical : quantity or float, optional, default: 1 m
+            Leaf cloud vertical extent.
+            Unitless values are interpreted as ``ucc["length"]``.
+
+        mu : float, optional, default: 1.066
+            First parameter of the inverse beta distribution approximation used
+            to generate leaf orientations.
+
+        nu : float, optional, default: 1.853
+            Second parameter of the inverse beta distribution approximation used
+            to generate leaf orientations.
+
         seed : int
             Seed for the random number generator.
 
-        **kwargs
-            Keyword arguments interpreted by :class:`.ConeLeafCloudParams`.
-
         Returns
         -------
-        :class:`.LeafCloud`
+        .LeafCloud
             Generated leaf cloud.
-
-        See Also
-        --------
-        :class:`.ConeLeafCloudParams`
         """
         rng = np.random.default_rng(seed=seed)
-        params = ConeLeafCloudParams(**kwargs)
+        length_units = ucc.get("length")
         leaf_positions = _leaf_cloud_positions_cone(
-            params.n_leaves, params.radius, params.l_vertical, rng
+            n_leaves,
+            pinttr.util.ensure_units(radius, default_units=length_units),
+            pinttr.util.ensure_units(l_vertical, default_units=length_units),
+            rng,
         )
-        leaf_orientations = _leaf_cloud_orientations(
-            params.n_leaves, params.mu, params.nu, rng
-        )
+        leaf_orientations = _leaf_cloud_orientations(n_leaves, mu, nu, rng)
 
-        leaf_radii = _leaf_cloud_radii(params.n_leaves, params.leaf_radius)
+        leaf_radii = _leaf_cloud_radii(
+            n_leaves, pinttr.util.ensure_units(leaf_radius, default_units=length_units)
+        )
 
         # Create leaf cloud object
         return cls(
-            id=params.id,
+            id=id,
             leaf_positions=leaf_positions,
             leaf_orientations=leaf_orientations,
             leaf_radii=leaf_radii,
-            leaf_reflectance=params.leaf_reflectance,
-            leaf_transmittance=params.leaf_transmittance,
+            leaf_reflectance=leaf_reflectance,
+            leaf_transmittance=leaf_transmittance,
         )
 
     @classmethod
@@ -1071,28 +1026,26 @@ class LeafCloud(CanopyElement):
             Path to the text file specifying the leaves in the leaf cloud.
             Can be absolute or relative.
 
-        leaf_reflectance : :class:`.Spectrum` or float
-            Reflectance spectrum of the leaves in the cloud. Must be a reflectance
-            spectrum (dimensionless). Default: 0.5.
+        leaf_reflectance : .Spectrum or float, optional, default: 0.5
+            Reflectance spectrum of the leaves in the cloud.
+            Must be a reflectance spectrum (dimensionless).
 
-        leaf_transmittance : :class:`.Spectrum` of float
-            Transmittance spectrum of the leaves in the cloud. Must be a
-            transmittance spectrum (dimensionless). Default: 0.5.
+        leaf_transmittance : .Spectrum of float, optional, default: 0.5
+            Transmittance spectrum of the leaves in the cloud.
+            Must be a transmittance spectrum (dimensionless).
 
-        id : str
-            ID of the created :class:`.LeafCloud` instance.
+        id : str, optional, default: "leaf_cloud"
+            ID of the created .LeafCloud instance.
 
         Returns
         -------
-        :class:`.LeafCloud`:
+        .LeafCloud
             Generated leaf cloud.
 
         Raises
         ------
-        Raises
-        ------
         FileNotFoundError
-            If ``filename`` does not point to an existing file.
+            If `filename` does not point to an existing file.
         """
         if not os.path.isfile(filename):
             raise FileNotFoundError(f"no file at {filename} found.")
@@ -1130,7 +1083,7 @@ class LeafCloud(CanopyElement):
 
         Parameters
         ----------
-        ctx : :class:`.KernelDictContext`
+        ctx : .KernelDictContext
             A context data structure containing parameters relevant for kernel
             dictionary generation.
 
@@ -1156,7 +1109,7 @@ class LeafCloud(CanopyElement):
 
         Parameters
         ----------
-        ctx : :class:`.KernelDictContext`
+        ctx : .KernelDictContext
             A context data structure containing parameters relevant for kernel
             dictionary generation.
 
@@ -1200,30 +1153,30 @@ class LeafCloud(CanopyElement):
 
     def translated(self, xyz: pint.Quantity) -> LeafCloud:
         """
-        Return a copy of self translated by the vector ``xyz``.
+        Return a copy of self translated by the vector `xyz`.
 
         Parameters
         ----------
-        xyz : :class:`pint.Quantity`
+        xyz : quantity
             A 3-vector or a (N, 3)-array by which leaves will be translated. If
             (N, 3) variant is used, the array shape must match that of
-            ``leaf_positions``.
+            `leaf_positions`.
 
         Returns
         -------
-        :class:`LeafCloud`
+        .LeafCloud
             Translated copy of self.
 
         Raises
         ------
         ValueError
-            Sizes of ``xyz`` and ``self.leaf_positions`` are incompatible.
+            Sizes of `xyz` and ``self.leaf_positions`` are incompatible.
         """
         if xyz.ndim <= 1:
             xyz = xyz.reshape((1, 3))
         elif xyz.shape != self.leaf_positions.shape:
             raise ValueError(
-                f"shapes xyz {xyz.shape} and self.leaf_positions "
+                f"shapes of 'xyz' {xyz.shape} and 'self.leaf_positions' "
                 f"{self.leaf_positions.shape} do not match"
             )
 
