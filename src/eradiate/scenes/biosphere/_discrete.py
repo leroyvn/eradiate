@@ -12,7 +12,7 @@ import pinttr
 
 from . import InstancedCanopyElement
 from ._core import Canopy, biosphere_factory
-from ._leaf_cloud import CuboidLeafCloudParams, LeafCloud
+from ._leaf_cloud import LeafCloud
 from ..core import KernelDict
 from ...attrs import documented, parse_docs
 from ...contexts import KernelDictContext
@@ -289,14 +289,14 @@ class DiscreteCanopy(Canopy):
         -----
         The leaf cloud's ID will be set to ``f"{id}_leaf_cloud"``.
         """
+        # TODO: Broken, requires restoring previous functionality
         # Check parameters
-        leaf_cloud_params = CuboidLeafCloudParams(**leaf_cloud_kwargs)
-        config_length = ucc.get("length")
+        length_units = ucc.get("length")
         size = [
-            leaf_cloud_params.l_horizontal.m_as(config_length),
-            leaf_cloud_params.l_horizontal.m_as(config_length),
-            leaf_cloud_params.l_vertical.m_as(config_length),
-        ] * config_length
+            leaf_cloud_kwargs["l_horizontal"].m_as(length_units),
+            leaf_cloud_kwargs["l_horizontal"].m_as(length_units),
+            leaf_cloud_kwargs["l_vertical"].m_as(length_units),
+        ] * length_units
         leaf_cloud_id = f"{id}_leaf_cloud"
 
         # Construct canopy
