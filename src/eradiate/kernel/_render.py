@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import logging
 import typing as t
-import warnings
 
 import attrs
 import mitsuba as mi
 from tqdm.auto import tqdm
 
-from ._kernel_dict import UpdateMapTemplate
+from ._kernel_dict import KernelDictTemplate, UpdateMapTemplate
+from ._traverse import SceneParameters, mi_traverse
 from .._config import ProgressLevel, config
 from ..attrs import documented, parse_docs
 from ..contexts import KernelContext
@@ -17,58 +17,9 @@ from ..rng import SeedState, root_seed_state
 logger = logging.getLogger(__name__)
 
 
-# ------------------------------------------------------------------------------
-#                         Parameter lookup strategies
-# ------------------------------------------------------------------------------
-
-
-@parse_docs
-@attrs.frozen
-class TypeIdLookupStrategy:
-    """
-    This parameter ID lookup strategy searches for a Mitsuba type and object ID
-    match.
-
-    Instances are callables which take, as argument, the current node during
-    a Mitsuba scene tree traversal and, optionally, its path in the Mitsuba
-    scene tree. If the lookup succeeds, the full parameter path is returned.
-    """
-
-    node_type: type = documented(
-        attrs.field(validator=attrs.validators.instance_of(type)),
-        doc="Type of the node which will be looked up.",
-        type="type",
-    )
-
-    node_id: str = documented(
-        attrs.field(validator=attrs.validators.instance_of(str)),
-        doc="ID of the node which will be looked up.",
-        type="str",
-    )
-
-    parameter_relpath: str = documented(
-        attrs.field(validator=attrs.validators.instance_of(str)),
-        doc="Parameter path relative to its parent object.",
-        type="str",
-    )
-
-    def __call__(self, node, node_path: str | None = None) -> str | None:
-        if isinstance(node, self.node_type) and node.id() == self.node_id:
-            prefix = f"{node_path}." if node_path is not None else ""
-            return f"{prefix}{self.parameter_relpath}"
-
-        else:
-            return None
-
-
-# ------------------------------------------------------------------------------
-#                           Mitsuba scene traversal
-# ------------------------------------------------------------------------------
-
-
 @parse_docs
 @attrs.define
-class MitsubaObjectWrapper:
+class MitsubaObject:
     """
     This container aggregates a Mitsuba object, its associated parameters and a
     set of updaters that can be used to modify the scene parameters.
@@ -78,23 +29,10 @@ class MitsubaObjectWrapper:
     :func:`mi_traverse`
     """
 
-    obj: mi.Object = documented(
-        attrs.field(repr=lambda x: "Scene[...]" if isinstance(x, mi.Scene) else str(x)),
+    obj: "mitsuba.Object" = documented(
+        attrs.field(repr=lambda x: f"{x.class_().name()}[...]"),
         doc="Mitsuba object.",
         type="mitsuba.Object",
-    )
-
-    parameters: mi.SceneParameters | None = documented(
-        attrs.field(
-            default=None,
-            repr=lambda x: "SceneParameters[...]"
-            if x.__class__.__name__ == "SceneParameters"
-            else str(None),
-        ),
-        doc="Mitsuba scene parameter map.",
-        type="mitsuba.SceneParameters",
-        init_type="mitsuba.SceneParameters, optional",
-        default="None",
     )
 
     umap_template: UpdateMapTemplate | None = documented(
@@ -111,151 +49,93 @@ class MitsubaObjectWrapper:
         default="None",
     )
 
-    def drop_parameters(self) -> None:
+    _parameters: SceneParameters | None = documented(
+        attrs.field(default=None),
+        doc="Mitsuba scene parameter map.",
+        type=".SceneParameters or None",
+        init_type=".SceneParameters, optional",
+        default="None",
+    )
+
+    def __attrs_post_init__(self):
+        self.update()
+
+    def update(self) -> None:
         """
-        Reduce the size of the scene parameter table :attr:`.parameters` by
-        only keeping elements whose keys are listed in the parameter update
-        map template :attr:`.umap_template`. For parameters associated with a
-        lookup protocol, the looked up parameter ID is checked and used.
+        Update internal state for consistency.
         """
+        # Collect Mitsuba object parameters
+        if self._parameters is None:
+            self._parameters = mi_traverse(self.obj)
+
+        # Reduce the size of the scene parameter table by only keeping elements
+        # whose keys are listed in the parameter update map template
         if self.umap_template is not None:
-            keys = []
-            for name, param in self.umap_template.items():
-                if param.lookup_strategy is not None:
-                    if param.parameter_id is not None:
-                        keys.append(param.parameter_id)
-                    else:
-                        warnings.warn(
-                            f"Parameter '{name}' has a lookup strategy but the "
-                            "associated parameter ID is undefined; was a "
-                            "parameter lookup performed during the Mitsuba "
-                            "scene traversal?"
-                        )
-                else:
-                    keys.append(name)
+            self.parameters.keep(list(self.umap_template.keys()))
 
-            self.parameters.keep(keys)
-
-
-def mi_traverse(
-    obj: mi.Object,
-    umap_template: UpdateMapTemplate | None = None,
-) -> MitsubaObjectWrapper:
-    """
-    Traverse a node of the Mitsuba scene graph and return a container holding
-    the Mitsuba scene, its parameter map and an updated parameter update map.
-
-    Parameters
-    ----------
-    obj : mitsuba.Object
-        Mitsuba scene graph node to be traversed.
-
-    umap_template : .UpdateMapTemplate, optional
-        An additional update map template which is to be updated during
-        traversal. This is used to perform parameter lookup during traversal.
-
-    Returns
-    -------
-    MitsubaObjectWrapper
-        A container holding the traversed object, the corresponding parameter
-        map and the parameter update map (if any).
-
-    Notes
-    -----
-    This is a reimplementation of the :func:`mitsuba.traverse` function.
-    """
-
-    umap_template = (
-        UpdateMapTemplate(data=umap_template.data.copy())
-        if umap_template is not None
-        else UpdateMapTemplate()
-    )
-
-    lookups = {
-        k: v
-        for k, v in umap_template.items()
-        if v.parameter_id is None and v.lookup_strategy is not None
-    }
-
-    class SceneTraversal(mi.TraversalCallback):
-        def __init__(
-            self,
-            node,
-            parent=None,
-            properties=None,
-            hierarchy=None,
-            prefixes=None,
-            name=None,
-            depth=0,
-            flags=+mi.ParamFlags.Differentiable,
-        ):
-            mi.TraversalCallback.__init__(self)
-            self.properties = dict() if properties is None else properties
-            self.hierarchy = dict() if hierarchy is None else hierarchy
-            self.prefixes = set() if prefixes is None else prefixes
-
-            if name is not None:
-                ctr, name_len = 1, len(name)
-                while name in self.prefixes:
-                    name = "%s_%i" % (name[:name_len], ctr)
-                    ctr += 1
-                self.prefixes.add(name)
-
-            self.name = name
-            self.node = node
-            self.depth = depth
-            self.hierarchy[node] = (parent, depth)
-            self.flags = flags
-
-            # Try and recover a parameter ID from this node
-            for name, uparam in list(lookups.items()):
-                lookup_result = uparam.lookup_strategy(self.node, self.name)
-                if lookup_result is not None:
-                    uparam.parameter_id = lookup_result
-                    del lookups[
-                        name
-                    ]  # Remove successful lookups to accelerate future searches
-
-        def put_parameter(self, name, ptr, flags, cpptype=None):
-            name = name if self.name is None else self.name + "." + name
-
-            flags = self.flags | flags
-            # Non-differentiable parameters shouldn't be flagged as discontinuous
-            if (flags & mi.ParamFlags.NonDifferentiable) != 0:
-                flags = flags & ~mi.ParamFlags.Discontinuous
-
-            self.properties[name] = (ptr, cpptype, self.node, self.flags | flags)
-
-        def put_object(self, name, node, flags):
-            if node is None or node in self.hierarchy:
-                return
-            cb = SceneTraversal(
-                node=node,
-                parent=self.node,
-                properties=self.properties,
-                hierarchy=self.hierarchy,
-                prefixes=self.prefixes,
-                name=name if self.name is None else f"{self.name}.{name}",
-                depth=self.depth + 1,
-                flags=self.flags | flags,
-            )
-            node.traverse(cb)
-
-    cb = SceneTraversal(obj)
-    obj.traverse(cb)
-
-    # Check if there are unsuccessful lookups
-    if lookups:
-        warnings.warn(
-            "There were unsuccessful Mitsuba scene parameter lookups: "
-            f"{list(lookups.keys())}"
+        # Check if the update map template key set is a subset of the parameter
+        # table key set
+        diff = set(self.umap_template.keys()) - (
+            set(self.parameters.keys()) | set(self.parameters.aliases.keys())
         )
+        if diff:
+            raise RuntimeError(
+                "Update map template contains parameters which could not be found "
+                f"in parameter table: {diff}"
+            )
 
-    return MitsubaObjectWrapper(
-        obj=obj,
-        parameters=mi.SceneParameters(cb.properties, cb.hierarchy),
-        umap_template=umap_template,
-    )
+    @property
+    def parameters(self) -> SceneParameters | None:
+        """
+        SceneParameters: Mitsuba object parameter map.
+        """
+        return self._parameters
+
+    @classmethod
+    def from_kdict_template(
+        cls,
+        kdict_template: KernelDictTemplate,
+        umap_template: UpdateMapTemplate,
+        ctx: KernelContext | None = None,
+    ) -> MitsubaObject:
+        """
+        Instantiate a Mitsuba object defined as a kernel dictionary template.
+
+        Parameters
+        ----------
+        kdict_template : .KernelDictTemplate
+            Kernel dictionary template.
+
+        umap_template : .UpdateMapTemplate
+            Parameter update map template.
+
+        ctx : .KernelContext, optional
+            Kernel context used to initialize the created object. If unset, a
+            default kernel context is used.
+        """
+        if not isinstance(kdict_template, KernelDictTemplate):
+            kdict_template = KernelDictTemplate(kdict_template)
+        kdict = kdict_template.render(ctx if ctx is not None else KernelContext())
+        mi_obj = mi.load_dict(kdict)
+        result = cls(mi_obj, umap_template)
+
+        if ctx:
+            result.update_parameters(ctx)
+
+        return result
+
+    def update_parameters(self, ctx: KernelContext) -> None:
+        """
+        Update object parameters using the specified kernel context.
+
+        Parameters
+        ----------
+        ctx : .KernelContext
+            Kernel context used to generate the applied parameter update map.
+        """
+        params = self.umap_template.render(ctx)
+        self.parameters.update(params)
+        self.parameters.update()
 
 
 # ------------------------------------------------------------------------------
@@ -264,22 +144,22 @@ def mi_traverse(
 
 
 def mi_render(
-    mi_scene: MitsubaObjectWrapper,
+    mi_scene: MitsubaObject,
     ctxs: list[KernelContext],
     sensors: None | int | list[int] = None,
     spp: int = 0,
     seed_state: SeedState | None = None,
-) -> dict[t.Any, mi.Bitmap]:
+) -> dict[t.Any, "mitsuba.Bitmap"]:
     """
     Render a Mitsuba scene multiple times given specified contexts and sensor
     indices.
 
     Parameters
     ----------
-    mi_scene : .MitsubaObjectWrapper
+    mi_scene : .MitsubaObject
         Mitsuba scene to render.
 
-    ctxs : list of :class:`.KernelContext`
+    ctxs : list of .KernelContext
         List of contexts used to generate the parameter update table at each
         iteration.
 
@@ -328,7 +208,7 @@ def mi_render(
             )
 
             logger.debug("Updating Mitsuba scene parameters")
-            mi_scene.parameters.update(mi_scene.umap_template.render(ctx))
+            mi_scene.update_parameters(ctx)
 
             if sensors is None:
                 mi_sensors = [

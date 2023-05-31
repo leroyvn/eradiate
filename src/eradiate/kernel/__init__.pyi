@@ -7,10 +7,10 @@ from ._kernel_dict import InitParameter as InitParameter
 from ._kernel_dict import KernelDictTemplate as KernelDictTemplate
 from ._kernel_dict import UpdateMapTemplate as UpdateMapTemplate
 from ._kernel_dict import UpdateParameter as UpdateParameter
-from ._render import MitsubaObjectWrapper as MitsubaObjectWrapper
-from ._render import TypeIdLookupStrategy as TypeIdLookupStrategy
+from ._render import MitsubaObject as MitsubaObject
 from ._render import mi_render as mi_render
-from ._render import mi_traverse as mi_traverse
+from ._traverse import SceneParameters as SceneParameters
+from ._traverse import mi_traverse as mi_traverse
 from .gridvolume import read_binary_grid3d as read_binary_grid3d
 from .gridvolume import write_binary_grid3d as write_binary_grid3d
 from .logging import install_logging as install_logging

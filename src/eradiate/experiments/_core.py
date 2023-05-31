@@ -16,7 +16,7 @@ from .. import pipelines, validators
 from ..attrs import AUTO, documented, parse_docs
 from ..contexts import KernelContext
 from ..exceptions import UnsupportedModeError
-from ..kernel import MitsubaObjectWrapper, mi_render, mi_traverse
+from ..kernel import MitsubaObject, mi_render, mi_traverse
 from ..pipelines import Pipeline
 from ..rng import SeedState
 from ..scenes.core import Scene, SceneElement, get_factory, traverse
@@ -67,7 +67,7 @@ class Experiment(ABC):
 
     # Internal Mitsuba scene. This member is not set by the end-user, but rather
     # by the Experiment itself during initialization.
-    mi_scene: MitsubaObjectWrapper | None = attrs.field(
+    mi_scene: MitsubaObject | None = attrs.field(
         default=None,
         repr=False,
         init=False,

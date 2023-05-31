@@ -28,7 +28,7 @@ def test_kernel_dict_template_render():
     assert template.render(ctx=1, nested=False) == {"foo.bar": 0, "bar": 1, "baz": 1}
 
 
-def test_update_map_template_render():
+def test_umap_template_render():
     pmap = UpdateMapTemplate(
         {
             "foo": 0,

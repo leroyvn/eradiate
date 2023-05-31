@@ -10,7 +10,6 @@ import typing as t
 from collections import UserDict
 
 import attrs
-import mitsuba as mi
 
 from ..attrs import documented, parse_docs
 from ..contexts import KernelContext
@@ -50,7 +49,7 @@ class UpdateParameter:
 
     See Also
     --------
-    :class:`.KernelContext`, :class:`.TypeIdLookupStrategy`
+    :class:`.KernelContext`
     """
 
     #: Sentinel value indicating that a parameter is not used
@@ -79,23 +78,6 @@ class UpdateParameter:
         "parameter will pass all filters.",
         type=".Flags",
         default=".Flags.ALL",
-    )
-
-    lookup_strategy: None | (t.Callable[[mi.Object, str], str | None]) = documented(
-        attrs.field(default=None),
-        doc="A callable that searches a Mitsuba scene tree node for a desired "
-        "parameter ID: with signature "
-        "``f(node: mi.Object, node_relpath: str) -> Optional[str]``.",
-        type="callable or None",
-        init_type="callable, optional",
-        default="None",
-    )
-
-    parameter_id: str | None = documented(
-        attrs.field(default=None),
-        doc="The full ID of the Mitsuba scene parameter to update.",
-        type="str or None",
-        init_type="str, optional",
     )
 
     def __call__(self, ctx: KernelContext) -> t.Any:
@@ -261,14 +243,12 @@ class UpdateMapTemplate(UserDict):
             v = self[k]
 
             if isinstance(v, UpdateParameter):
-                key = k if v.parameter_id is None else v.parameter_id
-
                 if v.flags & flags:
-                    result[key] = v(ctx)
+                    result[k] = v(ctx)
                 else:
                     unused.append(k)
                     if not drop:
-                        result[key] = UpdateParameter.UNUSED
+                        result[k] = UpdateParameter.UNUSED
 
         # Check for leftover empty values
         if not drop and unused:
