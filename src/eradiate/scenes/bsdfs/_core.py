@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 
-from ..core import NodeSceneElement
+from ..core import MitsubaDictObject
 from ..._factory import Factory
 from ...attrs import define, parse_docs
 
@@ -22,7 +22,7 @@ bsdf_factory.register_lazy_batch(
 
 @parse_docs
 @define
-class BSDF(NodeSceneElement, ABC):
+class BSDF(MitsubaDictObject, ABC):
     """
     Abstract base class  for all BSDF scene elements.
     """

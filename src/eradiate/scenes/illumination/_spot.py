@@ -10,7 +10,7 @@ import pint
 import pinttr
 
 from ._core import Illumination
-from ..core import NodeSceneElement
+from ..core import MitsubaDictObject
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
 from ...attrs import define, documented, parse_docs
@@ -224,5 +224,5 @@ class SpotIllumination(Illumination):
         return retdict
 
     @property
-    def objects(self) -> dict[str, NodeSceneElement]:
+    def objects(self) -> dict[str, MitsubaDictObject]:
         return {"intensity": self.intensity}

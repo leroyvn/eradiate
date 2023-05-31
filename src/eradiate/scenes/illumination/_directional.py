@@ -8,7 +8,7 @@ import pint
 import pinttr
 
 from ._core import Illumination
-from ..core import NodeSceneElement
+from ..core import MitsubaDictObject
 from ..spectra import SolarIrradianceSpectrum, Spectrum, spectrum_factory
 from ..._config import config
 from ...attrs import define, documented, parse_docs
@@ -109,5 +109,5 @@ class DirectionalIllumination(Illumination):
         return {"type": "directional", "to_world": self._to_world}
 
     @property
-    def objects(self) -> dict[str, NodeSceneElement]:
+    def objects(self) -> dict[str, MitsubaDictObject]:
         return {"irradiance": self.irradiance}

@@ -4,7 +4,7 @@ from abc import ABC
 
 import attrs
 
-from ..core import NodeSceneElement, SceneElement
+from ..core import MitsubaDictObject, SceneElement
 from ..._factory import Factory
 from ...attrs import define, documented, get_doc, parse_docs
 
@@ -43,7 +43,7 @@ phase_function_factory.register_lazy_batch(
 
 @parse_docs
 @define
-class PhaseFunction(NodeSceneElement, ABC):
+class PhaseFunction(MitsubaDictObject, ABC):
     """
     An abstract base class defining common facilities for all phase functions.
     """

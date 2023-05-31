@@ -7,7 +7,7 @@ import mitsuba as mi
 
 from ._core import Surface
 from ..bsdfs import BSDF, LambertianBSDF, bsdf_factory
-from ..core import Ref, SceneTraversal, traverse
+from ..core import MitsubaRef, SceneTraversal, traverse
 from ..shapes import RectangleShape, SphereShape, shape_factory
 from ...attrs import define, documented, parse_docs
 from ...exceptions import OverriddenValueWarning, TraversalError
@@ -74,7 +74,7 @@ class BasicSurface(Surface):
         if self.shape is not None:
             if isinstance(self.shape.bsdf, BSDF):
                 warnings.warn("Set BSDF will be overridden by surface BSDF settings.")
-            self.shape.bsdf = Ref(id=self._bsdf_id)
+            self.shape.bsdf = MitsubaRef(id=self._bsdf_id)
 
     @property
     def _shape_id(self):

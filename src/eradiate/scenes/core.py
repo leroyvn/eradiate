@@ -95,7 +95,7 @@ class SceneElement(ABC):
 
 @parse_docs
 @define
-class NodeSceneElement(SceneElement, ABC):
+class MitsubaDictObject(SceneElement, ABC):
     """
     Abstract base class for scene elements which expand as a single Mitsuba
     scene tree node which can be described as a scene dictionary.
@@ -123,7 +123,7 @@ class NodeSceneElement(SceneElement, ABC):
         pass
 
     @property
-    def objects(self) -> dict[str, NodeSceneElement] | None:
+    def objects(self) -> dict[str, MitsubaDictObject] | None:
         """
         Map of child objects associated with this scene element.
 
@@ -149,7 +149,7 @@ class NodeSceneElement(SceneElement, ABC):
 
 @parse_docs
 @define
-class InstanceSceneElement(SceneElement, ABC):
+class MitsubaInstanceObject(SceneElement, ABC):
     """
     Abstract base class for scene elements which represent a node in the Mitsuba
     scene graph, but can only be expanded to a Mitsuba object.
@@ -205,7 +205,7 @@ class CompositeSceneElement(SceneElement, ABC):
         return {}
 
     @property
-    def objects(self) -> dict[str, NodeSceneElement] | None:
+    def objects(self) -> dict[str, MitsubaDictObject] | None:
         """
         Map of child objects associated with this scene element.
 
@@ -226,7 +226,7 @@ class CompositeSceneElement(SceneElement, ABC):
 
         if self.objects is not None:
             for name, obj in self.objects.items():
-                if isinstance(obj, InstanceSceneElement):
+                if isinstance(obj, MitsubaInstanceObject):
                     callback.put_object(name, obj)
 
                 else:
@@ -239,7 +239,7 @@ class CompositeSceneElement(SceneElement, ABC):
 
 @parse_docs
 @define
-class Ref(NodeSceneElement):
+class MitsubaRef(MitsubaDictObject):
     """
     A scene element which represents a reference to a Mitsuba scene tree node.
     """
@@ -261,7 +261,7 @@ class Ref(NodeSceneElement):
 
 @parse_docs
 @define
-class Scene(NodeSceneElement):
+class Scene(MitsubaDictObject):
     """
     A generic scene element container which expands as a :class:`mitsuba.Scene`
     object.
@@ -300,10 +300,10 @@ class SceneTraversal:
     """
 
     #: Current traversal node
-    node: NodeSceneElement
+    node: MitsubaDictObject
 
     #: Parent to current node
-    parent: NodeSceneElement | None = attrs.field(default=None)
+    parent: MitsubaDictObject | None = attrs.field(default=None)
 
     #: Current node's name
     name: str | None = attrs.field(default=None)
@@ -362,7 +362,7 @@ class SceneTraversal:
                 params=self.params,
             )
 
-            if isinstance(node, InstanceSceneElement):
+            if isinstance(node, MitsubaInstanceObject):
                 cb.put_instance(node.instance)
                 cb.put_params(node.params)
 
@@ -378,7 +378,7 @@ class SceneTraversal:
         self.template[self.name] = obj
 
 
-def traverse(node: NodeSceneElement) -> tuple[KernelDictTemplate, UpdateMapTemplate]:
+def traverse(node: MitsubaDictObject) -> tuple[KernelDictTemplate, UpdateMapTemplate]:
     """
     Traverse a scene element tree and collect kernel dictionary template and
     parameter update table data.

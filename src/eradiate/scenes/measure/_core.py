@@ -10,7 +10,7 @@ import xarray as xr
 
 import eradiate
 
-from ..core import NodeSceneElement
+from ..core import MitsubaDictObject
 from ..spectra import (
     InterpolatedSpectrum,
     MultiDeltaSpectrum,
@@ -121,7 +121,7 @@ def _str_summary_raw(x):
 
 @parse_docs
 @define
-class Measure(NodeSceneElement, ABC):
+class Measure(MitsubaDictObject, ABC):
     """
     Abstract base class for all measure scene elements.
 
@@ -156,9 +156,9 @@ class Measure(NodeSceneElement, ABC):
             default="measure",
             validator=attrs.validators.optional(attrs.validators.instance_of(str)),
         ),
-        doc=get_doc(NodeSceneElement, "id", "doc"),
-        type=get_doc(NodeSceneElement, "id", "type"),
-        init_type=get_doc(NodeSceneElement, "id", "init_type"),
+        doc=get_doc(MitsubaDictObject, "id", "doc"),
+        type=get_doc(MitsubaDictObject, "id", "type"),
+        init_type=get_doc(MitsubaDictObject, "id", "init_type"),
         default='"measure"',
     )
 

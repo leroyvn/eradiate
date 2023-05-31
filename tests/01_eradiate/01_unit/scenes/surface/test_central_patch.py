@@ -5,7 +5,7 @@ import pytest
 
 from eradiate import KernelContext
 from eradiate.exceptions import TraversalError
-from eradiate.scenes.core import Ref, Scene, traverse
+from eradiate.scenes.core import MitsubaRef, Scene, traverse
 from eradiate.scenes.shapes import RectangleShape, Shape
 from eradiate.scenes.surface import CentralPatchSurface
 from eradiate.units import unit_registry as ureg
@@ -48,7 +48,7 @@ def test_central_patch_construct_new(
     elif issubclass(expected_shape, Shape):
         assert isinstance(surface.shape, expected_shape)
         # Shape BSDF is referenced
-        assert isinstance(surface.shape.bsdf, Ref)
+        assert isinstance(surface.shape.bsdf, MitsubaRef)
     else:
         raise NotImplementedError
 

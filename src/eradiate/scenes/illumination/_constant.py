@@ -3,7 +3,7 @@ from __future__ import annotations
 import attrs
 
 from ._core import Illumination
-from ..core import NodeSceneElement
+from ..core import MitsubaDictObject
 from ..spectra import Spectrum, spectrum_factory
 from ...attrs import define, documented, parse_docs
 from ...validators import has_quantity
@@ -37,5 +37,5 @@ class ConstantIllumination(Illumination):
         return {"type": "constant"}
 
     @property
-    def objects(self) -> dict[str, NodeSceneElement]:
+    def objects(self) -> dict[str, MitsubaDictObject]:
         return {"radiance": self.radiance}

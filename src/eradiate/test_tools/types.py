@@ -5,11 +5,11 @@ import pytest
 
 from ..contexts import KernelContext
 from ..kernel import MitsubaObjectWrapper, mi_traverse
-from ..scenes.core import CompositeSceneElement, NodeSceneElement, Scene, traverse
+from ..scenes.core import CompositeSceneElement, MitsubaDictObject, Scene, traverse
 
 
 def check_scene_element(
-    instance: NodeSceneElement | CompositeSceneElement,
+    instance: MitsubaDictObject | CompositeSceneElement,
     mi_cls=None,
     ctx: KernelContext = None,
     drop_parameters: bool = True,
@@ -57,7 +57,7 @@ def check_scene_element(
       Mitsuba objects are automatically encapsulated into a
       :class:`mitsuba.Scene` object.
     """
-    if isinstance(instance, NodeSceneElement):
+    if isinstance(instance, MitsubaDictObject):
         if mi_cls is None:
             raise ValueError("Expected Mitsuba class must be set")
         kdict_template, umap_template = traverse(instance)

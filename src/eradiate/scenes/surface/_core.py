@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 import attrs
 
-from ..core import CompositeSceneElement, NodeSceneElement
+from ..core import CompositeSceneElement, MitsubaDictObject
 from ..._factory import Factory
 from ...attrs import define, documented, get_doc, parse_docs
 
@@ -39,9 +39,9 @@ class Surface(CompositeSceneElement, ABC):
             default="surface",
             validator=attrs.validators.optional(attrs.validators.instance_of(str)),
         ),
-        doc=get_doc(NodeSceneElement, "id", "doc"),
-        type=get_doc(NodeSceneElement, "id", "type"),
-        init_type=get_doc(NodeSceneElement, "id", "init_type"),
+        doc=get_doc(MitsubaDictObject, "id", "doc"),
+        type=get_doc(MitsubaDictObject, "id", "type"),
+        init_type=get_doc(MitsubaDictObject, "id", "init_type"),
         default='"surface"',
     )
 

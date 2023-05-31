@@ -7,7 +7,7 @@ from functools import singledispatchmethod
 import attrs
 import pint
 
-from ..core import NodeSceneElement
+from ..core import MitsubaDictObject
 from ..._factory import Factory
 from ...attrs import define, documented, parse_docs
 from ...spectral.ckd import BinSet
@@ -117,7 +117,7 @@ spectrum_factory.register_lazy_batch(
 
 @parse_docs
 @define
-class Spectrum(NodeSceneElement, ABC):
+class Spectrum(MitsubaDictObject, ABC):
     """
     Spectrum interface.
 

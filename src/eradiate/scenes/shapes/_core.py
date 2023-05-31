@@ -5,7 +5,7 @@ from abc import ABC
 import attrs
 
 from ..bsdfs import BSDF, bsdf_factory
-from ..core import BoundingBox, InstanceSceneElement, NodeSceneElement, Ref
+from ..core import BoundingBox, MitsubaDictObject, MitsubaInstanceObject, MitsubaRef
 from ..._factory import Factory
 from ...attrs import define, documented, get_doc, parse_docs
 
@@ -38,18 +38,18 @@ class Shape:
             default="shape",
             validator=attrs.validators.optional(attrs.validators.instance_of(str)),
         ),
-        doc=get_doc(NodeSceneElement, "id", "doc"),
-        type=get_doc(NodeSceneElement, "id", "type"),
-        init_type=get_doc(NodeSceneElement, "id", "init_type"),
+        doc=get_doc(MitsubaDictObject, "id", "doc"),
+        type=get_doc(MitsubaDictObject, "id", "type"),
+        init_type=get_doc(MitsubaDictObject, "id", "init_type"),
         default='"shape"',
     )
 
-    bsdf: BSDF | Ref | None = documented(
+    bsdf: BSDF | MitsubaRef | None = documented(
         attrs.field(
             default=None,
             converter=attrs.converters.optional(bsdf_factory.convert),
             validator=attrs.validators.optional(
-                attrs.validators.instance_of((BSDF, Ref))
+                attrs.validators.instance_of((BSDF, MitsubaRef))
             ),
         ),
         doc="BSDF attached to the shape. If a dictionary is passed, it is "
@@ -85,7 +85,7 @@ class Shape:
         return f"{self.id}_bsdf"
 
     @property
-    def objects(self) -> dict[str, NodeSceneElement] | None:
+    def objects(self) -> dict[str, MitsubaDictObject] | None:
         # Inherit docstring
         if self.bsdf is None:
             return None
@@ -94,7 +94,7 @@ class Shape:
 
 
 @define
-class ShapeNode(Shape, NodeSceneElement, ABC):
+class ShapeNode(Shape, MitsubaDictObject, ABC):
     """
     Interface for shapes which can be represented as Mitsuba scene dictionary
     nodes.
@@ -104,7 +104,7 @@ class ShapeNode(Shape, NodeSceneElement, ABC):
 
 
 @define
-class ShapeInstance(Shape, InstanceSceneElement, ABC):
+class ShapeInstance(Shape, MitsubaInstanceObject, ABC):
     """
     Interface for shapes which have to be expanded as Mitsuba objects.
     """
