@@ -4,7 +4,7 @@ import attrs
 import pint
 
 from ._core import Spectrum
-from ...attrs import parse_docs
+from ...attrs import define, parse_docs
 from ...kernel import InitParameter, UpdateParameter
 from ...radprops.rayleigh import compute_sigma_s_air
 from ...units import PhysicalQuantity
@@ -12,7 +12,7 @@ from ...units import unit_context_kernel as uck
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class AirScatteringCoefficientSpectrum(Spectrum):
     """
     Air scattering coefficient spectrum [``air_scattering_coefficient``].

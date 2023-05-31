@@ -11,7 +11,7 @@ import pinttr
 
 from ._core import Measure
 from ... import converters, validators
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
 from ...util.misc import is_vector3
@@ -246,7 +246,7 @@ class TargetRectangle(Target):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class DistantMeasure(Measure, ABC):
     """
     Abstract interface of all distant measure classes.

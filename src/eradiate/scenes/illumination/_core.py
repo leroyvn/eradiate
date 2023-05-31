@@ -6,7 +6,7 @@ import attrs
 
 from ..core import NodeSceneElement
 from ..._factory import Factory
-from ...attrs import documented, get_doc, parse_docs
+from ...attrs import define, documented, get_doc, parse_docs
 
 illumination_factory = Factory()
 illumination_factory.register_lazy_batch(
@@ -21,7 +21,7 @@ illumination_factory.register_lazy_batch(
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class Illumination(NodeSceneElement, ABC):
     """
     Abstract base class for all illumination scene elements.

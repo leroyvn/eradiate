@@ -7,12 +7,12 @@ from ._core import BSDF
 from ..core import traverse
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...kernel import TypeIdLookupStrategy, UpdateParameter
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class RPVBSDF(BSDF):
     """
     RPV BSDF [``rpv``].

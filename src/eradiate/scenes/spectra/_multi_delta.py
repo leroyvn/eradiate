@@ -1,12 +1,11 @@
 from itertools import compress
 
-import attrs
 import numpy as np
 import pint
 import pinttr
 
 from ._core import Spectrum
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...spectral.ckd import BinSet
 from ...spectral.mono import WavelengthSet
 from ...units import unit_context_kernel as uck
@@ -18,7 +17,7 @@ def wavelengths_converter(value):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class MultiDeltaSpectrum(Spectrum):
     """
     A spectrum made of multiple translated Dirac delta [``multi_delta``].

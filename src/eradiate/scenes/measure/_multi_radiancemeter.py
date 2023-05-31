@@ -6,7 +6,7 @@ import pint
 import pinttr
 
 from ._core import Measure
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...units import symbol
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
@@ -14,7 +14,7 @@ from ...units import unit_registry as ureg
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class MultiRadiancemeterMeasure(Measure):
     """
     Radiance meter array measure scene element [``mradiancemeter``,

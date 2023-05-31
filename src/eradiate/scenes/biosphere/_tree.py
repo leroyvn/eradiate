@@ -15,7 +15,7 @@ from ._leaf_cloud import LeafCloud
 from ..core import SceneElement, traverse
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
-from ...attrs import documented, get_doc, parse_docs
+from ...attrs import define, documented, get_doc, parse_docs
 from ...kernel import TypeIdLookupStrategy, UpdateParameter
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
@@ -23,7 +23,7 @@ from ...units import unit_registry as ureg
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class Tree(CanopyElement, ABC):
     """
     Abstract base class for tree-like canopy elements.
@@ -42,7 +42,7 @@ def _leaf_cloud_converter(value):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class AbstractTree(Tree):
     """
     A container class for abstract trees in discrete canopies.
@@ -214,7 +214,7 @@ class AbstractTree(Tree):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class MeshTree(Tree):
     """
     A container class for mesh based tree-like objects in canopies.
@@ -286,7 +286,7 @@ class MeshTree(Tree):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class MeshTreeElement:
     """
     Container class for mesh based constituents of tree-like objects in a canopy.

@@ -10,7 +10,7 @@ from ._core import ShapeNode
 from ..bsdfs import BSDF
 from ..core import BoundingBox
 from ... import validators
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
 from ...units import unit_registry as ureg
@@ -37,7 +37,7 @@ def _edges_converter(value):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class RectangleShape(ShapeNode):
     """
     Rectangle shape [``rectangle``].

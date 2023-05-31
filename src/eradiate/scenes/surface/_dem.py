@@ -20,7 +20,7 @@ from ..shapes import (
     SphereShape,
     shape_factory,
 )
-from ...attrs import documented, get_doc, parse_docs
+from ...attrs import define, documented, get_doc, parse_docs
 from ...constants import EARTH_RADIUS
 from ...units import to_quantity
 from ...units import unit_context_config as ucc
@@ -340,7 +340,7 @@ def _to_uv(lat_min, lat_max, lon_min, lon_max) -> "mitsuba.ScalarTransform4f":
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class DEMSurface(Surface):
     """
     DEM Surface [``dem``]

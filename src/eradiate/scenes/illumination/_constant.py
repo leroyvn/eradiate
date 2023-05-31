@@ -5,12 +5,12 @@ import attrs
 from ._core import Illumination
 from ..core import NodeSceneElement
 from ..spectra import Spectrum, spectrum_factory
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...validators import has_quantity
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class ConstantIllumination(Illumination):
     """
     Constant illumination scene element [``constant``].

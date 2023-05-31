@@ -17,8 +17,8 @@ import eradiate
 from ._core import AbstractHeterogeneousAtmosphere
 from ..core import traverse
 from ..phase import PhaseFunction, RayleighPhaseFunction, phase_function_factory
-from ... import converters, data
-from ...attrs import documented, parse_docs
+from ... import converters
+from ...attrs import define, documented, parse_docs
 from ...contexts import KernelContext
 from ...quad import Quad
 from ...radprops import AFGL1986RadProfile, RadProfile, US76ApproxRadProfile, ZGrid
@@ -75,7 +75,7 @@ def open_us76_dataset(wavelength_range: pint.Quantity) -> xr.Dataset:
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class MolecularAtmosphere(AbstractHeterogeneousAtmosphere):
     """
     Molecular atmosphere scene element [``molecular``].

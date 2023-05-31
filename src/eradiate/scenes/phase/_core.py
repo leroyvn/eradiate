@@ -6,7 +6,7 @@ import attrs
 
 from ..core import NodeSceneElement, SceneElement
 from ..._factory import Factory
-from ...attrs import documented, get_doc, parse_docs
+from ...attrs import define, documented, get_doc, parse_docs
 
 phase_function_factory = Factory()
 phase_function_factory.register_lazy_batch(
@@ -42,7 +42,7 @@ phase_function_factory.register_lazy_batch(
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class PhaseFunction(NodeSceneElement, ABC):
     """
     An abstract base class defining common facilities for all phase functions.

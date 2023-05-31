@@ -15,7 +15,7 @@ from ._core import CanopyElement
 from ..core import SceneElement, traverse
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
-from ...attrs import documented, get_doc, parse_docs
+from ...attrs import define, documented, get_doc, parse_docs
 from ...kernel import TypeIdLookupStrategy, UpdateParameter
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
@@ -602,7 +602,7 @@ class ConeLeafCloudParams(LeafCloudParams):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class LeafCloud(CanopyElement):
     """
     A container class for leaf clouds in abstract discrete canopies.

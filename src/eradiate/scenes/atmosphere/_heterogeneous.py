@@ -15,7 +15,7 @@ from ._molecular_atmosphere import MolecularAtmosphere
 from ._particle_layer import ParticleLayer
 from ..core import traverse
 from ..phase import BlendPhaseFunction, PhaseFunction
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...contexts import KernelContext
 from ...kernel import TypeIdLookupStrategy
 from ...radprops import ZGrid
@@ -54,7 +54,7 @@ def _particle_layer_converter(value):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class HeterogeneousAtmosphere(AbstractHeterogeneousAtmosphere):
     """
     Heterogeneous atmosphere scene element [``heterogeneous``].

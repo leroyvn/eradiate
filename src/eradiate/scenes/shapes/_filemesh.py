@@ -6,11 +6,11 @@ import attrs
 
 from ._core import ShapeNode
 from ..core import BoundingBox
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class FileMeshShape(ShapeNode):
     """
     File based mesh shape [``file_mesh``].

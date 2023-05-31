@@ -8,7 +8,7 @@ import pint
 from ._distant import DistantMeasure
 from ... import frame, validators
 from ..._config import config
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...units import symbol
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
@@ -16,7 +16,7 @@ from ...warp import square_to_uniform_hemisphere
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class DistantFluxMeasure(DistantMeasure):
     """
     Distant radiosity measure scene element [``distant_flux``].

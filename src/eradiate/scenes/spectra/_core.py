@@ -9,7 +9,7 @@ import pint
 
 from ..core import NodeSceneElement
 from ..._factory import Factory
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...spectral.ckd import BinSet
 from ...spectral.index import (
     CKDSpectralIndex,
@@ -116,7 +116,7 @@ spectrum_factory.register_lazy_batch(
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class Spectrum(NodeSceneElement, ABC):
     """
     Spectrum interface.

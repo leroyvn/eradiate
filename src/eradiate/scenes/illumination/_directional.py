@@ -11,7 +11,7 @@ from ._core import Illumination
 from ..core import NodeSceneElement
 from ..spectra import SolarIrradianceSpectrum, Spectrum, spectrum_factory
 from ..._config import config
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...frame import AzimuthConvention, angles_to_direction
 from ...units import unit_context_config as ucc
 from ...units import unit_registry as ureg
@@ -19,7 +19,7 @@ from ...validators import has_quantity, is_positive
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class DirectionalIllumination(Illumination):
     """
     Directional illumination scene element [``directional``].

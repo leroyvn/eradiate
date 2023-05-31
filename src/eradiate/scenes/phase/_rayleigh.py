@@ -1,11 +1,9 @@
-import attrs
-
 from ._core import PhaseFunction
-from ...attrs import parse_docs
+from ...attrs import define, parse_docs
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class RayleighPhaseFunction(PhaseFunction):
     """
     Rayleigh phase function [``rayleigh``].

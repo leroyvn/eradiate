@@ -11,6 +11,21 @@ import attrs
 from .util import numpydoc
 
 
+def define(maybe_cls=None, **kwargs):
+    """
+    This function redefines :func:`attrs.define` with different defaults.
+
+    * ``eq`` is ``False`` to prevent the automatic definition of a hash
+      function. This is required for :class:`SceneElement` subclasses, which we
+      hash by object ID during scene tree traversal.
+    * ``slots`` is ``False`` to avoid inheritance issues in the
+      :class:`SceneElement` line.
+    """
+    eq = kwargs.pop("eq") if "eq" in kwargs else False
+    slots = kwargs.pop("slots") if "slots" in kwargs else False
+    return attrs.define(maybe_cls=maybe_cls, eq=eq, slots=slots, **kwargs)
+
+
 class _Auto:
     """
     Sentinel class to indicate when a dynamic field value is expected to be

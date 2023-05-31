@@ -8,7 +8,7 @@ from ._core import Atmosphere
 from ..core import traverse
 from ..phase import PhaseFunction, RayleighPhaseFunction, phase_function_factory
 from ..spectra import AirScatteringCoefficientSpectrum, Spectrum, spectrum_factory
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...contexts import KernelContext
 from ...kernel import InitParameter, TypeIdLookupStrategy, UpdateParameter
 from ...spectral.ckd import BinSet
@@ -19,7 +19,7 @@ from ...validators import has_quantity
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class HomogeneousAtmosphere(Atmosphere):
     """
     Homogeneous atmosphere scene element [``homogeneous``].

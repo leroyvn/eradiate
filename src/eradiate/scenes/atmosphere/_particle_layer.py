@@ -17,7 +17,7 @@ from ._particle_dist import ParticleDistribution, particle_distribution_factory
 from ..core import traverse
 from ..phase import TabulatedPhaseFunction
 from ... import converters, data
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...contexts import KernelContext
 from ...kernel import UpdateParameter
 from ...radprops import ZGrid
@@ -48,7 +48,7 @@ def _particle_layer_distribution_converter(value):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class ParticleLayer(AbstractHeterogeneousAtmosphere):
     """
     Particle layer scene element [``particle_layer``].

@@ -19,7 +19,7 @@ from ..spectra import (
 )
 from ... import validators
 from ..._factory import Factory
-from ...attrs import documented, get_doc, parse_docs
+from ...attrs import define, documented, get_doc, parse_docs
 from ...kernel import InitParameter
 from ...srf_tools import convert as convert_srf
 from ...units import PhysicalQuantity
@@ -120,7 +120,7 @@ def _str_summary_raw(x):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class Measure(NodeSceneElement, ABC):
     """
     Abstract base class for all measure scene elements.

@@ -8,14 +8,13 @@ import pint
 import xarray as xr
 
 from ._core import PhaseFunction
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...kernel import InitParameter, UpdateParameter
 from ...spectral.index import (
     CKDSpectralIndex,
     MonoSpectralIndex,
     SpectralIndex,
 )
-from ...units import unit_registry as ureg
 from ...util.misc import summary_repr
 
 
@@ -47,7 +46,7 @@ def _validate_data(instance, attribute, value):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class TabulatedPhaseFunction(PhaseFunction):
     r"""
     Tabulated phase function [``tab_phase``].

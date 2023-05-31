@@ -11,7 +11,7 @@ import pinttr
 from ._distant import DistantMeasure
 from ... import converters, frame
 from ..._config import config
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...units import symbol
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
@@ -403,7 +403,7 @@ def _extract_kwargs(kwargs: dict, keys: list[str]) -> dict:
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class MultiDistantMeasure(DistantMeasure):
     """
     Multi-distant radiance measure scene element [``distant``, ``mdistant``, \

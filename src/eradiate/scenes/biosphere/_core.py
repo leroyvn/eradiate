@@ -12,7 +12,7 @@ import pinttr
 from ..core import CompositeSceneElement
 from ... import validators
 from ..._factory import Factory
-from ...attrs import documented, get_doc, parse_docs
+from ...attrs import define, documented, get_doc, parse_docs
 from ...kernel import UpdateParameter
 from ...typing import PathLike
 from ...units import unit_context_config as ucc
@@ -54,7 +54,7 @@ biosphere_factory.register_lazy_batch(
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class Canopy(CompositeSceneElement, ABC):
     """
     Abstract base class for all canopies.
@@ -91,7 +91,7 @@ class Canopy(CompositeSceneElement, ABC):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class CanopyElement(CompositeSceneElement, ABC):
     """
     Abstract base class representing a component of a :class:`.Canopy` object.
@@ -129,7 +129,7 @@ class CanopyElement(CompositeSceneElement, ABC):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class InstancedCanopyElement(CompositeSceneElement):
     """
     Instanced canopy element [``instanced``].

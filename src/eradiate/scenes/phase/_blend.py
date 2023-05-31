@@ -10,15 +10,14 @@ import numpy as np
 from ._core import PhaseFunction, phase_function_factory
 from ..core import traverse
 from ..geometry import PlaneParallelGeometry, SceneGeometry, SphericalShellGeometry
-from ...attrs import documented
+from ...attrs import define, documented
 from ...contexts import KernelContext
-from ...kernel import InitParameter, UpdateParameter, map_unit_cube
+from ...kernel import InitParameter, UpdateParameter
 from ...spectral.index import SpectralIndex
-from ...units import unit_context_kernel as uck
 from ...util.misc import cache_by_id
 
 
-@attrs.define(eq=False, slots=False)
+@define
 class BlendPhaseFunction(PhaseFunction):
     """
     Blended phase function [``blend_phase``].

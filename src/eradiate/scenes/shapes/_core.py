@@ -7,7 +7,7 @@ import attrs
 from ..bsdfs import BSDF, bsdf_factory
 from ..core import BoundingBox, InstanceSceneElement, NodeSceneElement, Ref
 from ..._factory import Factory
-from ...attrs import documented, get_doc, parse_docs
+from ...attrs import define, documented, get_doc, parse_docs
 
 shape_factory = Factory()
 shape_factory.register_lazy_batch(
@@ -23,7 +23,7 @@ shape_factory.register_lazy_batch(
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class Shape:
     """
     Abstract interface for all shape scene elements.
@@ -93,7 +93,7 @@ class Shape:
             return {"bsdf": self.bsdf}
 
 
-@attrs.define(eq=False, slots=False)
+@define
 class ShapeNode(Shape, NodeSceneElement, ABC):
     """
     Interface for shapes which can be represented as Mitsuba scene dictionary
@@ -103,7 +103,7 @@ class ShapeNode(Shape, NodeSceneElement, ABC):
     pass
 
 
-@attrs.define(eq=False, slots=False)
+@define
 class ShapeInstance(Shape, InstanceSceneElement, ABC):
     """
     Interface for shapes which have to be expanded as Mitsuba objects.

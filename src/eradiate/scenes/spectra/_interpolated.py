@@ -12,7 +12,7 @@ import xarray as xr
 
 from ._core import Spectrum
 from ... import converters, validators
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...kernel import InitParameter, UpdateParameter
 from ...spectral.ckd import BinSet
 from ...spectral.mono import WavelengthSet
@@ -24,7 +24,7 @@ from ...util.misc import where_consecutive_zeros, where_non_significant_zeros
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False, init=False)
+@define(init=False)
 class InterpolatedSpectrum(Spectrum):
     """
     Linearly interpolated spectrum [``interpolated``].

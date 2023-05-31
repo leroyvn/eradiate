@@ -8,7 +8,7 @@ import pinttr
 
 from ._core import ShapeInstance
 from ..core import BoundingBox, traverse
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...contexts import KernelContext
 from ...kernel import UpdateParameter
 from ...units import unit_context_config as ucc
@@ -16,7 +16,7 @@ from ...units import unit_context_kernel as uck
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class BufferMeshShape(ShapeInstance):
     """
     Buffer mesh shape [``buffer_mesh``].

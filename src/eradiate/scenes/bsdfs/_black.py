@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import attrs
-
 from ._core import BSDF
+from ...attrs import define
 from ...kernel import UpdateParameter
 
 
-@attrs.define(eq=False, slots=False)
+@define
 class BlackBSDF(BSDF):
     """
     Black BSDF [``black``].

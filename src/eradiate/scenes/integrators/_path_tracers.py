@@ -3,11 +3,11 @@ from __future__ import annotations
 import attrs
 
 from ._core import Integrator
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class MonteCarloIntegrator(Integrator):
     """
     Base class for integrator elements wrapping kernel classes
@@ -63,7 +63,7 @@ class MonteCarloIntegrator(Integrator):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class PathIntegrator(MonteCarloIntegrator):
     """
     A thin interface to the path tracer kernel plugin.
@@ -79,7 +79,7 @@ class PathIntegrator(MonteCarloIntegrator):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class VolPathIntegrator(MonteCarloIntegrator):
     """
     A thin interface to the volumetric path tracer kernel plugin.
@@ -94,7 +94,7 @@ class VolPathIntegrator(MonteCarloIntegrator):
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False)
+@define
 class VolPathMISIntegrator(MonteCarloIntegrator):
     """
     A thin interface to the volumetric path tracer (with spectral multiple

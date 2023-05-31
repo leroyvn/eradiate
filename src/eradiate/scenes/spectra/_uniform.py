@@ -6,7 +6,7 @@ import pint
 import pinttr
 
 from ._core import Spectrum
-from ...attrs import documented, parse_docs
+from ...attrs import define, documented, parse_docs
 from ...kernel import InitParameter, UpdateParameter
 from ...units import PhysicalQuantity
 from ...units import unit_context_config as ucc
@@ -15,7 +15,7 @@ from ...units import unit_registry as ureg
 
 
 @parse_docs
-@attrs.define(eq=False, slots=False, init=False)
+@define(init=False)
 class UniformSpectrum(Spectrum):
     """
     Uniform spectrum [``uniform``] (*i.e.* constant vs wavelength).
