@@ -8,7 +8,7 @@ from ..core import traverse
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
 from ...attrs import define, documented, parse_docs
-from ...kernel import TypeIdLookupStrategy, UpdateParameter
+from ...kernel import UpdateParameter
 
 
 @parse_docs

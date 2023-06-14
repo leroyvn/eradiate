@@ -19,11 +19,7 @@ from ..shapes import Shape
 from ..._factory import Factory
 from ...attrs import define, documented, get_doc, parse_docs
 from ...contexts import KernelContext
-from ...kernel import (
-    InitParameter,
-    TypeIdLookupStrategy,
-    UpdateParameter,
-)
+from ...kernel import InitParameter, UpdateParameter
 from ...radprops import ZGrid
 from ...spectral.ckd import BinSet
 from ...spectral.index import SpectralIndex

@@ -16,7 +16,7 @@ from ..core import SceneElement, traverse
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
 from ...attrs import define, documented, get_doc, parse_docs
-from ...kernel import TypeIdLookupStrategy, UpdateParameter
+from ...kernel import UpdateParameter
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
 from ...units import unit_registry as ureg

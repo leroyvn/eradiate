@@ -17,7 +17,6 @@ from ..core import traverse
 from ..phase import BlendPhaseFunction, PhaseFunction
 from ...attrs import define, documented, parse_docs
 from ...contexts import KernelContext
-from ...kernel import TypeIdLookupStrategy
 from ...radprops import ZGrid
 from ...spectral.ckd import BinSet
 from ...spectral.index import SpectralIndex

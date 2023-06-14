@@ -11,7 +11,7 @@ from ..core import MitsubaRef, SceneTraversal, traverse
 from ..shapes import RectangleShape, SphereShape, shape_factory
 from ...attrs import define, documented, parse_docs
 from ...exceptions import OverriddenValueWarning, TraversalError
-from ...kernel import TypeIdLookupStrategy, UpdateParameter
+from ...kernel import UpdateParameter
 
 
 @parse_docs

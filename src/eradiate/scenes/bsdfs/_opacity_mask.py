@@ -9,7 +9,7 @@ from ._lambertian import LambertianBSDF
 from ..core import traverse
 from ... import converters
 from ...attrs import define, documented, parse_docs
-from ...kernel import TypeIdLookupStrategy, UpdateParameter
+from ...kernel import UpdateParameter
 
 
 def _to_bitmap(value):
