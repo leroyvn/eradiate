@@ -179,7 +179,7 @@ class TabulatedPhaseFunction(PhaseFunction):
         return result
 
     @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def umap(self) -> dict[str, UpdateParameter]:
         return {
             "values": UpdateParameter(
                 lambda ctx: self.eval(ctx.si),

@@ -47,7 +47,7 @@ class HenyeyGreensteinPhaseFunction(PhaseFunction):
         }
 
     @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def umap(self) -> dict[str, UpdateParameter]:
         return {
             "g": UpdateParameter(
                 lambda ctx: float(self.g.eval(ctx.si)),

@@ -55,7 +55,7 @@ class LambertianBSDF(BSDF):
         return result
 
     @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def umap(self) -> dict[str, UpdateParameter]:
         # Inherit docstring
         params = traverse(self.reflectance)[1].data
 

@@ -57,7 +57,7 @@ class SceneElement(ABC):
         self.update()
 
     @property
-    def params(self) -> dict[str, UpdateParameter] | None:
+    def umap(self) -> dict[str, UpdateParameter] | None:
         """
         Returns
         -------
@@ -139,8 +139,8 @@ class MitsubaDictObject(SceneElement, ABC):
         # Inherit docstring
         callback.put_kdict(self.kdict)
 
-        if self.params is not None:
-            callback.put_params(self.params)
+        if self.umap is not None:
+            callback.put_umap(self.umap)
 
         if self.objects is not None:
             for name, obj in self.objects.items():
@@ -165,15 +165,14 @@ class MitsubaInstanceObject(SceneElement, ABC):
         -------
         mitsuba.Object
         """
-
         pass
 
     def traverse(self, callback):
         # Inherit docstring
         callback.put_instance(self.instance)
 
-        if self.params is not None:
-            callback.put_params(self.params)
+        if self.umap is not None:
+            callback.put_umap(self.umap)
 
 
 @parse_docs
@@ -220,10 +219,10 @@ class CompositeSceneElement(SceneElement, ABC):
 
     def traverse(self, callback):
         # Inherit docstring
-        callback.put_kdict(self.template)
+        callback.put_kdict(self.kdict)
 
-        if self.params is not None:
-            callback.put_params(self.params)
+        if self.umap is not None:
+            callback.put_umap(self.umap)
 
         if self.objects is not None:
             for name, obj in self.objects.items():
@@ -233,7 +232,7 @@ class CompositeSceneElement(SceneElement, ABC):
                 else:
                     template, params = traverse(obj)
                     callback.put_kdict({f"{name}.{k}": v for k, v in template.items()})
-                    callback.put_params({f"{name}.{k}": v for k, v in params.items()})
+                    callback.put_umap({f"{name}.{k}": v for k, v in params.items()})
 
 
 @parse_docs
@@ -314,10 +313,10 @@ class SceneTraversal:
     hierarchy: dict = attrs.field(factory=dict)
 
     #: Kernel dictionary template
-    template: dict = attrs.field(factory=dict)
+    kdict: dict = attrs.field(factory=dict)
 
     #: Dictionary mapping nodes to their defined parameters
-    params: dict = attrs.field(factory=dict)
+    umap: dict = attrs.field(factory=dict)
 
     def __attrs_post_init__(self):
         self.hierarchy[self.node] = (self.parent, self.depth)
@@ -329,16 +328,16 @@ class SceneTraversal:
         prefix = "" if self.name is None else f"{self.name}."
 
         for k, v in template.items():
-            self.template[f"{prefix}{k}"] = v
+            self.kdict[f"{prefix}{k}"] = v
 
-    def put_params(self, params: t.Mapping) -> None:
+    def put_umap(self, params: t.Mapping) -> None:
         """
         Add a contribution to the parameter map.
         """
         prefix = "" if self.name is None else f"{self.name}."
 
         for k, v in params.items():
-            self.params[f"{prefix}{k}"] = v
+            self.umap[f"{prefix}{k}"] = v
 
     def put_object(self, name: str, node: SceneElement) -> None:
         """
@@ -357,13 +356,13 @@ class SceneTraversal:
                 name=name if self.name is None else f"{self.name}.{name}",
                 depth=self.depth + 1,
                 hierarchy=self.hierarchy,
-                template=self.template,
-                params=self.params,
+                template=self.kdict,
+                params=self.umap,
             )
 
             if isinstance(node, MitsubaInstanceObject):
                 cb.put_instance(node.instance)
-                cb.put_params(node.params)
+                cb.put_umap(node.umap)
 
             else:
                 node.traverse(cb)
@@ -374,7 +373,7 @@ class SceneTraversal:
         """
         if not self.name:
             raise TraversalError("Instances may only be inserted as child nodes.")
-        self.template[self.name] = obj
+        self.kdict[self.name] = obj
 
 
 def traverse(node: MitsubaDictObject) -> tuple[KernelDictTemplate, UpdateMapTemplate]:
@@ -400,7 +399,7 @@ def traverse(node: MitsubaDictObject) -> tuple[KernelDictTemplate, UpdateMapTemp
     node.traverse(cb)
 
     # Use collected data to generate the kernel dictionary
-    return KernelDictTemplate(cb.kdict), UpdateMapTemplate(cb.params)
+    return KernelDictTemplate(cb.kdict), UpdateMapTemplate(cb.umap)
 
 
 # -- Misc (to be moved elsewhere) ----------------------------------------------

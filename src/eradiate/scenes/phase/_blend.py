@@ -253,7 +253,7 @@ class BlendPhaseFunction(PhaseFunction):
         return result
 
     @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def umap(self) -> dict[str, UpdateParameter]:
         result = {}
 
         for i in range(len(self.components) - 1):

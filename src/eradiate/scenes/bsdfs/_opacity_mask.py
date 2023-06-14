@@ -105,7 +105,7 @@ class OpacityMaskBSDF(BSDF):
         return result
 
     @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def umap(self) -> dict[str, UpdateParameter]:
         # Inherit Docstring
 
         result = {}

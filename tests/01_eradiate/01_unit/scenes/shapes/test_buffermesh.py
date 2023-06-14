@@ -43,7 +43,7 @@ def test_buffer_mesh_params(mode_mono):
         faces=[[1, 2, 3]],
         bsdf={"type": "lambertian"},
     )
-    assert set(mesh.params.keys()) == {"bsdf.reflectance.value"}
+    assert set(mesh.umap.keys()) == {"bsdf.reflectance.value"}
 
 
 def test_buffer_mesh_traverse(mode_mono):

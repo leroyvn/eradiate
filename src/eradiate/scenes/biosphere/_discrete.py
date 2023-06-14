@@ -119,7 +119,7 @@ class DiscreteCanopy(Canopy):
         return result
 
     @property
-    def params(self) -> dict:
+    def umap(self) -> dict:
         result = {}
 
         for element in self.instanced_canopy_elements:

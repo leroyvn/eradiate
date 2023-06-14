@@ -128,7 +128,7 @@ class RPVBSDF(BSDF):
         return result
 
     @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def umap(self) -> dict[str, UpdateParameter]:
         # Inherit docstring
         objects = {
             "rho_0": traverse(self.rho_0)[1],

@@ -113,7 +113,7 @@ class BufferMeshShape(ShapeInstance):
         self.instance.write_ply(filename)
 
     @property
-    def params(self) -> dict[str, UpdateParameter] | None:
+    def umap(self) -> dict[str, UpdateParameter] | None:
         if self.bsdf is None:
             return None
 

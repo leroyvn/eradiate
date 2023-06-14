@@ -213,7 +213,7 @@ class SolarIrradianceSpectrum(Spectrum):
         }
 
     @property
-    def params(self) -> dict:
+    def umap(self) -> dict:
         # Inherit docstring
 
         return {

@@ -123,7 +123,7 @@ class CanopyElement(CompositeSceneElement, ABC):
         pass
 
     @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def umap(self) -> dict[str, UpdateParameter]:
         # Inherit docstring
         return flatten({**self._params_bsdfs, **self._params_shapes})
 
@@ -325,7 +325,7 @@ class InstancedCanopyElement(CompositeSceneElement):
         return {}
 
     @property
-    def params(self) -> dict:
+    def umap(self) -> dict:
         # Inherit docstring
         return {
             **self._params_bsdfs,

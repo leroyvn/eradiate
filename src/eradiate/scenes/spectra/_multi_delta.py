@@ -68,7 +68,7 @@ class MultiDeltaSpectrum(Spectrum):
         raise NotImplementedError
 
     @property
-    def params(self) -> dict:
+    def umap(self) -> dict:
         raise NotImplementedError
 
     def select_in_wavelength_set(self, wset: WavelengthSet) -> WavelengthSet:

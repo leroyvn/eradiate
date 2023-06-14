@@ -53,7 +53,7 @@ class AirScatteringCoefficientSpectrum(Spectrum):
         }
 
     @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def umap(self) -> dict[str, UpdateParameter]:
         # Inherit docstring
 
         return {
