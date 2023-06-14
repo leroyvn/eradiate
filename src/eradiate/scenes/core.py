@@ -215,9 +215,10 @@ class CompositeSceneElement(SceneElement, ABC):
             A dictionary mapping object names to a corresponding object to be
             inserted in the Eradiate scene graph.
         """
-        return None
+        # Implementation is required
+        raise NotImplementedError
 
-    def traverse(self, callback):
+    def traverse(self, callback: SceneTraversal):
         # Inherit docstring
         callback.put_kdict(self.kdict)
 
