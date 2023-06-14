@@ -266,7 +266,7 @@ class Atmosphere(CompositeSceneElement, ABC):
         return template.data
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
         result = flatten(
             {
@@ -671,7 +671,7 @@ class AbstractHeterogeneousAtmosphere(Atmosphere, ABC):
             "type": "heterogeneous",
             **volumes
             # Note: "phase" is deliberately unset, this is left to the
-            # Atmosphere.template property
+            # Atmosphere.kdict property
         }
 
         if self.scale is not None:

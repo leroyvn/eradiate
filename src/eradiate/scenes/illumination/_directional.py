@@ -105,7 +105,7 @@ class DirectionalIllumination(Illumination):
         return mi.ScalarTransform4f.look_at(origin=0.0, target=direction, up=up)
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         return {"type": "directional", "to_world": self._to_world}
 
     @property

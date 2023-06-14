@@ -133,7 +133,7 @@ class CuboidShape(ShapeNode):
             ) @ mi.ScalarTransform4f.scale(0.5 * edges.m_as(length_units))
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         length_units = uck.get("length")
 
         return {

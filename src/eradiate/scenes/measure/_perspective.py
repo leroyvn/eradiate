@@ -148,9 +148,9 @@ class PerspectiveCameraMeasure(Measure):
         return "perspective"
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
-        result = super().template
+        result = super().kdict
 
         result["far_clip"] = self.far_clip.m_as(uck.get("length"))
         result["fov"] = self.fov.m_as(ureg.deg)

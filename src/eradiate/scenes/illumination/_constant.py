@@ -33,7 +33,7 @@ class ConstantIllumination(Illumination):
     )
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         return {"type": "constant"}
 
     @property

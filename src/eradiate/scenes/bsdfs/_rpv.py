@@ -105,7 +105,7 @@ class RPVBSDF(BSDF):
     )
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
         objects = {
             "rho_0": traverse(self.rho_0)[0],

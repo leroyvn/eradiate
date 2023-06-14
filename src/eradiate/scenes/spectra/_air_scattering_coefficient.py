@@ -40,7 +40,7 @@ class AirScatteringCoefficientSpectrum(Spectrum):
         raise NotImplementedError
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
 
         return {

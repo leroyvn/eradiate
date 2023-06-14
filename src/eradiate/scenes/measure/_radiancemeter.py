@@ -79,8 +79,8 @@ class RadiancemeterMeasure(Measure):
         return "radiancemeter"
 
     @property
-    def template(self) -> dict:
-        result = super().template
+    def kdict(self) -> dict:
+        result = super().kdict
 
         target = self.target.m_as(uck.get("length"))
         origin = self.origin.m_as(uck.get("length"))

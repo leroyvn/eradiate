@@ -208,7 +208,7 @@ class SpotIllumination(Illumination):
         return mi.ScalarTransform4f.look_at(origin=origin, target=target, up=self.up)
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         retdict = {
             "type": "spot",
             "beam_width": self.beam_width.m_as(uck.get("angle")),

@@ -121,7 +121,7 @@ class MQDiffuseBSDF(BSDF):
         return mi.VolumeGrid(values.astype(np.float32))
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
 
         result = {

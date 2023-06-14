@@ -40,7 +40,7 @@ class HenyeyGreensteinPhaseFunction(PhaseFunction):
     )
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         return {
             "type": "hg",
             "g": InitParameter(lambda ctx: float(self.g.eval(ctx.si))),

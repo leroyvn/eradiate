@@ -56,7 +56,7 @@ class Surface(CompositeSceneElement, ABC):
         pass
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
         return {**self._template_bsdfs, **self._template_shapes}
 

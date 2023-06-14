@@ -43,7 +43,7 @@ class FileMeshShape(ShapeNode):
         raise NotImplementedError
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
 
         if self.filename.suffix == ".obj":

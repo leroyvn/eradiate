@@ -13,5 +13,5 @@ class IsotropicPhaseFunction(PhaseFunction):
     """
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         return {"type": "isotropic"}

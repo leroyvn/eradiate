@@ -129,9 +129,9 @@ class DistantFluxMeasure(DistantMeasure):
         return "distantflux"
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
-        result = super().template
+        result = super().kdict
 
         _, up = mi.coordinate_system(self.direction)
         result["to_world"] = mi.ScalarTransform4f.look_at(

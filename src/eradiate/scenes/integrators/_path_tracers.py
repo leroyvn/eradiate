@@ -49,7 +49,7 @@ class MonteCarloIntegrator(Integrator):
         raise NotImplementedError
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         result = {"type": self.kernel_type}
 
         if self.max_depth is not None:
@@ -111,8 +111,8 @@ class VolPathMISIntegrator(MonteCarloIntegrator):
         return "volpathmis"
 
     @property
-    def template(self) -> dict:
-        result = super().template
+    def kdict(self) -> dict:
+        result = super().kdict
         if self.use_spectral_mis is not None:
             result["use_spectral_mis"] = self.use_spectral_mis
 

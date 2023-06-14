@@ -163,7 +163,7 @@ class TabulatedPhaseFunction(PhaseFunction):
         return self.eval_mono(w=w)
 
     @property
-    def template(self):
+    def kdict(self):
         result = {
             "type": "tabphase" if not self._is_irregular else "tabphase_irregular",
             "values": InitParameter(

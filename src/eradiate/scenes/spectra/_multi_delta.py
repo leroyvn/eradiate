@@ -64,7 +64,7 @@ class MultiDeltaSpectrum(Spectrum):
         raise NotImplementedError
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         raise NotImplementedError
 
     @property

@@ -103,7 +103,7 @@ class MitsubaDictObject(SceneElement, ABC):
 
     @property
     @abstractmethod
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         """
         Kernel dictionary template contents associated with this scene element.
 
@@ -137,7 +137,7 @@ class MitsubaDictObject(SceneElement, ABC):
 
     def traverse(self, callback: SceneTraversal) -> None:
         # Inherit docstring
-        callback.put_template(self.template)
+        callback.put_kdict(self.kdict)
 
         if self.params is not None:
             callback.put_params(self.params)
@@ -185,7 +185,8 @@ class CompositeSceneElement(SceneElement, ABC):
     """
 
     @property
-    def template(self) -> dict:
+    @abstractmethod
+    def kdict(self) -> dict:
         """
         Kernel dictionary template contents associated with this scene element.
 
@@ -202,7 +203,7 @@ class CompositeSceneElement(SceneElement, ABC):
         --------
         :class:`.InitParameter`, :class:`.KernelDictTemplate`
         """
-        return {}
+        pass
 
     @property
     def objects(self) -> dict[str, MitsubaDictObject] | None:
@@ -219,7 +220,7 @@ class CompositeSceneElement(SceneElement, ABC):
 
     def traverse(self, callback):
         # Inherit docstring
-        callback.put_template(self.template)
+        callback.put_kdict(self.template)
 
         if self.params is not None:
             callback.put_params(self.params)
@@ -231,9 +232,7 @@ class CompositeSceneElement(SceneElement, ABC):
 
                 else:
                     template, params = traverse(obj)
-                    callback.put_template(
-                        {f"{name}.{k}": v for k, v in template.items()}
-                    )
+                    callback.put_kdict({f"{name}.{k}": v for k, v in template.items()})
                     callback.put_params({f"{name}.{k}": v for k, v in params.items()})
 
 
@@ -254,7 +253,7 @@ class MitsubaRef(MitsubaDictObject):
     )
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
         return {"type": "ref", "id": self.id}
 
@@ -276,7 +275,7 @@ class Scene(MitsubaDictObject):
     )
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
         return {"type": "scene"}
 
@@ -323,7 +322,7 @@ class SceneTraversal:
     def __attrs_post_init__(self):
         self.hierarchy[self.node] = (self.parent, self.depth)
 
-    def put_template(self, template: t.Mapping) -> None:
+    def put_kdict(self, template: t.Mapping) -> None:
         """
         Add a contribution to the kernel dictionary template.
         """
@@ -401,7 +400,7 @@ def traverse(node: MitsubaDictObject) -> tuple[KernelDictTemplate, UpdateMapTemp
     node.traverse(cb)
 
     # Use collected data to generate the kernel dictionary
-    return KernelDictTemplate(cb.template), UpdateMapTemplate(cb.params)
+    return KernelDictTemplate(cb.kdict), UpdateMapTemplate(cb.params)
 
 
 # -- Misc (to be moved elsewhere) ----------------------------------------------

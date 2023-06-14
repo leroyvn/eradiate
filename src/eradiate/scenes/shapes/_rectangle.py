@@ -100,7 +100,7 @@ class RectangleShape(ShapeNode):
         raise NotImplementedError
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
         length_units = uck.get("length")
         scale = self.edges.m_as(length_units) * 0.5

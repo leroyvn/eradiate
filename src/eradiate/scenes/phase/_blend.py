@@ -183,7 +183,7 @@ class BlendPhaseFunction(PhaseFunction):
         return weights[n_component, ...]
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         result = {"type": "blendphase"}
 
         for i in range(len(self.components) - 1):

@@ -147,9 +147,9 @@ class HemisphericalDistantMeasure(DistantMeasure):
         return "hdistant"
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
-        result = super().template
+        result = super().kdict
 
         up = dr.normalize(
             dr.cross(

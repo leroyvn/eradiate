@@ -39,7 +39,7 @@ class LambertianBSDF(BSDF):
     )
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
         result = {
             "type": "diffuse",

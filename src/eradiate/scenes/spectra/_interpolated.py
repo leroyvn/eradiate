@@ -253,7 +253,7 @@ class InterpolatedSpectrum(Spectrum):
         return integral * ureg.dimensionless * wavelength_units
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
 
         return {

@@ -83,7 +83,7 @@ class SphereShape(ShapeNode):
         return BoundingBox(self.center - offset, self.center + offset)
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         result = {
             "type": "sphere",
             "center": self.center.m_as(uck.get("length")),

@@ -266,7 +266,7 @@ class Measure(MitsubaDictObject, ABC):
         return self.id
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         result = {
             "type": self.kernel_type,
             "id": self.sensor_id,

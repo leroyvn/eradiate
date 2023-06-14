@@ -85,9 +85,9 @@ class MultiRadiancemeterMeasure(Measure):
         return "mradiancemeter"
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         # Inherit docstring
-        result = super().template
+        result = super().kdict
 
         origins = self.origins.m_as(uck.get("length"))
         result["origins"] = ",".join(map(str, origins.ravel(order="C")))

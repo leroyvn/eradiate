@@ -208,7 +208,7 @@ class HomogeneousAtmosphere(Atmosphere):
                 lambda ctx: self.eval_albedo(ctx.si).m_as(uck.get("albedo"))
             ),
             # Note: "phase" is deliberately unset, this is left to the
-            # Atmosphere.template property
+            # Atmosphere.kdict property
         }
 
     @property

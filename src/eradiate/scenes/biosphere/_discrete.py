@@ -97,7 +97,7 @@ class DiscreteCanopy(Canopy):
         return result
 
     @property
-    def template(self) -> dict:
+    def kdict(self) -> dict:
         result = {}
 
         for element in self.instanced_canopy_elements:

@@ -658,8 +658,8 @@ class MultiDistantMeasure(DistantMeasure):
         return "mdistant"
 
     @property
-    def template(self) -> dict:
-        result = super().template
+    def kdict(self) -> dict:
+        result = super().kdict
         result["directions"] = ",".join(
             map(str, -self.direction_layout.directions.ravel(order="C"))
         )
