@@ -233,7 +233,6 @@ class QuadratureSpecifications:
 
 
 def ng_minimum(error: xr.DataArray, ng_max: int | None = None):
-
     if ng_max is None:
         ng_max = int(error.ng.max())
 
@@ -246,7 +245,6 @@ def ng_threshold(
     threshold: float,
     ng_max: int | None = None,
 ):
-
     if ng_max is None:
         ng_max = int(error.ng.max())
 
@@ -359,7 +357,7 @@ class BinSet:
     def from_absorption_dataset(
         cls,
         dataset: xr.Dataset,
-        quad_spec: QuadratureSpecifications = QuadratureSpecifications(),
+        quad_spec: QuadratureSpecifications = None,
     ) -> BinSet:
         """
         Generate a bin set from an absorption dataset.
@@ -369,10 +367,10 @@ class BinSet:
         dataset : Dataset
             Absorption dataset.
 
-        quad_spec : QuadratureSpecifications
-            Quadrature rule specification. If provided, it will be used to
-            generate the quadrature rule based on error data in the
-            absorption dataset.
+        quad_spec : .QuadratureSpecifications, optional
+            Specification used to generate the quadrature rule.
+            If unset, defaults to a 1-point Gauss-Legendre quadrature,
+            appropriate for a very quick computation but not very accurate.
 
         Returns
         -------
@@ -383,6 +381,8 @@ class BinSet:
         -----
         Assumes that the absorption dataset has a ``wbounds`` data variable.
         """
+        if quad_spec is None:
+            quad_spec = QuadratureSpecifications()
 
         # make quadrature rule
         quad = quad_spec.make_quad(dataset)
@@ -414,7 +414,7 @@ class BinSet:
     def from_absorption_datasets(
         cls,
         datasets: list[xr.Dataset],
-        quad_spec: QuadratureSpecifications = QuadratureSpecifications(),
+        quad_spec: QuadratureSpecifications | None = None,
     ) -> BinSet:
         """
         Generate a bin set from a list of absorption datasets.
@@ -424,10 +424,10 @@ class BinSet:
         datasets : list of Dataset
             Absorption datasets.
 
-        quad_spec : QuadratureSpecifications
-            Quadrature rule specification. If provided, it will be used to
-            generate the quadrature rule based on error data in the
-            absorption dataset.
+        quad_spec : QuadratureSpecifications, optional
+            Specification used to generate the quadrature rule.
+            If unset, defaults to a 1-point Gauss-Legendre quadrature,
+            appropriate for a very quick computation but not very accurate.
 
         Returns
         -------
@@ -438,6 +438,9 @@ class BinSet:
         -----
         Assumes that the absorption datasets have a ``wbounds`` data variable.
         """
+        if quad_spec is None:
+            quad_spec = QuadratureSpecifications()
+
         binsets = [
             cls.from_absorption_dataset(dataset, quad_spec=quad_spec)
             for dataset in datasets
@@ -446,6 +449,7 @@ class BinSet:
 
     @classmethod
     def from_absorption_data(cls, absorption_data, quad_spec: dict) -> BinSet:
+        # TODO: Simplify (no point dispatching this)
         return from_absorption_data_impl(absorption_data, quad_spec=quad_spec)
 
     @classmethod
@@ -454,6 +458,7 @@ class BinSet:
         Generate a default bin set, which covers Eradiate's default spectral
         range with 10 nm-wide bins.
         """
+        # TODO: Do we still use this? (Found no usage)
         wmin = round_to_multiple(SPECTRAL_RANGE_MIN.m_as(ureg.nm), 10.0, "nearest")
         wmax = round_to_multiple(SPECTRAL_RANGE_MAX.m_as(ureg.nm), 10.0, "nearest")
         dw = 10.0
@@ -487,3 +492,30 @@ def _(absorption_data, quad_spec: QuadratureSpecifications) -> BinSet:
         datasets=absorption_data,
         quad_spec=quad_spec,
     )
+
+
+# New implementation
+# Goal: vectorize the Bin class and get rid of BinSet
+@attrs.define
+class Bins:
+    wmin: pint.Quantity = attrs.field()
+    wmax: pint.Quantity = attrs.field()
+    wcenter: pint.Quantity = attrs.field()
+    width: pint.Quantity = attrs.field()
+    quads: list[Quad] = attrs.field()
+
+    def spectral_indices(self):
+        # Return a generator for all spectral indices
+        pass
+
+    @classmethod
+    def arange(cls):
+        pass
+
+    @classmethod
+    def from_wbounds(cls):
+        pass
+
+    @classmethod
+    def from_absorption_data(cls):
+        pass
