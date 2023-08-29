@@ -83,7 +83,7 @@ def test_uniform_construct_basic(modes_all, tested, expected):
         raise RuntimeError
 
 
-def test_uniform_kernel_dict(mode_mono):
+def test_uniform_kdict(mode_mono):
     # Instantiate from factory using dict
     spectrum = spectrum_factory.convert(
         {
@@ -93,7 +93,6 @@ def test_uniform_kernel_dict(mode_mono):
             "value_units": "W/m^2/sr/nm",
         }
     )
-    print(traverse(spectrum))
 
     # Produced kernel dict is valid
     with uck.override({"radiance": "kW/m^2/sr/nm"}):

@@ -123,9 +123,8 @@ class Spectrum(MitsubaDictObject, ABC):
 
     Notes
     -----
-    * This class is to be used as a mixin.
-    * Subclasses must implement :meth:`eval_mono`, :meth:`eval_ckd` and
-      :meth:`integral`.
+    Subclasses must implement :meth:`eval_mono`, :meth:`eval_ckd` and
+    :meth:`integral`.
 
     Warnings
     --------
@@ -207,7 +206,7 @@ class Spectrum(MitsubaDictObject, ABC):
         value : quantity
             Evaluated spectrum as an array with the same shape as ``w``.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def eval_ckd(self, w: pint.Quantity, g: float) -> pint.Quantity:
@@ -236,6 +235,7 @@ class Spectrum(MitsubaDictObject, ABC):
         """
         pass
 
+    @abstractmethod
     def integral(self, wmin: pint.Quantity, wmax: pint.Quantity) -> pint.Quantity:
         """
         Compute the integral of the spectrum on a given interval.
@@ -259,10 +259,10 @@ class Spectrum(MitsubaDictObject, ABC):
         If the ``quantity`` field is unset (*i.e.* left to its default value
         ``None``), the output of this method will inherit the units of value
         fields (the actual policy depends on the implementation, and unitless
-        values are intepreted as dimnesionless). Note that leaving the
+        values are interpreted as dimensionless). Note that leaving the
         ``quantity`` field unset is discouraged.
         """
-        raise NotImplementedError
+        pass
 
     @singledispatchmethod
     def select_in(self, spectral_set) -> BinSet | WavelengthSet:
