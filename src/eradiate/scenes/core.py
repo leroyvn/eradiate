@@ -357,8 +357,8 @@ class SceneTraversal:
                 name=name if self.name is None else f"{self.name}.{name}",
                 depth=self.depth + 1,
                 hierarchy=self.hierarchy,
-                template=self.kdict,
-                params=self.umap,
+                kdict=self.kdict,
+                umap=self.umap,
             )
 
             if isinstance(node, MitsubaInstanceObject):

@@ -95,7 +95,7 @@ class UniformSpectrum(Spectrum):
     def kdict(self) -> dict:
         # Inherit docstring
 
-        return {
+        result = {
             "type": "uniform",
             "value": InitParameter(
                 evaluator=lambda ctx: float(
@@ -103,6 +103,10 @@ class UniformSpectrum(Spectrum):
                 )
             ),
         }
+        if self.id is not None:
+            result["id"] = self.id
+
+        return result
 
     @property
     def umap(self) -> dict[str, UpdateParameter]:

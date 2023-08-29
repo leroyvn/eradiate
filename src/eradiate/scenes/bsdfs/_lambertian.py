@@ -4,7 +4,7 @@ import attrs
 import mitsuba as mi
 
 from ._core import BSDF
-from ..core import traverse
+from ..core import MitsubaDictObject, traverse
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
 from ...attrs import define, documented, parse_docs
@@ -38,16 +38,14 @@ class LambertianBSDF(BSDF):
         default="0.5",
     )
 
+    def update(self) -> None:
+        if self.reflectance.id is None:
+            self.reflectance.id = f"{self.id}_reflectance"
+
     @property
     def kdict(self) -> dict:
         # Inherit docstring
-        result = {
-            "type": "diffuse",
-            **{
-                f"reflectance.{key}": value
-                for key, value in traverse(self.reflectance)[0].items()
-            },
-        }
+        result = {"type": "diffuse"}
 
         if self.id is not None:
             result["id"] = self.id
@@ -57,19 +55,10 @@ class LambertianBSDF(BSDF):
     @property
     def umap(self) -> dict[str, UpdateParameter]:
         # Inherit docstring
-        params = traverse(self.reflectance)[1].data
+        return {}
 
-        result = {}
-        for key, param in params.items():
-            result[f"reflectance.{key}"] = attrs.evolve(
-                param,
-                lookup_strategy=TypeIdLookupStrategy(
-                    node_type=mi.BSDF,
-                    node_id=self.id,
-                    parameter_relpath=f"reflectance.{key}",
-                )
-                if self.id is not None
-                else None,
-            )
+    @property
+    def objects(self) -> dict[str, MitsubaDictObject] | None:
+        # Inherit docstring
 
-        return result
+        return {"reflectance": self.reflectance}

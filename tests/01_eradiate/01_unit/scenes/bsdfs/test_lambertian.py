@@ -17,8 +17,14 @@ def test_lambertian_construct(modes_all, kwargs):
     assert isinstance(bsdf.reflectance, UniformSpectrum)
 
 
-def test_lambertian_kernel_dict(modes_all_double):
+def test_lambertian_kdict(modes_all_double):
     bsdf = LambertianBSDF(reflectance=0.75)
+    mi_obj = check_scene_element(bsdf, mi.BSDF)
+    assert mi_obj.parameters["reflectance.value"] == 0.75
 
-    mi_wrapper = check_scene_element(bsdf, mi.BSDF)
-    assert mi_wrapper.parameters["reflectance.value"] == 0.75
+    bsdf = LambertianBSDF(id="diffuse", reflectance=0.3)
+    print(bsdf.kdict)
+    print(bsdf)
+    mi_obj = check_scene_element(bsdf, mi.BSDF)
+    print(mi_obj.parameters)
+    assert mi_obj.parameters["diffuse_reflectance.value"] == 0.3
