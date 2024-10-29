@@ -81,6 +81,7 @@ class Atmosphere(CompositeSceneElement, ABC):
         default='"atmosphere"',
     )
 
+    # TODO: Remove
     geometry: SceneGeometry = documented(
         attrs.field(
             default="plane_parallel",
@@ -172,6 +173,7 @@ class Atmosphere(CompositeSceneElement, ABC):
     #                       Kernel dictionary generation
     # --------------------------------------------------------------------------
 
+    # TODO: Remove
     @property
     def shape(self) -> Shape:
         """

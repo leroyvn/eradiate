@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import datetime
 import logging
-import typing as t
 import warnings
 from abc import ABC, abstractmethod
+from typing import Generator, Optional
 
 import attrs
 import mitsuba as mi
@@ -21,15 +21,12 @@ from ..attrs import AUTO, define, documented
 from ..contexts import KernelContext
 from ..exceptions import UnsupportedModeError
 from ..kernel import (
-    KernelDictTemplate,
-    MitsubaObjectWrapper,
-    UpdateMapTemplate,
     mi_render,
     mi_traverse,
 )
+from ..kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
 from ..quad import Quad
 from ..rng import SeedState
-from ..scenes.core import Scene, SceneElement, get_factory, traverse
 from ..scenes.illumination import (
     AbstractDirectionalIllumination,
     ConstantIllumination,
@@ -51,7 +48,6 @@ from ..util.misc import deduplicate_sorted, onedict_value
 logger = logging.getLogger(__name__)
 
 
-@define
 class Experiment(ABC):
     """
     Abstract base class for all Eradiate experiments. An experiment consists of
@@ -60,13 +56,71 @@ class Experiment(ABC):
     structure.
     """
 
-    # Internal Mitsuba scene. This member is not set by the end-user, but rather
-    # by the Experiment itself during initialization.
-    mi_scene: MitsubaObjectWrapper | None = attrs.field(
-        default=None,
-        repr=False,
-        init=False,
+    # --------------------------------------------------------------------------
+    #                            Low-level components
+    # --------------------------------------------------------------------------
+
+    # Additional kernel dictionary template
+    kdict: KernelDictionary = attrs.field(
+        factory=KernelDictionary, converter=KernelDictionary
     )
+
+    # Additional scene parameter update map template
+    kpmap: KernelSceneParameterMap = attrs.field(
+        factory=KernelSceneParameterMap, converter=KernelSceneParameterMap
+    )
+
+    # Mitsuba scene
+    _mi_scene: Optional["mitsuba.Scene"] = attrs.field(
+        default=None, repr=False, init=False
+    )
+
+    # Mitsuba scene parameters
+    _mi_params: Optional["mitsuba.SceneParameters"] = attrs.field(
+        default=None, repr=False, init=False
+    )
+
+    def kdict_base(self) -> KernelDictionary:
+        return KernelDictionary({"type": "scene"})
+
+    def kdict_full(self) -> KernelDictionary:
+        # Return the user-defined kdict template merged with additional scene
+        # element contributions
+        kdict = self.kdict_base()
+        kdict.update(self.kdict)
+        return kdict
+
+    def kpmap_base(self) -> KernelSceneParameterMap:
+        return KernelSceneParameterMap()
+
+    def kpmap_full(self) -> KernelSceneParameterMap:
+        # Return the user-defined kpmap template merged with additional scene
+        # element contributions
+        kpmap = KernelSceneParameterMap()
+        kpmap.update(self.kpmap)
+        return kpmap
+
+    def mi_scene(self) -> "mitsuba.Scene":
+        # Return the initialized Mitsuba scene
+        if self._mi_scene is None:
+            logger.info("Initializing Mitsuba scene")
+            ctx = self.context_init()
+            kdict = self.kdict_full().render(ctx)
+            self._mi_scene = mi.load_dict(kdict)
+
+        return self._mi_scene
+
+    def mi_params(self) -> "mitsuba.SceneParameters":
+        # Return the Mitsuba scene parameter table
+        if self._mi_params is None:
+            logger.info("Retrieving Mitsuba scene parameters")
+            self._mi_params = mi_traverse(self._mi_scene)
+
+        return self._mi_params
+
+    # --------------------------------------------------------------------------
+    #                     Fundamental scene parametrization
+    # --------------------------------------------------------------------------
 
     measures: list[Measure] = documented(
         attrs.field(
@@ -109,6 +163,10 @@ class Experiment(ABC):
         default="AUTO",
     )
 
+    # --------------------------------------------------------------------------
+    #                               Result storage
+    # --------------------------------------------------------------------------
+
     # Storage for results, for each computed measure
     _results: dict[str, xr.Dataset] = attrs.field(factory=dict, repr=False)
 
@@ -123,6 +181,10 @@ class Experiment(ABC):
             Dictionary mapping measure IDs to xarray datasets.
         """
         return self._results
+
+    # --------------------------------------------------------------------------
+    #                           Spectral grid handling
+    # --------------------------------------------------------------------------
 
     _background_spectral_grid: SpectralGrid = documented(
         attrs.field(
@@ -182,6 +244,10 @@ class Experiment(ABC):
         """
         return self._ckd_quads
 
+    # --------------------------------------------------------------------------
+    #                          Initialization sequence
+    # --------------------------------------------------------------------------
+
     def __attrs_post_init__(self):
         self._normalize_spectral()
 
@@ -235,19 +301,25 @@ class Experiment(ABC):
         for measure in self.measures:
             measure.mi_results.clear()
 
+    # --------------------------------------------------------------------------
+    #                           Processing components
+    # --------------------------------------------------------------------------
+
     @abstractmethod
-    def init(self) -> None:
+    def context_init(self) -> KernelContext:
         """
-        Generate kernel dictionary and initialize Mitsuba scene.
+        Return a single context used for scene initialization.
         """
         pass
 
     @abstractmethod
-    def process(
-        self,
-        spp: int = 0,
-        seed_state: SeedState | None = None,
-    ) -> None:
+    def contexts(self) -> list[KernelContext]:
+        """
+        Return a list of contexts used for processing.
+        """
+        pass
+
+    def process(self, spp: int = 0, seed_state: SeedState | None = None) -> None:
         """
         Run simulation and collect raw results.
 
@@ -257,295 +329,20 @@ class Experiment(ABC):
             Sample count. If set to 0, the value set in the original scene
             definition takes precedence.
 
-        seed_state : :class:`.SeedState`, optional
+        seed_state : .SeedState, optional
             Seed state used to generate seeds to initialize Mitsuba's RNG at
             every iteration of the parametric loop. If unset, Eradiate's
             :attr:`root seed state <.root_seed_state>` is used.
         """
-        pass
-
-    @abstractmethod
-    def postprocess(self) -> None:
-        """
-        Post-process raw results and store them in :attr:`results`.
-        """
-        pass
-
-    @abstractmethod
-    def pipeline(self, measure: Measure | int) -> Driver:
-        """
-        Return the post-processing pipeline for a given measure.
-
-        Parameters
-        ----------
-        measure : .Measure or int
-            Measure for which the pipeline is generated.
-
-        Returns
-        -------
-        hamilton.driver.Driver
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def context_init(self) -> KernelContext:
-        """
-        Return a single context used for scene initialization.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def contexts(self) -> list[KernelContext]:
-        """
-        Return a list of contexts used for processing.
-        """
-        pass
-
-
-def _extra_objects_converter(value: dict | None) -> dict:
-    if not value:
-        return {}
-
-    result = {}
-
-    for key, element_spec in value.items():
-        if isinstance(element_spec, dict):
-            element_spec = element_spec.copy()
-            element_type = element_spec.pop("factory")
-            factory = get_factory(element_type)
-            result[key] = factory.convert(element_spec)
-
-        else:
-            result[key] = element_spec
-
-    return result
-
-
-@define
-class EarthObservationExperiment(Experiment, ABC):
-    """
-    Abstract based class for experiments illuminated by a distant directional
-    emitter.
-    """
-
-    extra_objects: dict[str, SceneElement] = documented(
-        attrs.field(
-            default=None,
-            converter=_extra_objects_converter,
-            validator=attrs.validators.deep_mapping(
-                key_validator=attrs.validators.instance_of(str),
-                value_validator=attrs.validators.instance_of(SceneElement),
-            ),
-        ),
-        doc="Dictionary of extra objects to be added to the scene. "
-        "The keys of this dictionary are used to identify the objects "
-        "in the kernel dictionary.",
-        type="dict",
-        init_type="dict or None",
-        default="None",
-    )
-
-    illumination: AbstractDirectionalIllumination | ConstantIllumination = documented(
-        attrs.field(
-            factory=DirectionalIllumination,
-            converter=illumination_factory.convert,
-            validator=attrs.validators.instance_of(
-                (AbstractDirectionalIllumination, ConstantIllumination)
-            ),
-        ),
-        doc="Illumination specification. "
-        "This parameter can be specified as a dictionary which will be "
-        "interpreted by :data:`.illumination_factory`.",
-        type=":class:`.AbstractDirectionalIllumination` or "
-        ":class:`.ConstantIllumination`",
-        init_type=":class:`.DirectionalIllumination` or "
-        ":class:`.ConstantIllumination` or dict",
-        default=":class:`DirectionalIllumination() <.DirectionalIllumination>`",
-    )
-
-    kdict: KernelDictTemplate = documented(
-        attrs.field(factory=KernelDictTemplate, converter=KernelDictTemplate),
-        doc="Additional kernel dictionary template appended to the "
-        "experiment-controlled template.",
-        type=".KernelDictTemplate",
-        init_type="mapping",
-        default="{}",
-    )
-
-    kpmap: UpdateMapTemplate = documented(
-        attrs.field(factory=UpdateMapTemplate, converter=UpdateMapTemplate),
-        doc="Additional scene parameter update map template appended to the "
-        "experiment-controlled template.",
-        type=".UpdateMapTemplate",
-        init_type="mapping",
-        default="{}",
-    )
-
-    def kdict_base(self) -> KernelDictTemplate:
-        # This is inefficient and exists at the moment only for debugging purposes
-        return traverse(self.scene)[0]
-
-    def kdict_full(self) -> KernelDictTemplate:
-        # Return the user-defined kdict template merged with additional scene
-        # element contributions
-        kdict = self.kdict_base()
-        kdict.update(self.kdict)
-        return kdict
-
-    def kpmap_base(self) -> UpdateMapTemplate:
-        # This is inefficient and exists at the moment only for debugging purposes
-        return traverse(self.scene)[1]
-
-    def kpmap_full(self) -> UpdateMapTemplate:
-        # Return the user-defined kpmap template merged with additional scene
-        # element contributions
-        kpmap = self.kpmap_base()
-        kpmap.update(self.kpmap)
-        return kpmap
-
-    def _dataset_metadata(self, measure: Measure) -> dict[str, str]:
-        """
-        Generate additional metadata applied to dataset after post-processing.
-
-        Parameters
-        ----------
-        measure : :class:`.Measure`
-            Measure for which the metadata is created.
-
-        Returns
-        -------
-        dict[str, str]
-            Metadata to be attached to the produced dataset.
-        """
-
-        return {
-            "convention": "CF-1.10",
-            "source": f"eradiate, version {eradiate.__version__}",
-            "history": f"{datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat()}"
-            f" - data creation - {self.__class__.__name__}.postprocess()",
-            "references": "",
-        }
-
-    def spectral_indices(self, measure_index: int) -> t.Generator[SpectralIndex]:
-        """
-        Generate spectral indices for a given measure.
-
-        Parameters
-        ----------
-        measure_index : int
-            Measure index for which spectral indices are generated.
-
-        Yields
-        ------
-        :class:`.SpectralIndex`
-            Spectral index.
-        """
-
-        if eradiate.mode().is_mono:
-            spectral_grid: MonoSpectralGrid = self.spectral_grids[measure_index]
-
-            def generator():
-                yield from spectral_grid.walk_indices()
-
-        elif eradiate.mode().is_ckd:
-            spectral_grid: CKDSpectralGrid = self.spectral_grids[measure_index]
-            quad_config = self.ckd_quad_config
-            try:
-                abs_db = self.atmosphere.abs_db
-            except (
-                AttributeError
-            ):  # There is either no atmosphere or no absorption database
-                abs_db = None
-
-            def generator():
-                yield from spectral_grid.walk_indices(quad_config, abs_db)
-        else:
-            raise UnsupportedModeError
-
-        yield from generator()
-
-    @property
-    def context_init(self):
-        # Inherit docstring
-
-        return KernelContext(
-            si=self.spectral_indices(0).__next__(), kwargs=self._context_kwargs
-        )
-
-    @property
-    @abstractmethod
-    def _context_kwargs(self) -> dict[str, t.Any]:
-        pass
-
-    @property
-    def contexts(self) -> list[KernelContext]:
-        # Inherit docstring
-
-        # Collect contexts from all measures
-        sis = []
-
-        for measure_index, _ in enumerate(self.measures):
-            _si = list(self.spectral_indices(measure_index))
-            sis.extend(_si)
-
-        # Sort and remove duplicates
-        key = {
-            MonoSpectralIndex: lambda si: si.w.m,
-            CKDSpectralIndex: lambda si: (si.w.m, si.g),
-        }[SpectralIndex.subtypes.resolve()]
-
-        sis = deduplicate_sorted(
-            sorted(sis, key=key), cmp=lambda x, y: key(x) == key(y)
-        )
-
-        return [KernelContext(si, kwargs=self._context_kwargs) for si in sis]
-
-    @property
-    @abstractmethod
-    def scene_objects(self) -> dict[str, SceneElement]:
-        pass
-
-    @property
-    def scene(self) -> Scene:
-        """
-        Return a scene object used for kernel dictionary template and parameter
-        table generation.
-        """
-        return Scene(objects={**self.scene_objects, **self.extra_objects})
-
-    def init(self):
-        # Inherit docstring
-
-        logger.info("Initializing kernel scene")
-
-        kdict_template, umap_template = traverse(self.scene)
-        kdict_template.update(self.kdict)
-        umap_template.update(self.kpmap)
-        try:
-            self.mi_scene = mi_traverse(
-                mi.load_dict(kdict_template.render(ctx=self.context_init)),
-                umap_template=umap_template,
-            )
-        except RuntimeError as e:
-            raise RuntimeError(f"(while loading kernel scene dictionary){e}") from e
-
-        # Remove unused elements from Mitsuba scene parameter table
-        self.mi_scene.drop_parameters()
-
-    def process(self, spp: int = 0, seed_state: SeedState | None = None) -> None:
-        # Inherit docstring
-
-        # Set up Mitsuba scene
-        if self.mi_scene is None:
-            self.init()
+        mi_scene = self.mi_scene
+        mi_params = self.mi_params
+        kpmap = self.kpmap_full()
+        ctxs = self.contexts()
 
         # Run Mitsuba for each context
         logger.info("Launching simulation")
-
         mi_results = mi_render(
-            self.mi_scene, self.contexts, seed_state=seed_state, spp=spp
+            mi_scene, mi_params, kpmap, ctxs, spp=spp, seed_state=seed_state
         )
 
         # Assign collected results to the appropriate measure
@@ -593,25 +390,163 @@ class EarthObservationExperiment(Experiment, ABC):
 
                 measure.mi_results[ctx_index] = result_imgs
 
-    def postprocess(self) -> None:
-        # Inherit docstring
-        logger.info("Post-processing results")
-        measures = self.measures
+    # --------------------------------------------------------------------------
+    #                         Post-processing components
+    # --------------------------------------------------------------------------
 
-        # Run pipelines
-        for i, measure in enumerate(measures):
-            drv: Driver = self.pipeline(measure)
-            inputs = self._pipeline_inputs(i)
-            outputs = pl.outputs(drv)
-            result = drv.execute(final_vars=outputs, inputs=inputs)
-            self.results[measure.id] = xr.Dataset({var: result[var] for var in outputs})
-
+    @abstractmethod
     def pipeline(self, measure: Measure | int) -> Driver:
+        """
+        Return the post-processing pipeline for a given measure.
+
+        Parameters
+        ----------
+        measure : .Measure or int
+            Measure for which the pipeline is generated.
+
+        Returns
+        -------
+        hamilton.driver.Driver
+        """
+        pass
+
+    @abstractmethod
+    def postprocess(self) -> None:
+        """
+        Post-process raw results and store them in :attr:`results`.
+        """
+        pass
+
+
+@define
+class EarthObservationExperiment(Experiment, ABC):
+    """
+    Abstract based class for experiments illuminated by a distant directional
+    emitter.
+    """
+
+    # --------------------------------------------------------------------------
+    #                     Fundamental scene parametrization
+    # --------------------------------------------------------------------------
+
+    illumination: AbstractDirectionalIllumination | ConstantIllumination = documented(
+        attrs.field(
+            factory=DirectionalIllumination,
+            converter=illumination_factory.convert,
+            validator=attrs.validators.instance_of(
+                (AbstractDirectionalIllumination, ConstantIllumination)
+            ),
+        ),
+        doc="Illumination specification. "
+        "This parameter can be specified as a dictionary which will be "
+        "interpreted by :data:`.illumination_factory`.",
+        type=":class:`.AbstractDirectionalIllumination` or "
+        ":class:`.ConstantIllumination`",
+        init_type=":class:`.DirectionalIllumination` or "
+        ":class:`.ConstantIllumination` or dict",
+        default=":class:`DirectionalIllumination() <.DirectionalIllumination>`",
+    )
+
+    # --------------------------------------------------------------------------
+    #                           Processing components
+    # --------------------------------------------------------------------------
+
+    def spectral_indices(self, measure_index: int) -> Generator[SpectralIndex]:
+        """
+        Generate spectral indices for a given measure.
+
+        Parameters
+        ----------
+        measure_index : int
+            Measure index for which spectral indices are generated.
+
+        Yields
+        ------
+        :class:`.SpectralIndex`
+            Spectral index.
+        """
+
+        if eradiate.mode().is_mono:
+            spectral_grid: MonoSpectralGrid = self.spectral_grids[measure_index]
+
+            def generator():
+                yield from spectral_grid.walk_indices()
+
+        elif eradiate.mode().is_ckd:
+            spectral_grid: CKDSpectralGrid = self.spectral_grids[measure_index]
+            quad_config = self.ckd_quad_config
+            try:
+                abs_db = self.atmosphere.abs_db
+            except (
+                AttributeError
+            ):  # There is either no atmosphere or no absorption database
+                abs_db = None
+
+            def generator():
+                yield from spectral_grid.walk_indices(quad_config, abs_db)
+        else:
+            raise UnsupportedModeError
+
+        yield from generator()
+
+    @property
+    def context_init(self):
         # Inherit docstring
-        if isinstance(measure, int):
-            measure = self.measures[measure]
-        config = pl.config(measure, integrator=self.integrator)
-        return eradiate.pipelines.driver(config)
+
+        return KernelContext(
+            si=self.spectral_indices(0).__next__(), kwargs=self._context_kwargs
+        )
+
+    @property
+    def contexts(self) -> list[KernelContext]:
+        # Inherit docstring
+
+        # Collect contexts from all measures
+        sis = []
+
+        for measure_index, _ in enumerate(self.measures):
+            _si = list(self.spectral_indices(measure_index))
+            sis.extend(_si)
+
+        # Sort and remove duplicates
+        key = {
+            MonoSpectralIndex: lambda si: si.w.m,
+            CKDSpectralIndex: lambda si: (si.w.m, si.g),
+        }[SpectralIndex.subtypes.resolve()]
+
+        sis = deduplicate_sorted(
+            sorted(sis, key=key), cmp=lambda x, y: key(x) == key(y)
+        )
+
+        return [KernelContext(si, kwargs=self._context_kwargs) for si in sis]
+
+    # --------------------------------------------------------------------------
+    #                         Post-processing components
+    # --------------------------------------------------------------------------
+
+    # TODO: See to (re)move this
+    def _dataset_metadata(self, measure: Measure) -> dict[str, str]:
+        """
+        Generate additional metadata applied to dataset after post-processing.
+
+        Parameters
+        ----------
+        measure : :class:`.Measure`
+            Measure for which the metadata is created.
+
+        Returns
+        -------
+        dict[str, str]
+            Metadata to be attached to the produced dataset.
+        """
+
+        return {
+            "convention": "CF-1.10",
+            "source": f"eradiate, version {eradiate.__version__}",
+            "history": f"{datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat()}"
+            f" - data creation - {self.__class__.__name__}.postprocess()",
+            "references": "",
+        }
 
     def _pipeline_inputs(self, i_measure: int):
         # This convenience function collects pipeline inputs for a specific measure
@@ -632,6 +567,26 @@ class EarthObservationExperiment(Experiment, ABC):
             result["viewing_angles"] = None
 
         return result
+
+    def pipeline(self, measure: Measure | int) -> Driver:
+        # Inherit docstring
+        if isinstance(measure, int):
+            measure = self.measures[measure]
+        config = pl.config(measure, integrator=self.integrator)
+        return eradiate.pipelines.driver(config)
+
+    def postprocess(self) -> None:
+        # Inherit docstring
+        logger.info("Post-processing results")
+        measures = self.measures
+
+        # Run pipelines
+        for i, measure in enumerate(measures):
+            drv: Driver = self.pipeline(measure)
+            inputs = self._pipeline_inputs(i)
+            outputs = pl.outputs(drv)
+            result = drv.execute(final_vars=outputs, inputs=inputs)
+            self.results[measure.id] = xr.Dataset({var: result[var] for var in outputs})
 
 
 # ------------------------------------------------------------------------------

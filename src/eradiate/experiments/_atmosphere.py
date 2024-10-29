@@ -38,6 +38,31 @@ from ..units import unit_context_config as ucc
 logger = logging.getLogger(__name__)
 
 
+# TODO: Implement
+def atmosphere_kdict(geometry, atmosphere):
+    pass
+
+
+# TODO: Implement
+def atmosphere_kpmap(geometry, atmosphere):
+    pass
+
+
+# TODO: Implement
+def surface_kdict(geometry, bsdf):
+    pass
+
+
+# TODO: Implement
+def surface_kpmap(bsdf):
+    pass
+
+
+# TODO: Reimplement location-in-atmosphere check
+def atmosphere_contains(loc):
+    pass
+
+
 @define
 class AtmosphereExperiment(EarthObservationExperiment):
     """
