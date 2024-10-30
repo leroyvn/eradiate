@@ -1,19 +1,21 @@
 from __future__ import annotations
 
+from typing import Tuple
+
 import mitsuba as mi
 import pytest
 
 from ..contexts import KernelContext
-from ..kernel import MitsubaObjectWrapper, mi_traverse
-from ..scenes.core import CompositeSceneElement, NodeSceneElement, Scene, traverse
+from ..kernel._kernel_dict_new import KernelDictionary, mi_traverse
+from ..scenes.core import CompositeSceneElement, NodeSceneElement
 
 
+# TODO: Polish
 def check_scene_element(
     instance: NodeSceneElement | CompositeSceneElement,
-    mi_cls=None,
-    ctx: KernelContext = None,
-    drop_parameters: bool = True,
-) -> MitsubaObjectWrapper:
+    mi_cls: type,
+    ctx: KernelContext | None = None,
+) -> Tuple["mitsuba.Object", "mitsuba.SceneParameters"]:
     """
     Perform kernel dictionary checks on a scene element.
 
@@ -28,7 +30,7 @@ def check_scene_element(
     instance : :class:`.NodeSceneElement` or :class:`.CompositeSceneElement`
         Node scene element to check.
 
-    mi_cls : :class:`mitsuba.Object`
+    mi_cls : type
         Mitsuba class the node scene element expands to. Must be set if
         `instance` is a :class:`.NodeSceneElement`; ignored otherwise.
 
@@ -42,7 +44,7 @@ def check_scene_element(
 
     Returns
     -------
-    mi_obj : :class:`mitsuba.Object`
+    mi_obj : mitsuba.Object
         Mitsuba object the scene element was expanded to. See notes for details.
 
     mi_params : dict
@@ -60,47 +62,43 @@ def check_scene_element(
     if isinstance(instance, NodeSceneElement):
         if mi_cls is None:
             raise ValueError("Expected Mitsuba class must be set")
-        kdict_template, umap_template = traverse(instance)
+        kdict_template = instance.kdict()
+        kpmap_template = instance.kpmap()
 
     elif isinstance(instance, CompositeSceneElement):
         mi_cls = mi.Scene
-        kdict_template, umap_template = traverse(Scene(objects={"composite": instance}))
+        kdict_template = KernelDictionary({"type": "scene", **instance.kdict()})
+        kpmap_template = instance.kpmap()
 
     else:
         raise RuntimeError(f"Cannot test type '{instance.__class__}'")
 
     # Check if the template can be instantiated
     ctx = KernelContext() if ctx is None else ctx
-    kernel_dict = kdict_template.render(ctx)
+    kdict = kdict_template.render(ctx)
 
     try:
-        mi_obj = mi.load_dict(kernel_dict)
+        mi_obj = mi.load_dict(kdict)
     except RuntimeError as e:
         pytest.fail(
             reason=f"could not load scene dictionary, got RuntimeError: {e}\n"
-            f"{kernel_dict = }"
+            f"{kdict = }"
         )
 
     assert isinstance(mi_obj, mi_cls)
 
-    # Collect Mitsuba parameters, resolve update map parameter paths
-    mi_wrapper = mi_traverse(mi_obj, umap_template)
-    mi_params = mi_wrapper.parameters
+    # Collect Mitsuba parameters
+    mi_params = mi_traverse(mi_obj)
 
     # Check that parameters can all be set
-    umap = umap_template.render(ctx)
-    for key, value in umap.items():
+    kpmap = kpmap_template.render(ctx)
+    for key, value in kpmap.items():
         try:
             mi_params[key] = value
         except KeyError as e:
             pytest.fail(
                 reason=f"could not set parameter, got KeyError: {e}\n{mi_params = }"
             )
-
     mi_params.update()
 
-    # Drop untracked parameters (this will detect param lookup failures)
-    if drop_parameters:
-        mi_wrapper.drop_parameters()
-
-    return mi_wrapper
+    return mi_obj, mi_params
