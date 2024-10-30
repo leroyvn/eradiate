@@ -5,7 +5,13 @@ import pint
 
 from ._core import Spectrum
 from ...attrs import define
-from ...kernel import InitParameter, UpdateParameter
+from ...kernel._kernel_dict_new import (
+    KernelDictionary,
+    KernelSceneParameterFlag,
+    KernelSceneParameterMap,
+    dict_parameter,
+    scene_parameter,
+)
 from ...radprops.rayleigh import compute_sigma_s_air
 from ...units import PhysicalQuantity
 from ...units import unit_context_kernel as uck
@@ -38,28 +44,30 @@ class AirScatteringCoefficientSpectrum(Spectrum):
     def integral(self, wmin: pint.Quantity, wmax: pint.Quantity) -> pint.Quantity:
         raise NotImplementedError
 
-    @property
-    def template(self) -> dict:
+    def kdict(self) -> KernelDictionary:
         # Inherit docstring
 
-        return {
-            "type": "uniform",
-            "value": InitParameter(
-                evaluator=lambda ctx: float(
-                    self.eval(ctx.si).m_as(uck.get("collision_coefficient"))
-                )
-            ),
-        }
-
-    @property
-    def params(self) -> dict[str, UpdateParameter]:
-        # Inherit docstring
-
-        return {
-            "value": UpdateParameter(
-                evaluator=lambda ctx: float(
-                    self.eval(ctx.si).m_as(uck.get("collision_coefficient"))
+        return KernelDictionary(
+            {
+                "type": "uniform",
+                "value": dict_parameter(
+                    lambda ctx: float(
+                        self.eval(ctx.si).m_as(uck.get("collision_coefficient"))
+                    )
                 ),
-                flags=UpdateParameter.Flags.SPECTRAL,
-            )
-        }
+            }
+        )
+
+    def kpmap(self) -> KernelSceneParameterMap:
+        # Inherit docstring
+
+        return KernelSceneParameterMap(
+            {
+                "value": scene_parameter(
+                    lambda ctx: float(
+                        self.eval(ctx.si).m_as(uck.get("collision_coefficient"))
+                    ),
+                    flags=KernelSceneParameterFlag.SPECTRAL,
+                )
+            }
+        )

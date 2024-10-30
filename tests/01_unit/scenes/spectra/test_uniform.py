@@ -82,7 +82,7 @@ def test_uniform_construct_basic(modes_all, tested, expected):
         raise RuntimeError
 
 
-def test_uniform_kernel_dict(mode_mono):
+def test_uniform_kdict(mode_mono):
     # Instantiate from factory using dict
     spectrum = spectrum_factory.convert(
         {
@@ -95,10 +95,10 @@ def test_uniform_kernel_dict(mode_mono):
 
     # Produced kernel dict is valid
     with uck.override({"radiance": "kW/m^2/sr/nm"}):
-        mi_wrapper = check_scene_element(spectrum, mi.Texture)
+        mi_obj, mi_params = check_scene_element(spectrum, mi.Texture)
 
     # Unit scaling is properly applied
-    assert np.allclose(mi_wrapper.parameters["value"], 1e-3)
+    assert np.allclose(mi_params["value"], 1e-3)
 
 
 @pytest.mark.parametrize(

@@ -30,7 +30,7 @@ def test_air_scattering_coefficient_kernel_dict(modes_all):
     s = AirScatteringCoefficientSpectrum()
 
     with uck.override(length="m"):
-        mi_wrapper = check_scene_element(s, mi.Texture)
+        mi_obj, mi_params = check_scene_element(s, mi.Texture)
 
     if eradiate.mode().is_mono:
         expected = ureg.convert(0.0114934, "km^-1", "m^-1")
@@ -41,4 +41,4 @@ def test_air_scattering_coefficient_kernel_dict(modes_all):
     else:
         raise ValueError(f"no reference value for mode {eradiate.mode()}")
 
-    assert np.isclose(mi_wrapper.parameters["value"], expected)
+    assert np.isclose(mi_params["value"], expected)

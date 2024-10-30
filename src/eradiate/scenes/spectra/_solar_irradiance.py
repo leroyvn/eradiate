@@ -13,7 +13,13 @@ import xarray as xr
 from ._core import Spectrum
 from ... import converters, data, validators
 from ...attrs import define, documented
-from ...kernel import InitParameter, UpdateParameter
+from ...kernel._kernel_dict_new import (
+    KernelDictionary,
+    KernelSceneParameterFlag,
+    KernelSceneParameterMap,
+    dict_parameter,
+    scene_parameter,
+)
 from ...units import PhysicalQuantity, to_quantity
 from ...units import unit_context_kernel as uck
 from ...units import unit_registry as ureg
@@ -199,28 +205,26 @@ class SolarIrradianceSpectrum(Spectrum):
     def integral(self, wmin: pint.Quantity, wmax: pint.Quantity) -> pint.Quantity:
         raise NotImplementedError
 
-    @property
-    def template(self) -> dict:
+    def kdict(self) -> KernelDictionary:
         # Inherit docstring
 
-        return {
-            "type": "uniform",
-            "value": InitParameter(
-                evaluator=lambda ctx: float(
-                    self.eval(ctx.si).m_as(uck.get("irradiance"))
-                )
-            ),
-        }
-
-    @property
-    def params(self) -> dict:
-        # Inherit docstring
-
-        return {
-            "value": UpdateParameter(
-                evaluator=lambda ctx: float(
-                    self.eval(ctx.si).m_as(uck.get("irradiance"))
+        return KernelDictionary(
+            {
+                "type": "uniform",
+                "value": dict_parameter(
+                    lambda ctx: float(self.eval(ctx.si).m_as(uck.get("irradiance")))
                 ),
-                flags=UpdateParameter.Flags.SPECTRAL,
-            )
-        }
+            }
+        )
+
+    def kpmap(self) -> KernelSceneParameterMap:
+        # Inherit docstring
+
+        return KernelSceneParameterMap(
+            {
+                "value": scene_parameter(
+                    lambda ctx: float(self.eval(ctx.si).m_as(uck.get("irradiance"))),
+                    flags=KernelSceneParameterFlag.SPECTRAL,
+                )
+            }
+        )
