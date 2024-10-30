@@ -1,21 +1,19 @@
 from __future__ import annotations
 
 import attrs
-import mitsuba as mi
 import pint
 import pinttr
 
-from ._core import BSDF
-from ..core import traverse
+from ._core import BSDFNode
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
 from ...attrs import define, documented
-from ...kernel import TypeIdLookupStrategy, UpdateParameter
+from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
 from ...units import unit_context_config as ucc
 
 
 @define(eq=False, slots=False)
-class RTLSBSDF(BSDF):
+class RTLSBSDF(BSDFNode):
     """
     RTLS BSDF [``rtls``].
 
@@ -95,7 +93,7 @@ class RTLSBSDF(BSDF):
             default=1.0,
             units=ucc.deferred("dimensionless"),
         ),
-        doc="Crown horizontal radius. " "Must not be zero.",
+        doc="Crown horizontal radius. Must not be zero.",
         type="quantity",
         init_type="quantity or float",
         default="1.0",
@@ -106,7 +104,7 @@ class RTLSBSDF(BSDF):
             default=1.0,
             units=ucc.deferred("dimensionless"),
         ),
-        doc="Crown vertical radius. " "Must not be zero.",
+        doc="Crown vertical radius. Must not be zero.",
         type="quantity",
         init_type="quantity or float",
         default="1.0",
@@ -120,52 +118,30 @@ class RTLSBSDF(BSDF):
     def _b_validator(self, attribute, value):
         assert value != 0.0
 
-    @property
-    def template(self) -> dict:
+    def kdict(self) -> KernelDictionary:
         # Inherit docstring
-        objects = {
-            "f_iso": traverse(self.f_iso)[0],
-            "f_vol": traverse(self.f_vol)[0],
-            "f_geo": traverse(self.f_geo)[0],
-        }
 
-        result = {
-            "type": "rtls",
-            "h": self.h.magnitude,
-            "r": self.r.magnitude,
-            "b": self.b.magnitude,
-        }
-
-        for obj_key, obj_values in objects.items():
-            for key, value in obj_values.items():
-                result[f"{obj_key}.{key}"] = value
+        result = KernelDictionary(
+            {"type": "rtls", "h": self.h.m, "r": self.r.m, "b": self.b.m}
+        )
 
         if self.id is not None:
             result["id"] = self.id
 
+        for attr in ["f_iso", "f_vol", "f_geo"]:
+            result[attr] = self.__getattribute__(attr).kdict()
+
         return result
 
-    @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def kpmap(self) -> KernelSceneParameterMap:
         # Inherit docstring
-        objects = {
-            "f_iso": traverse(self.f_iso)[1],
-            "f_vol": traverse(self.f_vol)[1],
-            "f_geo": traverse(self.f_geo)[1],
-        }
 
-        result = {}
-        for obj_key, obj_params in objects.items():
-            for key, param in obj_params.items():
-                result[f"{obj_key}.{key}"] = attrs.evolve(
-                    param,
-                    lookup_strategy=TypeIdLookupStrategy(
-                        node_type=mi.BSDF,
-                        node_id=self.id,
-                        parameter_relpath=f"{obj_key}.{key}",
-                    )
-                    if self.id is not None
-                    else None,
-                )
+        result = KernelSceneParameterMap()
+
+        for attr in ["f_iso", "f_vol", "f_geo"]:
+            kpmap_template = self.__getattribute__(attr).kpmap()
+
+            for k, v in kpmap_template.items():
+                result[f"{attr}.{k}"] = v
 
         return result

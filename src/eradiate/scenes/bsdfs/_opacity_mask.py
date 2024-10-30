@@ -4,12 +4,11 @@ import attrs
 import mitsuba as mi
 import numpy as np
 
-from ._core import BSDF, bsdf_factory
+from ._core import BSDF, BSDFComposite, BSDFNode, bsdf_factory
 from ._lambertian import LambertianBSDF
-from ..core import traverse
 from ... import converters
 from ...attrs import define, documented
-from ...kernel import TypeIdLookupStrategy, UpdateParameter
+from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
 
 
 def _to_bitmap(value):
@@ -27,7 +26,7 @@ def _to_bitmap(value):
 
 
 @define(eq=False, slots=False)
-class OpacityMaskBSDF(BSDF):
+class OpacityMaskBSDF(BSDFComposite):
     """
     Opacity Mask BSDF [``opacity_mask``]
     """
@@ -68,11 +67,13 @@ class OpacityMaskBSDF(BSDF):
                     f"found: {type(value)}"
                 )
 
+    # TODO: Check if nested BSDF has an ID
+
     nested_bsdf: BSDF = documented(
         attrs.field(
             factory=LambertianBSDF,
             converter=bsdf_factory.convert,
-            validator=attrs.validators.instance_of(BSDF),
+            validator=attrs.validators.instance_of(BSDFNode),
         ),
         doc="The reflection model attached to the surface.",
         type=".BSDF",
@@ -80,46 +81,40 @@ class OpacityMaskBSDF(BSDF):
         default=":class:`LambertianBSDF() <.LambertianBSDF>`",
     )
 
-    @property
-    def template(self) -> dict:
+    def kdict(self) -> KernelDictionary:
         # Inherit docstring
 
-        result = {
+        result = KernelDictionary()
+
+        kdict_nested_bsdf = self.nested_bsdf.kdict()
+        for k, v in kdict_nested_bsdf:
+            result[f"{self.nested_bsdf.id}.{k}"] = v
+
+        kdict_mask = {
             "type": "mask",
+            "id": self.id,
+            "nested_bsdf": {"type": "ref", "id": self.nested_bsdf.id},
             "opacity.type": "bitmap",
             "opacity.bitmap": self.opacity_bitmap,
             "opacity.filter_type": "nearest",
             "opacity.wrap_mode": "clamp",
         }
 
-        if self.id is not None:
-            result["id"] = self.id
-
         if self.uv_trafo is not None:
-            result["opacity.to_uv"] = self.uv_trafo
+            kdict_mask["opacity.to_uv"] = self.uv_trafo
 
-        for key, value in traverse(self.nested_bsdf)[0].items():
-            result[f"nested_bsdf.{key}"] = value
+        for k, v in kdict_mask:
+            result[f"{self.id}.{k}"] = v
 
         return result
 
-    @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def kpmap(self) -> KernelSceneParameterMap:
         # Inherit Docstring
 
-        result = {}
+        result = KernelSceneParameterMap()
+        kpmap_nested_bsdf = self.nested_bsdf.kpmap()
 
-        # TODO: Improve this by using the BSDF's own lookup strategy
-        for key, param in traverse(self.nested_bsdf)[1].items():
-            result[f"nested_bsdf.{key}"] = attrs.evolve(
-                param,
-                lookup_strategy=TypeIdLookupStrategy(
-                    node_type=mi.BSDF,
-                    node_id=self.id,
-                    parameter_relpath=f"nested_bsdf.{key}",
-                )
-                if self.id is not None
-                else None,
-            )
+        for k, v in kpmap_nested_bsdf.items():
+            result[f"{self.nested_bsdf.id}.{k}"] = v
 
         return result

@@ -3,16 +3,21 @@ from __future__ import annotations
 import pint
 import pinttrs
 
-from ._core import BSDF
+from ._core import BSDFNode
 from ...attrs import define, documented
-from ...kernel import InitParameter, UpdateParameter
+from ...kernel._kernel_dict_new import (
+    KernelDictionary,
+    KernelSceneParameterMap,
+    dict_parameter,
+    scene_parameter,
+)
 from ...units import unit_context_config as ucc
 from ...units import unit_registry as ureg
 from ...validators import is_positive
 
 
 @define(eq=False, slots=False)
-class OceanLegacyBSDF(BSDF):
+class OceanLegacyBSDF(BSDFNode):
     """
     Ocean Legacy BSDF [``ocean_legacy``].
 
@@ -88,26 +93,30 @@ class OceanLegacyBSDF(BSDF):
         """
         return (37.2455 - u.m_as("m/s")) ** 1.15
 
-    @property
-    def template(self) -> dict:
+    def kdict(self) -> KernelDictionary:
         # Inherit docstring
-        result = {
-            "type": "ocean_legacy",
-            "wavelength": InitParameter(lambda ctx: ctx.si.w.m_as("nm")),
-            "shininess": self.default_shininess(self.wind_speed),
-            "wind_speed": self.wind_speed.m_as("m/s"),
-            "wind_direction": self.wind_direction.m_as("deg"),
-            "chlorinity": self.chlorinity.m_as("g/kg"),
-            "pigmentation": self.pigmentation.m_as("mg/m^3"),
-        }
+        result = KernelDictionary(
+            {
+                "type": "ocean_legacy",
+                "wavelength": dict_parameter(lambda ctx: ctx.si.w.m_as("nm")),
+                "shininess": self.default_shininess(self.wind_speed),
+                "wind_speed": self.wind_speed.m_as("m/s"),
+                "wind_direction": self.wind_direction.m_as("deg"),
+                "chlorinity": self.chlorinity.m_as("g/kg"),
+                "pigmentation": self.pigmentation.m_as("mg/m^3"),
+            }
+        )
 
         if self.id is not None:
             result["id"] = self.id
 
         return result
 
-    @property
-    def params(self) -> dict[str, UpdateParameter]:
-        result = {"wavelength": UpdateParameter(lambda ctx: ctx.si.w.m_as("nm"))}
+    def kpmap(self) -> KernelSceneParameterMap:
+        # Inherit docstring
+
+        result = KernelSceneParameterMap(
+            {"wavelength": scene_parameter(lambda ctx: ctx.si.w.m_as("nm"))}
+        )
 
         return result

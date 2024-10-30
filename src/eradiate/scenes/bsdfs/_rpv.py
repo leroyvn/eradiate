@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 import attrs
-import mitsuba as mi
 
-from ._core import BSDF
-from ..core import traverse
+from ._core import BSDFNode
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
 from ...attrs import define, documented
-from ...kernel import TypeIdLookupStrategy, UpdateParameter
+from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
 
 
 @define(eq=False, slots=False)
-class RPVBSDF(BSDF):
+class RPVBSDF(BSDFNode):
     """
     RPV BSDF [``rpv``].
 
@@ -103,53 +101,36 @@ class RPVBSDF(BSDF):
         default="-0.1",
     )
 
-    @property
-    def template(self) -> dict:
+    def kdict(self) -> KernelDictionary:
         # Inherit docstring
-        objects = {
-            "rho_0": traverse(self.rho_0)[0],
-            "k": traverse(self.k)[0],
-            "g": traverse(self.g)[0],
-        }
 
-        if self.rho_c is not None:
-            objects["rho_c"] = traverse(self.rho_c)[0]
-
-        result = {"type": "rpv"}
-
-        for obj_key, obj_values in objects.items():
-            for key, value in obj_values.items():
-                result[f"{obj_key}.{key}"] = value
+        result = KernelDictionary({"type": "rpv"})
 
         if self.id is not None:
             result["id"] = self.id
 
+        attrs = ["rho_0", "k", "g"]
+        if self.rho_c is not None:
+            attrs.append("rho_c")
+
+        for attr in attrs:
+            result[attr] = self.__getattribute__(attr).kdict()
+
         return result
 
-    @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def kpmap(self) -> KernelSceneParameterMap:
         # Inherit docstring
-        objects = {
-            "rho_0": traverse(self.rho_0)[1],
-            "k": traverse(self.k)[1],
-            "g": traverse(self.g)[1],
-        }
 
+        result = KernelSceneParameterMap()
+
+        attrs = ["rho_0", "k", "g"]
         if self.rho_c is not None:
-            objects["rho_c"] = traverse(self.rho_c)[1]
+            attrs.append("rho_c")
 
-        result = {}
-        for obj_key, obj_params in objects.items():
-            for key, param in obj_params.items():
-                result[f"{obj_key}.{key}"] = attrs.evolve(
-                    param,
-                    lookup_strategy=TypeIdLookupStrategy(
-                        node_type=mi.BSDF,
-                        node_id=self.id,
-                        parameter_relpath=f"{obj_key}.{key}",
-                    )
-                    if self.id is not None
-                    else None,
-                )
+        for attr in attrs:
+            kpmap_template = self.__getattribute__(attr).kpmap()
+
+            for k, v in kpmap_template.items():
+                result[f"{attr}.{k}"] = v
 
         return result

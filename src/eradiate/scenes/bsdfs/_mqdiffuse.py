@@ -5,17 +5,21 @@ import mitsuba as mi
 import numpy as np
 import xarray as xr
 
-from ._core import BSDF
+from ._core import BSDFNode
 from ... import converters
 from ...attrs import define, documented
-from ...kernel import InitParameter, UpdateParameter
+from ...kernel._kernel_dict_new import (
+    KernelDictionary,
+    KernelSceneParameterMap,
+    dict_parameter,
+)
 from ...units import to_quantity
 from ...units import unit_registry as ureg
 from ...util.misc import summary_repr
 
 
 @define(eq=False, slots=False)
-class MQDiffuseBSDF(BSDF):
+class MQDiffuseBSDF(BSDFNode):
     """
     Measured quasi-diffuse BSDF [``mqdiffuse``].
 
@@ -119,21 +123,19 @@ class MQDiffuseBSDF(BSDF):
         values = np.concatenate((values, values[:, [0], :]), axis=1)
         return mi.VolumeGrid(values.astype(np.float32))
 
-    @property
-    def template(self) -> dict:
+    def kdict(self) -> KernelDictionary:
         # Inherit docstring
 
-        result = {
-            "type": "mqdiffuse",
-            "grid": InitParameter(lambda ctx: self._eval_grid_impl(ctx)),
-        }
+        result = KernelDictionary({"type": "mqdiffuse"})
 
         if self.id is not None:
             result["id"] = self.id
 
+        result["grid"] = dict_parameter(lambda ctx: self._eval_grid_impl(ctx))
+
         return result
 
-    @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def kpmap(self) -> KernelSceneParameterMap:
         # Inherit docstring
-        return {}
+
+        return KernelSceneParameterMap()

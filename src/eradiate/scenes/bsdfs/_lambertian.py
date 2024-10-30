@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 import attrs
-import mitsuba as mi
 
-from ._core import BSDF
-from ..core import traverse
+from ._core import BSDFNode
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
 from ...attrs import define, documented
-from ...kernel import TypeIdLookupStrategy, UpdateParameter
+from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
 
 
 @define(eq=False, slots=False)
-class LambertianBSDF(BSDF):
+class LambertianBSDF(BSDFNode):
     """
     Lambertian BSDF [``lambertian``].
 
@@ -37,38 +35,26 @@ class LambertianBSDF(BSDF):
         default="0.5",
     )
 
-    @property
-    def template(self) -> dict:
+    def kdict(self) -> KernelDictionary:
         # Inherit docstring
-        result = {
-            "type": "diffuse",
-            **{
-                f"reflectance.{key}": value
-                for key, value in traverse(self.reflectance)[0].items()
-            },
-        }
+
+        result = KernelDictionary({"type": "diffuse"})
 
         if self.id is not None:
             result["id"] = self.id
 
+        for k, v in self.reflectance.kdict().items():
+            result[f"reflectance.{k}"] = v
+
         return result
 
-    @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def kpmap(self) -> KernelSceneParameterMap:
         # Inherit docstring
-        params = traverse(self.reflectance)[1].data
 
-        result = {}
-        for key, param in params.items():
-            result[f"reflectance.{key}"] = attrs.evolve(
-                param,
-                lookup_strategy=TypeIdLookupStrategy(
-                    node_type=mi.BSDF,
-                    node_id=self.id,
-                    parameter_relpath=f"reflectance.{key}",
-                )
-                if self.id is not None
-                else None,
-            )
+        result = KernelSceneParameterMap()
+        kpmap_template = self.reflectance.kpmap()
+
+        for k, v in kpmap_template.items():
+            result[f"reflectance.{k}"] = v
 
         return result
