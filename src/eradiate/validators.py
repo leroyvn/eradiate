@@ -188,6 +188,18 @@ def is_sorted(
     return f
 
 
+def has_id(instance, attribute, value):
+    """
+    Validate iff ``instance`` has an ``id`` attribute set to a non-empty string.
+    """
+    if isinstance(value, str) and (value != ""):
+        return
+
+    raise ValueError(
+        f"while validating {attribute.name}: ID must be set to a non-empty string"
+    )
+
+
 def has_len(size: int):
     """
     Validate iff value is a vector with specified length.
