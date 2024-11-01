@@ -8,6 +8,7 @@ from __future__ import annotations
 import enum
 import logging
 from collections import UserDict
+from collections.abc import Mapping
 from typing import Any, Callable, ClassVar, Optional
 
 import attrs
@@ -18,7 +19,7 @@ from .. import config
 from ..attrs import define, documented
 from ..contexts import KernelContext
 from ..rng import SeedState, root_seed_state
-from ..util.misc import nest
+from ..util.misc import flatten, nest
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,20 @@ class KernelDictionary(UserDict):
     can be instantiated.
     """
 
-    data: dict[str, Any] = attrs.field(factory=dict)
+    data: dict[str, Any] = attrs.field(factory=dict, converter=flatten)
+
+    def __setitem__(self, key, value):
+        if isinstance(value, Mapping):
+            value = flatten(value, name=key)
+            self.data.update(value)
+        else:
+            super().__setitem__(key, value)
+
+    def update(self, __m, **kwargs):
+        if isinstance(__m, Mapping):
+            return super().update(flatten(__m))
+        else:
+            raise ValueError("key-value assignment is not supported")
 
     def render(
         self, ctx: KernelContext, nested: bool = True, drop: bool = True
