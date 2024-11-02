@@ -38,10 +38,6 @@ def check_scene_element(
         If provided, the kernel dictionary context to use. Otherwise, a default
         context is created.
 
-    drop_parameters : bool, default: True
-        If ``True``, the Mitsuba scene parameter table will be stripped off from
-        untracked parameters.
-
     Returns
     -------
     mi_obj : mitsuba.Object

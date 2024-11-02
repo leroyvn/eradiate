@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from ._core import AbstractDirectionalIllumination
-from ..core import NodeSceneElement
 from ...attrs import define
+from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
 
 
 @define(eq=False, slots=False)
@@ -14,10 +14,20 @@ class DirectionalIllumination(AbstractDirectionalIllumination):
     in Earth observation.
     """
 
-    @property
-    def template(self) -> dict:
-        return {"type": "directional", "to_world": self._to_world}
+    def kdict(self) -> KernelDictionary:
+        # Inherit docstring
 
-    @property
-    def objects(self) -> dict[str, NodeSceneElement]:
-        return {"irradiance": self.irradiance}
+        result = KernelDictionary({"type": "directional", "to_world": self._to_world})
+        if self.id is not None:
+            result["id"] = self.id
+        result["irradiance"] = self.irradiance.kdict()
+        return result
+
+    def kpmap(self) -> KernelSceneParameterMap:
+        # Inherit docstring
+
+        result = KernelSceneParameterMap()
+        kpmap = self.irradiance.kpmap()
+        for k, v in kpmap.items():
+            result[f"irradiance.{k}"] = v
+        return result

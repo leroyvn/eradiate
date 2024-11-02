@@ -7,13 +7,13 @@ import drjit as dr
 import mitsuba as mi
 import numpy as np
 import pint
-import pinttr
+import pinttrs
 
 from ._core import Illumination
-from ..core import NodeSceneElement
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
 from ...attrs import define, documented
+from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
 from ...units import unit_registry as ureg
@@ -25,16 +25,18 @@ class SpotIllumination(Illumination):
     """
     Spot illumination scene element [``spot``].
 
+    Notes
+    -----
     Eradiate ships a beam texture that implements a gaussian beam profile with
     three standard deviations included in the total beam width. This texture is
     named ``gaussian_3sigma.bmp`` and can be used by retrieving the path to the
-    file using `eradiate.data.data_store.fetch()`.
+    file using the :func:`.data_store.fetch` function.
     """
 
     origin: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             factory=lambda: [1, 1, 1] * ureg.m,
-            validator=[validators.has_len(3), pinttr.validators.has_compatible_units],
+            validator=[validators.has_len(3), pinttrs.validators.has_compatible_units],
             units=ucc.deferred("length"),
         ),
         doc="A 3-vector specifying the position of the spot.\n"
@@ -46,9 +48,9 @@ class SpotIllumination(Illumination):
     )
 
     target: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             factory=lambda: [0, 0, 0] * ureg.m,
-            validator=[validators.has_len(3), pinttr.validators.has_compatible_units],
+            validator=[validators.has_len(3), pinttrs.validators.has_compatible_units],
             units=ucc.deferred("length"),
         ),
         doc="Point location targeted by the spot.\n"
@@ -103,7 +105,7 @@ class SpotIllumination(Illumination):
             )
 
     beam_width: pint.Quantity = documented(
-        pinttr.field(default=10.0 * ureg.deg, units=ucc.deferred("angle")),
+        pinttrs.field(default=10.0 * ureg.deg, units=ucc.deferred("angle")),
         doc="Spot light beam width.\n\nUnit-enabled field (default: degree).",
         type="quantity",
         init_type="quantity or float",
@@ -191,9 +193,9 @@ class SpotIllumination(Illumination):
                 "The from_size_at_target constructor computes the origin position."
             )
 
-        target = pinttr.util.ensure_units(target, default_units=ucc.get("length"))
+        target = pinttrs.util.ensure_units(target, default_units=ucc.get("length"))
         half_angle = (
-            pinttr.util.ensure_units(beam_width, default_units=ureg.radian) / 2.0
+            pinttrs.util.ensure_units(beam_width, default_units=ureg.radian) / 2.0
         )
         tan_divergence = np.tan(half_angle)
         distance = spot_radius / tan_divergence
@@ -208,22 +210,33 @@ class SpotIllumination(Illumination):
         origin = self.origin.m_as(uck.get("length"))
         return mi.ScalarTransform4f.look_at(origin=origin, target=target, up=self.up)
 
-    @property
-    def template(self) -> dict:
-        retdict = {
-            "type": "spot",
-            "beam_width": self.beam_width.m_as(uck.get("angle")),
-            "cutoff_angle": self.beam_width.m_as(uck.get("angle")),
-            "to_world": self._to_world,
-        }
+    def kdict(self) -> KernelDictionary:
+        # Inherit docstring
+
+        result = KernelDictionary(
+            {
+                "type": "spot",
+                "beam_width": self.beam_width.m_as(uck.get("angle")),
+                "cutoff_angle": self.beam_width.m_as(uck.get("angle")),
+                "to_world": self._to_world,
+            }
+        )
 
         if self.beam_profile is not None:
-            retdict["texture"] = {
+            result["texture"] = {
                 "type": "bitmap",
                 "filename": str(self.beam_profile),
             }
-        return retdict
 
-    @property
-    def objects(self) -> dict[str, NodeSceneElement]:
-        return {"intensity": self.intensity}
+        result["intensity"] = self.intensity.kdict()
+        return result
+
+    def kpmap(self) -> KernelSceneParameterMap:
+        # Inherit docstring
+
+        result = KernelSceneParameterMap()
+        kpmap = self.intensity.kpmap()
+        for k, v in kpmap.items():
+            result[f"intensity.{k}"] = v
+
+        return result

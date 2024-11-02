@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import numpy as np
 import pint
-import pinttr
+import pinttrs
 
 from ._core import AbstractDirectionalIllumination
 from ...attrs import define, documented
 from ...frame import angles_to_direction
+from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
 from ...units import unit_context_config as ucc
 from ...units import unit_registry as ureg
 from ...validators import is_positive
@@ -15,7 +16,7 @@ from ...validators import is_positive
 @define(eq=False, slots=False)
 class AstroObjectIllumination(AbstractDirectionalIllumination):
     """
-    Astronomical Object Illumination scene element [``astro_object``].
+    Astronomical Object Illumination scene element [``astro_object``, ``astroobject``].
 
     This illumination represents the light coming from a distant astronomical
     object (*e.g.* the Sun). The astronomical object uniformly illuminates a
@@ -38,9 +39,9 @@ class AstroObjectIllumination(AbstractDirectionalIllumination):
     """
 
     angular_diameter: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             default=0.5358 * ureg.deg,
-            validator=[is_positive, pinttr.validators.has_compatible_units],
+            validator=[is_positive, pinttrs.validators.has_compatible_units],
             units=ucc.deferred("angle"),
         ),
         doc="Apparent diameter of the celestial body as seen from the point. "
@@ -64,11 +65,26 @@ class AstroObjectIllumination(AbstractDirectionalIllumination):
             flip=False,
         ).reshape((3,))
 
-    @property
-    def template(self) -> dict:
+    def kdict(self) -> KernelDictionary:
         # Inherit docstring
-        return {
-            "type": "astroobject",
-            "to_world": self._to_world,
-            "angular_diameter": self.angular_diameter.m_as("degree"),
-        }
+
+        result = KernelDictionary(
+            {
+                "type": "astroobject",
+                "to_world": self._to_world,
+                "angular_diameter": self.angular_diameter.m_as("degree"),
+            }
+        )
+        if self.id is not None:
+            result["id"] = self.id
+        result["irradiance"] = self.irradiance.kdict()
+        return result
+
+    def kpmap(self) -> KernelSceneParameterMap:
+        # Inherit docstring
+
+        result = KernelSceneParameterMap()
+        kpmap = self.irradiance.kpmap()
+        for k, v in kpmap.items():
+            result[f"irradiance.{k}"] = v
+        return result
