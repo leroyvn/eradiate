@@ -6,6 +6,7 @@ import eradiate
 
 from ._core import Integrator
 from ...attrs import define, documented
+from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
 
 
 @define(eq=False, slots=False)
@@ -49,9 +50,10 @@ class MonteCarloIntegrator(Integrator):
     def kernel_type(self) -> str:
         raise NotImplementedError
 
-    @property
-    def template(self) -> dict:
-        result = {"type": self.kernel_type}
+    def kdict(self) -> KernelDictionary:
+        # Inherit docstring
+
+        result = KernelDictionary({"type": self.kernel_type})
 
         if self.timeout is not None:
             result["timeout"] = self.timeout
@@ -66,16 +68,23 @@ class MonteCarloIntegrator(Integrator):
             raise RuntimeError("stokes should only be set to True in polarized mode.")
 
         if self.stokes:
-            result = {
-                "type": "stokes",
-                "integrator": result,
-                "meridian_align": self.meridian_align,
-            }
+            result = KernelDictionary(
+                {
+                    "type": "stokes",
+                    "integrator": result,
+                    "meridian_align": self.meridian_align,
+                }
+            )
 
         if self.moment:
-            result = {"type": "moment", "nested": result}
+            result = KernelDictionary({"type": "moment", "nested": result})
 
         return result
+
+    def kpmap(self) -> KernelSceneParameterMap:
+        # Inherit docstring
+
+        return KernelSceneParameterMap()
 
 
 @define(eq=False, slots=False)

@@ -1,7 +1,6 @@
 import mitsuba as mi
 import pytest
 
-from eradiate.scenes.core import traverse
 from eradiate.scenes.integrators import (
     PathIntegrator,
     PiecewiseVolPathIntegrator,
@@ -19,7 +18,7 @@ from eradiate.test_tools.types import check_scene_element
         VolPathMISIntegrator,
         PiecewiseVolPathIntegrator,
     ],
-    ids=["path", "volpath", "volpathmis", "piecewiese_volpath"],
+    ids=["path", "volpath", "volpathmis", "piecewise_volpath"],
 )
 @pytest.mark.parametrize(
     "kwargs",
@@ -54,7 +53,7 @@ def test_path_tracers_construct(modes_all, integrator_cls, kwargs):
             },
         ),
     ],
-    ids=["path", "volpath", "volpathmis", "piecewiese_volpath"],
+    ids=["path", "volpath", "volpathmis", "piecewise_volpath"],
 )
 def test_path_tracers_kernel_dict(mode_mono, integrator_cls, kwargs):
     integrator = integrator_cls(**kwargs)
@@ -91,12 +90,12 @@ def test_path_tracers_kernel_dict(mode_mono, integrator_cls, kwargs):
             },
         ),
     ],
-    ids=["path", "volpath", "volpathmis", "piecewiese_volpath"],
+    ids=["path", "volpath", "volpathmis", "piecewise_volpath"],
 )
 def test_moment_construct(mode_mono, integrator_cls, kwargs):
     integrator = integrator_cls(**kwargs)
-    mi_wrapper = check_scene_element(integrator, mi.SamplingIntegrator)
-    assert any("m2_nested" in name for name in mi_wrapper.obj.aov_names())
+    mi_obj, mi_params = check_scene_element(integrator, mi.SamplingIntegrator)
+    assert any("m2_nested" in name for name in mi_obj.aov_names())
 
 
 @pytest.mark.parametrize(
@@ -129,17 +128,13 @@ def test_moment_construct(mode_mono, integrator_cls, kwargs):
             },
         ),
     ],
-    ids=["path", "volpath", "volpathmis", "piecewiese_volpath"],
+    ids=["path", "volpath", "volpathmis", "piecewise_volpath"],
 )
 def test_stokes_construct(mode_mono_polarized_single, integrator_cls, kwargs):
     integrator = integrator_cls(**kwargs)
-    mi_wrapper = check_scene_element(integrator, mi.SamplingIntegrator)
-    assert (
-        "S0.R" in mi_wrapper.obj.aov_names()
-        and "S1.R" in mi_wrapper.obj.aov_names()
-        and "S2.R" in mi_wrapper.obj.aov_names()
-        and "S3.R" in mi_wrapper.obj.aov_names()
-    )
+    mi_obj, mi_params = check_scene_element(integrator, mi.SamplingIntegrator)
+    expected = {"S0.R", "S1.R", "S2.R", "S3.R"}
+    assert (expected & set(mi_obj.aov_names())) == expected
 
 
 @pytest.mark.parametrize(
@@ -186,12 +181,12 @@ def test_stokes_construct(mode_mono_polarized_single, integrator_cls, kwargs):
             },
         ),
     ],
-    ids=["path", "volpath", "volpathmis", "piecewiese_volpath"],
+    ids=["path", "volpath", "volpathmis", "piecewise_volpath"],
 )
 def test_stokes_moment_construct(mode_mono_polarized_single, integrator_cls, kwargs):
     integrator = integrator_cls(**kwargs)
     check_scene_element(integrator, mi.SamplingIntegrator)
 
-    kdict_template, _ = traverse(integrator)
-    assert kdict_template.data["type"] == "moment"
-    assert kdict_template.data["nested.type"] == "stokes"
+    kdict = integrator.kdict()
+    assert kdict["type"] == "moment"
+    assert kdict["nested.type"] == "stokes"

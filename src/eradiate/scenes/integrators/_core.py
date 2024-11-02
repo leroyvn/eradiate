@@ -7,6 +7,7 @@ import attrs
 from ..core import NodeSceneElement
 from ..._factory import Factory
 from ...attrs import define, documented, get_doc
+from ...kernel import UpdateParameter
 
 integrator_factory = Factory()
 integrator_factory.register_lazy_batch(
@@ -69,7 +70,7 @@ class Integrator(NodeSceneElement, ABC):
             default=False,
             converter=attrs.converters.optional(bool),
         ),
-        doc="If ```True```, calculates and outputs the polarized components of"
+        doc="If ``True``, calculates and outputs the polarized components of"
         "the Stokes vector. Note that this will only work with a polarized"
         "mode and a sensor that measures radiance.",
         type="bool",
@@ -82,10 +83,20 @@ class Integrator(NodeSceneElement, ABC):
             default=True,
             converter=attrs.converters.optional(bool),
         ),
-        doc="If ```True```, align the Stokes vector to the meridian plane. Otherwise"
-        "default to aligning to the sensor's x-axis. This parameter is only"
-        "relevant in polarized mode, when measuring radiance with ``stokes=True``.",
+        doc="If ``True``, align the Stokes vector to the meridian plane. "
+        "Otherwise default to aligning to the sensor's x-axis. This parameter "
+        "is only relevant in polarized mode, when measuring radiance with "
+        "``stokes=True``.",
         type="bool",
         init_type="bool, optional",
         default="True",
     )
+
+    # TODO: Delete
+    @property
+    def template(self) -> dict:
+        raise NotImplementedError
+
+    @property
+    def params(self) -> dict[str, UpdateParameter] | None:
+        raise NotImplementedError
