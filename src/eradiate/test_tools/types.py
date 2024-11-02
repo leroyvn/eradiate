@@ -6,7 +6,7 @@ import mitsuba as mi
 import pytest
 
 from ..contexts import KernelContext
-from ..kernel._kernel_dict_new import KernelDictionary, mi_traverse
+from ..kernel import KernelDictionary, mi_traverse
 from ..scenes.core import CompositeSceneElement, NodeSceneElement
 
 

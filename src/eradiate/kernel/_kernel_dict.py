@@ -6,20 +6,33 @@ dictionaries and scene parameter maps.
 from __future__ import annotations
 
 import enum
-import typing as t
+import logging
 from collections import UserDict
 from collections.abc import Mapping
+from typing import Any, Callable, ClassVar
 
 import attrs
-import mitsuba as mi
 
 from ..attrs import define, documented
 from ..contexts import KernelContext
 from ..util.misc import flatten, nest
 
+logger = logging.getLogger(__name__)
+
+
+class KernelSceneParameterFlag(enum.Flag):
+    """
+    Update parameter flags.
+    """
+
+    NONE = 0
+    SPECTRAL = enum.auto()  #: Varies during the spectral loop
+    GEOMETRIC = enum.auto()  #: Triggers a scene rebuild
+    ALL = SPECTRAL | GEOMETRIC
+
 
 @define
-class InitParameter:
+class KernelDictionaryParameter:
     """
     This class declares an Eradiate parameter in a Mitsuba scene dictionary. It
     holds an evaluation protocol for this parameter depending on context
@@ -27,123 +40,21 @@ class InitParameter:
     """
 
     #: Sentinel value indicating that a parameter is not used
-    UNUSED: t.ClassVar[object] = object()
+    UNUSED: ClassVar[object] = object()
 
-    evaluator: t.Callable = documented(
+    evaluator: Callable = documented(
         attrs.field(validator=attrs.validators.is_callable()),
         doc="A callable that returns the value of the parameter for a given "
         "context, with signature ``f(ctx: KernelContext) -> Any``.",
         type="callable",
     )
 
-    def __call__(self, ctx: KernelContext) -> t.Any:
+    def __call__(self, ctx: KernelContext) -> Any:
         return self.evaluator(ctx)
-
-
-@define
-class UpdateParameter:
-    """
-    This class declares an Eradiate parameter in a Mitsuba scene parameter
-    update map. It holds an evaluation protocol depending on context
-    information.
-
-    See Also
-    --------
-    :class:`.KernelContext`, :class:`.TypeIdLookupStrategy`
-    """
-
-    #: Sentinel value indicating that a parameter is not used
-    UNUSED: t.ClassVar[object] = object()
-
-    class Flags(enum.Flag):
-        """
-        Update parameter flags.
-        """
-
-        NONE = 0
-        SPECTRAL = enum.auto()  #: Varies during the spectral loop
-        GEOMETRIC = enum.auto()  #: Triggers a scene rebuild
-        ALL = SPECTRAL | GEOMETRIC
-
-    evaluator: t.Callable = documented(
-        attrs.field(validator=attrs.validators.is_callable()),
-        doc="A callable that returns the value of the parameter for a given "
-        "context, with signature ``f(ctx: KernelContext) -> Any``.",
-        type="callable",
-    )
-
-    flags: Flags = documented(
-        attrs.field(default=Flags.ALL),
-        doc="Flags specifying parameter attributes. By default, the declared "
-        "parameter will pass all filters.",
-        type=".Flags",
-        default=".Flags.ALL",
-    )
-
-    lookup_strategy: None | (t.Callable[[mi.Object, str], str | None]) = documented(
-        attrs.field(default=None),
-        doc="A callable that searches a Mitsuba scene tree node for a desired "
-        "parameter ID: with signature "
-        "``f(node: mi.Object, node_relpath: str) -> Optional[str]``.",
-        type="callable or None",
-        init_type="callable, optional",
-        default="None",
-    )
-
-    parameter_id: str | None = documented(
-        attrs.field(default=None),
-        doc="The full ID of the Mitsuba scene parameter to update.",
-        type="str or None",
-        init_type="str, optional",
-    )
-
-    def __call__(self, ctx: KernelContext) -> t.Any:
-        return self.evaluator(ctx)
-
-
-def dict_parameter(maybe_fn=None):
-    """
-    This function wraps another one into a :class:`.InitParameter` instance.
-    It is primarily meant to be used as a decorator.
-
-    Parameters
-    ----------
-    maybe_fn : callable, optional
-
-    Returns
-    -------
-    callable
-    """
-    return InitParameter if maybe_fn is None else InitParameter(maybe_fn)
-
-
-def scene_parameter(
-    maybe_fn=None, flags: UpdateParameter.Flags = UpdateParameter.Flags.ALL
-):
-    """
-    This function wraps another one into a :class:`.UpdateParameter` instance.
-    It is primarily meant to be used as a decorator.
-
-    Parameters
-    ----------
-    maybe_fn : callable, optional
-
-    flags : .UpdateParameter.Flags, optional
-        Scene parameter flags used for filtering during a scene parameter loop.
-
-    Returns
-    -------
-    callable
-    """
-
-    def wrap(f):
-        return UpdateParameter(f, flags=flags)
-
-    return wrap if maybe_fn is None else wrap(maybe_fn)
 
 
 @attrs.define(slots=False)
-class KernelDictTemplate(UserDict):
+class KernelDictionary(UserDict):
     """
     A dict-like structure which defines the structure of an instantiable
     Mitsuba scene dictionary.
@@ -155,14 +66,9 @@ class KernelDictTemplate(UserDict):
     interpreted by the :func:`mitsuba.load_dict` function, or an
     :class:`.InitParameter` object which must be rendered before the template
     can be instantiated.
-
-    Notes
-    -----
-    If a nested mapping is used for initialization or assignment, it is
-    automatically flattened.
     """
 
-    data: dict = attrs.field(factory=dict, converter=flatten)
+    data: dict[str, Any] = attrs.field(factory=dict, converter=flatten)
 
     def __setitem__(self, key, value):
         if isinstance(value, Mapping):
@@ -170,6 +76,12 @@ class KernelDictTemplate(UserDict):
             self.data.update(value)
         else:
             super().__setitem__(key, value)
+
+    def update(self, __m, **kwargs):
+        if isinstance(__m, Mapping):
+            return super().update(flatten(__m))
+        else:
+            raise ValueError("key-value assignment is not supported")
 
     def render(
         self, ctx: KernelContext, nested: bool = True, drop: bool = True
@@ -180,7 +92,7 @@ class KernelDictTemplate(UserDict):
 
         Parameters
         ----------
-        ctx : .KernelContext
+        ctx : :class:`.KernelContext`
             A kernel dictionary context.
 
         nested : bool, optional
@@ -200,8 +112,8 @@ class KernelDictTemplate(UserDict):
         result = {}
 
         for k, v in list(self.items()):
-            value = v(ctx) if isinstance(v, InitParameter) else v
-            if (value is InitParameter.UNUSED) and drop:
+            value = v(ctx) if isinstance(v, KernelDictionaryParameter) else v
+            if (value is KernelDictionaryParameter.UNUSED) and drop:
                 continue
             else:
                 result[k] = value
@@ -209,8 +121,42 @@ class KernelDictTemplate(UserDict):
         return nest(result, sep=".") if nested else result
 
 
-@attrs.define(slots=False)
-class UpdateMapTemplate(UserDict):
+@define
+class KernelSceneParameter:
+    """
+    This class declares an Eradiate parameter in a Mitsuba scene parameter
+    update map. It holds an evaluation protocol depending on context
+    information.
+
+    See Also
+    --------
+    :class:`.KernelContext`
+    """
+
+    #: Sentinel value indicating that a parameter is not used
+    UNUSED: ClassVar[object] = object()
+
+    evaluator: Callable = documented(
+        attrs.field(validator=attrs.validators.is_callable()),
+        doc="A callable that returns the value of the parameter for a given "
+        "context, with signature ``f(ctx: KernelContext) -> Any``.",
+        type="callable",
+    )
+
+    flags: KernelSceneParameterFlag = documented(
+        attrs.field(default=KernelSceneParameterFlag.ALL),
+        doc="Flags specifying parameter attributes. By default, the declared "
+        "parameter will pass all filters.",
+        type=".Flags",
+        default=".Flags.ALL",
+    )
+
+    def __call__(self, ctx: KernelContext) -> Any:
+        return self.evaluator(ctx)
+
+
+@define(slots=False)
+class KernelSceneParameterMap(UserDict):
     """
     A dict-like structure which contains the structure of a Mitsuba scene
     parameter update map.
@@ -219,7 +165,7 @@ class UpdateMapTemplate(UserDict):
     a nested dictionary using the :meth:`.render` method.
     """
 
-    data: dict[str, UpdateParameter] = attrs.field(factory=dict)
+    data: dict = attrs.field(factory=dict)
 
     def remove(self, keys: str | list[str]) -> None:
         """
@@ -271,8 +217,8 @@ class UpdateMapTemplate(UserDict):
     def render(
         self,
         ctx: KernelContext,
-        flags: UpdateParameter.Flags = UpdateParameter.Flags.ALL,
-        drop: bool = False,
+        flags: KernelSceneParameterFlag = KernelSceneParameterFlag.ALL,
+        strict: bool = False,
     ) -> dict:
         """
         Evaluate the parameter map for a set of arguments.
@@ -286,10 +232,10 @@ class UpdateMapTemplate(UserDict):
             Parameter flags. Only parameters with at least one of the specified
             will pass the filter.
 
-        drop : bool, optional
-            If ``True``, drop unused parameters. Parameters may be unused either
-            because they were filtered out by the flags or because context
-            information implied it.
+        strict : bool, optional
+            If ``True``, raise if parameters remain unused. Parameters end up
+            unused when filtered out by flags. This parameter exists for
+            debugging purposes.
 
         Returns
         -------
@@ -307,23 +253,60 @@ class UpdateMapTemplate(UserDict):
         unused = []
         result = {}
 
-        for k in list(
+        for key in list(
             self.keys()
         ):  # Ensures correct iteration even if the loop mutates the mapping
-            v = self[k]
+            v = self[key]
 
-            if isinstance(v, UpdateParameter):
-                key = k if v.parameter_id is None else v.parameter_id
-
+            if isinstance(v, KernelSceneParameter):
                 if v.flags & flags:
                     result[key] = v(ctx)
                 else:
-                    unused.append(k)
-                    if not drop:
-                        result[key] = UpdateParameter.UNUSED
+                    unused.append(key)
+                    if not strict:
+                        result[key] = KernelSceneParameter.UNUSED
 
         # Check for leftover empty values
-        if not drop and unused:
+        if not strict and unused:
             raise ValueError(f"Unevaluated parameters: {unused}")
 
         return result
+
+
+def dict_parameter(maybe_fn=None):
+    """
+    This function wraps another one into a :class:`.KernelDictionaryParameter`
+    instance. It is primarily meant to be used as a decorator.
+
+    Parameters
+    ----------
+    maybe_fn : callable, optional
+    """
+    return (
+        KernelDictionaryParameter
+        if maybe_fn is None
+        else KernelDictionaryParameter(maybe_fn)
+    )
+
+
+def scene_parameter(
+    maybe_fn=None, flags: KernelSceneParameterFlag | str = KernelSceneParameterFlag.ALL
+):
+    """
+    This function wraps another one into a :class:`.KernelSceneParameter`
+    instance. It is primarily meant to be used as a decorator.
+
+    Parameters
+    ----------
+    maybe_fn : callable, optional
+
+    flags : .KernelSceneParameterFlag, optional
+        Scene parameter flags used for filtering during a scene parameter loop.
+    """
+    if isinstance(flags, str):
+        flags = KernelSceneParameterFlag[flags.upper()]
+
+    def wrap(f):
+        return KernelSceneParameter(f, flags=flags)
+
+    return wrap if maybe_fn is None else wrap(maybe_fn)

@@ -6,7 +6,7 @@ import eradiate
 
 from ._core import Integrator
 from ...attrs import define, documented
-from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
+from ...kernel._kernel_dict import KernelDictionary, KernelSceneParameterMap
 
 
 @define(eq=False, slots=False)

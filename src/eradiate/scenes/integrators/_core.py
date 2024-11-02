@@ -7,7 +7,6 @@ import attrs
 from ..core import NodeSceneElement
 from ..._factory import Factory
 from ...attrs import define, documented, get_doc
-from ...kernel import UpdateParameter
 
 integrator_factory = Factory()
 integrator_factory.register_lazy_batch(
@@ -91,12 +90,3 @@ class Integrator(NodeSceneElement, ABC):
         init_type="bool, optional",
         default="True",
     )
-
-    # TODO: Delete
-    @property
-    def template(self) -> dict:
-        raise NotImplementedError
-
-    @property
-    def params(self) -> dict[str, UpdateParameter] | None:
-        raise NotImplementedError

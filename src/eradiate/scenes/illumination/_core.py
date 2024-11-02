@@ -16,7 +16,6 @@ from ..._factory import Factory
 from ...attrs import define, documented, get_doc
 from ...config import settings
 from ...frame import AzimuthConvention, angles_to_direction
-from ...kernel import UpdateParameter
 from ...units import unit_context_config as ucc
 from ...units import unit_registry as ureg
 from ...validators import has_quantity, is_positive
@@ -57,15 +56,6 @@ class Illumination(NodeSceneElement, ABC):
         init_type=get_doc(NodeSceneElement, "id", "init_type"),
         default='"illumination"',
     )
-
-    # TODO: Delete
-    @property
-    def template(self) -> dict:
-        raise NotImplementedError
-
-    @property
-    def params(self) -> dict[str, UpdateParameter] | None:
-        raise NotImplementedError
 
 
 def _azimuth_converter(value):

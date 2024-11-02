@@ -3,7 +3,7 @@ from __future__ import annotations
 import attrs
 
 from ._core import BSDFNode
-from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
+from ...kernel._kernel_dict import KernelDictionary, KernelSceneParameterMap
 
 
 @attrs.define(eq=False, slots=False)

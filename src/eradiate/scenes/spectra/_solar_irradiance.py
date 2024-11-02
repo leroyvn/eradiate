@@ -13,7 +13,7 @@ import xarray as xr
 from ._core import Spectrum
 from ... import converters, data, validators
 from ...attrs import define, documented
-from ...kernel._kernel_dict_new import (
+from ...kernel._kernel_dict import (
     KernelDictionary,
     KernelSceneParameterFlag,
     KernelSceneParameterMap,

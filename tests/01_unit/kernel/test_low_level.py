@@ -3,7 +3,7 @@
 import mitsuba as mi
 import pytest
 
-from eradiate.kernel._kernel_dict_new import mi_traverse
+from eradiate.kernel import mi_traverse
 
 SCENE_DICTS = {
     "referenced_bsdf": {

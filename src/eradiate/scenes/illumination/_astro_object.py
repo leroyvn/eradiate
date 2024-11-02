@@ -7,7 +7,7 @@ import pinttrs
 from ._core import AbstractDirectionalIllumination
 from ...attrs import define, documented
 from ...frame import angles_to_direction
-from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
+from ...kernel._kernel_dict import KernelDictionary, KernelSceneParameterMap
 from ...units import unit_context_config as ucc
 from ...units import unit_registry as ureg
 from ...validators import is_positive

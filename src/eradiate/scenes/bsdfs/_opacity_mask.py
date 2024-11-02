@@ -8,7 +8,7 @@ from ._core import BSDF, BSDFComposite, BSDFNode, bsdf_factory
 from ._lambertian import LambertianBSDF
 from ... import converters
 from ...attrs import define, documented
-from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
+from ...kernel._kernel_dict import KernelDictionary, KernelSceneParameterMap
 
 
 def _to_bitmap(value):

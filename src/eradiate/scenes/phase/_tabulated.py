@@ -12,7 +12,7 @@ import eradiate
 
 from ._core import PhaseFunctionNode
 from ...attrs import define, documented
-from ...kernel._kernel_dict_new import (
+from ...kernel._kernel_dict import (
     KernelDictionary,
     KernelSceneParameterFlag,
     KernelSceneParameterMap,

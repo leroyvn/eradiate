@@ -10,7 +10,6 @@ import pint
 from ..core import NodeSceneElement
 from ..._factory import Factory
 from ...attrs import define, documented
-from ...kernel import UpdateParameter
 from ...spectral.index import (
     CKDSpectralIndex,
     MonoSpectralIndex,
@@ -144,16 +143,6 @@ class Spectrum(NodeSceneElement, ABC):
         init_type=".PhysicalQuantity or str, optional",
         default="None",
     )
-
-    # TODO: Delete
-    @property
-    def template(self) -> dict:
-        raise NotImplementedError
-
-    # TODO: Delete
-    @property
-    def params(self) -> dict[str, UpdateParameter] | None:
-        raise NotImplementedError
 
     @quantity.validator
     def _quantity_validator(self, attribute, value):

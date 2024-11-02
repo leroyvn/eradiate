@@ -13,7 +13,7 @@ from ._core import Illumination
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
 from ...attrs import define, documented
-from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
+from ...kernel._kernel_dict import KernelDictionary, KernelSceneParameterMap
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
 from ...units import unit_registry as ureg

@@ -11,7 +11,7 @@ from ._core import PhaseFunction, PhaseFunctionNode, phase_function_factory
 from ..geometry import PlaneParallelGeometry, SceneGeometry, SphericalShellGeometry
 from ...attrs import documented
 from ...contexts import KernelContext
-from ...kernel._kernel_dict_new import (
+from ...kernel._kernel_dict import (
     KernelDictionary,
     KernelSceneParameterFlag,
     KernelSceneParameterMap,

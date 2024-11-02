@@ -5,7 +5,7 @@ import pinttrs
 
 from ._core import BSDFNode
 from ...attrs import define, documented
-from ...kernel._kernel_dict_new import (
+from ...kernel._kernel_dict import (
     KernelDictionary,
     KernelSceneParameterMap,
     dict_parameter,

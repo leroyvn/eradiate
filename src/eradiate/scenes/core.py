@@ -14,8 +14,7 @@ from pinttr.util import ensure_units
 
 from .._factory import Factory
 from ..attrs import define, documented, frozen
-from ..exceptions import TraversalError
-from ..kernel import KernelDictTemplate, UpdateMapTemplate, UpdateParameter
+from ..kernel import KernelDictionary, KernelSceneParameterMap
 from ..units import unit_context_config as ucc
 from ..units import unit_registry as ureg
 
@@ -55,31 +54,18 @@ class SceneElement(ABC):
     def __attrs_post_init__(self):
         self.update()
 
-    @property
-    def params(self) -> dict[str, UpdateParameter] | None:
+    @abstractmethod
+    def kpmap(self) -> KernelSceneParameterMap:
         """
         Returns
         -------
-        dict[str, :class:`.UpdateParameter`] or None
-            A dictionary mapping parameter paths, consisting of dot-separated
-            strings, to a corresponding update protocol.
+        .KernelSceneParameterMap
+            A mapping of dot-separated strings to corresponding update protocol
+            definitions.
 
         See Also
         --------
-        :class:`.UpdateParameter`, :class:`.UpdateMapTemplate`
-        """
-        return None
-
-    @abstractmethod
-    def traverse(self, callback) -> None:
-        """
-        Traverse this scene element and collect kernel dictionary template and
-        parameter update map contributions.
-
-        Parameters
-        ----------
-        callback : SceneTraversal
-            Callback data structure storing the collected data.
+        :class:`.KernelSceneParameter`, :class:`.KernelSceneParameterMap`
         """
         pass
 
@@ -99,50 +85,25 @@ class NodeSceneElement(SceneElement, ABC):
     scene tree node which can be described as a scene dictionary.
     """
 
-    @property
     @abstractmethod
-    def template(self) -> dict:
+    def kdict(self) -> KernelDictionary:
         """
         Kernel dictionary template contents associated with this scene element.
 
         Returns
         -------
-        dict
+        KernelDictionary
             A flat dictionary mapping dot-separated strings describing the path
             of an item in the nested scene dictionary to values. Values may be
             objects which can be directly used by the :func:`mitsuba.load_dict`
-            function, or :class:`.InitParameter` instances which must be
-            rendered.
+            function, or :class:`.KernelDictionaryParameter` instances which
+            must be rendered.
 
         See Also
         --------
-        :class:`.InitParameter`, :class:`.KernelDictTemplate`
+        :class:`.KernelDictionaryParameter`, :class:`.KernelDictionary`
         """
         pass
-
-    @property
-    def objects(self) -> dict[str, NodeSceneElement] | None:
-        """
-        Map of child objects associated with this scene element.
-
-        Returns
-        -------
-        dict
-            A dictionary mapping object names to a corresponding object to be
-            inserted in the Eradiate scene graph.
-        """
-        return None
-
-    def traverse(self, callback: SceneTraversal) -> None:
-        # Inherit docstring
-        callback.put_template(self.template)
-
-        if self.params is not None:
-            callback.put_params(self.params)
-
-        if self.objects is not None:
-            for name, obj in self.objects.items():
-                callback.put_object(name, obj)
 
 
 @define(eq=False, slots=False)
@@ -152,7 +113,6 @@ class InstanceSceneElement(SceneElement, ABC):
     scene graph, but can only be expanded to a Mitsuba object.
     """
 
-    @property
     @abstractmethod
     def instance(self) -> mi.Object:
         """
@@ -162,15 +122,7 @@ class InstanceSceneElement(SceneElement, ABC):
         -------
         mitsuba.Object
         """
-
         pass
-
-    def traverse(self, callback):
-        # Inherit docstring
-        callback.put_instance(self.instance)
-
-        if self.params is not None:
-            callback.put_params(self.params)
 
 
 @define(eq=False, slots=False)
@@ -180,57 +132,25 @@ class CompositeSceneElement(SceneElement, ABC):
     scene tree nodes.
     """
 
-    @property
-    def template(self) -> dict:
+    @abstractmethod
+    def kdict(self) -> KernelDictionary:
         """
         Kernel dictionary template contents associated with this scene element.
 
         Returns
         -------
-        dict
+        .KernelDictionary
             A flat dictionary mapping dot-separated strings describing the path
             of an item in the nested scene dictionary to values. Values may be
             objects which can be directly used by the :func:`mitsuba.load_dict`
-            function, or :class:`.InitParameter` instances which must be
-            rendered.
+            function, or :class:`.KernelDictionaryParameter` instances which
+            must be rendered.
 
         See Also
         --------
-        :class:`.InitParameter`, :class:`.KernelDictTemplate`
+        :class:`.KernelDictionaryParameter`, :class:`.KernelDictionary`
         """
-        return {}
-
-    @property
-    def objects(self) -> dict[str, NodeSceneElement] | None:
-        """
-        Map of child objects associated with this scene element.
-
-        Returns
-        -------
-        dict
-            A dictionary mapping object names to a corresponding object to be
-            inserted in the Eradiate scene graph.
-        """
-        return None
-
-    def traverse(self, callback):
-        # Inherit docstring
-        callback.put_template(self.template)
-
-        if self.params is not None:
-            callback.put_params(self.params)
-
-        if self.objects is not None:
-            for name, obj in self.objects.items():
-                if isinstance(obj, InstanceSceneElement):
-                    callback.put_object(name, obj)
-
-                else:
-                    template, params = traverse(obj)
-                    callback.put_template(
-                        {f"{name}.{k}": v for k, v in template.items()}
-                    )
-                    callback.put_params({f"{name}.{k}": v for k, v in params.items()})
+        pass
 
 
 @define(eq=False, slots=False)
@@ -248,153 +168,13 @@ class Ref(NodeSceneElement):
         type="str",
     )
 
-    @property
-    def template(self) -> dict:
+    def kdict(self) -> KernelDictionary:
         # Inherit docstring
-        return {"type": "ref", "id": self.id}
+        return KernelDictionary({"type": "ref", "id": self.id})
 
-
-@define(eq=False, slots=False)
-class Scene(NodeSceneElement):
-    """
-    A generic scene element container which expands as a :class:`mitsuba.Scene`
-    object.
-    """
-
-    _objects: dict[str, SceneElement] = documented(
-        attrs.field(factory=dict, converter=dict),
-        doc="A map of scene elements which will be included in the Mitsuba "
-        "scene definition.",
-        type="dict",
-        default="{}",
-    )
-
-    @property
-    def template(self) -> dict:
+    def kpmap(self) -> KernelSceneParameterMap:
         # Inherit docstring
-        return {"type": "scene"}
-
-    @property
-    def objects(self) -> dict[str, SceneElement]:
-        # Inherit docstring
-        return self._objects
-
-
-# ------------------------------------------------------------------------------
-#                         Scene element tree traversal
-# ------------------------------------------------------------------------------
-
-
-@define
-class SceneTraversal:
-    """
-    Data structure used to collect kernel dictionary data during scene element
-    traversal.
-    """
-
-    #: Current traversal node
-    node: NodeSceneElement
-
-    #: Parent to current node
-    parent: NodeSceneElement | None = attrs.field(default=None)
-
-    #: Current node's name
-    name: str | None = attrs.field(default=None)
-
-    #: Current depth
-    depth: int = attrs.field(default=0)
-
-    #: Dictionary mapping nodes to their parents
-    hierarchy: dict = attrs.field(factory=dict)
-
-    #: Kernel dictionary template
-    template: dict = attrs.field(factory=dict)
-
-    #: Dictionary mapping nodes to their defined parameters
-    params: dict = attrs.field(factory=dict)
-
-    def __attrs_post_init__(self):
-        self.hierarchy[self.node] = (self.parent, self.depth)
-
-    def put_template(self, template: t.Mapping) -> None:
-        """
-        Add a contribution to the kernel dictionary template.
-        """
-        prefix = "" if self.name is None else f"{self.name}."
-
-        for k, v in template.items():
-            self.template[f"{prefix}{k}"] = v
-
-    def put_params(self, params: t.Mapping) -> None:
-        """
-        Add a contribution to the parameter map.
-        """
-        prefix = "" if self.name is None else f"{self.name}."
-
-        for k, v in params.items():
-            self.params[f"{prefix}{k}"] = v
-
-    def put_object(self, name: str, node: SceneElement) -> None:
-        """
-        Add a child object to the template and parameter map.
-        """
-        if isinstance(node, CompositeSceneElement):
-            node.traverse(self)
-
-        else:
-            if node is None or node in self.hierarchy:
-                return
-
-            cb = type(self)(
-                node=node,
-                parent=self.node,
-                name=name if self.name is None else f"{self.name}.{name}",
-                depth=self.depth + 1,
-                hierarchy=self.hierarchy,
-                template=self.template,
-                params=self.params,
-            )
-
-            if isinstance(node, InstanceSceneElement):
-                cb.put_instance(node.instance)
-                cb.put_params(node.params)
-
-            else:
-                node.traverse(cb)
-
-    def put_instance(self, obj: mi.Object) -> None:
-        """
-        Add an instance to the kernel dictionary template.
-        """
-        if not self.name:
-            raise TraversalError("Instances may only be inserted as child nodes.")
-        self.template[self.name] = obj
-
-
-def traverse(node: NodeSceneElement) -> tuple[KernelDictTemplate, UpdateMapTemplate]:
-    """
-    Traverse a scene element tree and collect kernel dictionary template and
-    parameter update table data.
-
-    Parameters
-    ----------
-    node : .SceneElement
-        Scene element where to start traversal.
-
-    Returns
-    -------
-    kdict_template : .KernelDictTemplate
-        Kernel dictionary template corresponding to the traversed scene element.
-
-    umap_template : .UpdateMapTemplate
-        Kernel parameter table associated with the traversed scene element.
-    """
-    # Traverse scene element tree
-    cb = SceneTraversal(node)
-    node.traverse(cb)
-
-    # Use collected data to generate the kernel dictionary
-    return KernelDictTemplate(cb.template), UpdateMapTemplate(cb.params)
+        return KernelSceneParameterMap()
 
 
 # -- Misc (to be moved elsewhere) ----------------------------------------------

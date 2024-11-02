@@ -24,7 +24,7 @@ from ..kernel import (
     mi_render,
     mi_traverse,
 )
-from ..kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
+from ..kernel._kernel_dict import KernelDictionary, KernelSceneParameterMap
 from ..quad import Quad
 from ..rng import SeedState
 from ..scenes.illumination import (

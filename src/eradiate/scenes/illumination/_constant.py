@@ -5,7 +5,7 @@ import attrs
 from ._core import Illumination
 from ..spectra import Spectrum, spectrum_factory
 from ...attrs import define, documented
-from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
+from ...kernel._kernel_dict import KernelDictionary, KernelSceneParameterMap
 from ...validators import has_quantity
 
 

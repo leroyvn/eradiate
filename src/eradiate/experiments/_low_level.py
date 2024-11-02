@@ -9,7 +9,7 @@ import numpy as np
 from hamilton.driver import Driver
 
 from eradiate import KernelContext
-from eradiate.kernel._kernel_dict_new import (
+from eradiate.kernel import (
     KernelDictionary,
     KernelSceneParameterMap,
     mi_render,

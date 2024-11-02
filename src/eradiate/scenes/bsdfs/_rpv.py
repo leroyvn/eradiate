@@ -6,7 +6,7 @@ from ._core import BSDFNode
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
 from ...attrs import define, documented
-from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
+from ...kernel._kernel_dict import KernelDictionary, KernelSceneParameterMap
 
 
 @define(eq=False, slots=False)

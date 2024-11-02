@@ -11,7 +11,7 @@ import eradiate
 from ._core import PhaseFunctionNode
 from ..geometry import PlaneParallelGeometry, SceneGeometry, SphericalShellGeometry
 from ...attrs import define, documented
-from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
+from ...kernel._kernel_dict import KernelDictionary, KernelSceneParameterMap
 from ...spectral.index import SpectralIndex
 
 

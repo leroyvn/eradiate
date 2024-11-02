@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ._core import AbstractDirectionalIllumination
 from ...attrs import define
-from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
+from ...kernel._kernel_dict import KernelDictionary, KernelSceneParameterMap
 
 
 @define(eq=False, slots=False)
