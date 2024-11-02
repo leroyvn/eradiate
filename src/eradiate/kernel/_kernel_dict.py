@@ -225,10 +225,10 @@ class KernelSceneParameterMap(UserDict):
 
         Parameters
         ----------
-        ctx : :class:`.KernelContext`
+        ctx : .KernelContext
             A kernel dictionary context.
 
-        flags : :class:`.ParamFlags`
+        flags : .KernelSceneParameterFlag
             Parameter flags. Only parameters with at least one of the specified
             will pass the filter.
 
@@ -244,10 +244,10 @@ class KernelSceneParameterMap(UserDict):
         Raises
         ------
         ValueError
-            If a value is not a :class:`.UpdateParameter`.
+            If a value is not a :class:`.KernelSceneParameter`.
 
         ValueError
-            If ``drop`` is ``False`` and the rendered parameter map contains an
+            If ``strict`` is ``True`` and the rendered parameter map contains an
             unused parameter.
         """
         unused = []
@@ -263,11 +263,11 @@ class KernelSceneParameterMap(UserDict):
                     result[key] = v(ctx)
                 else:
                     unused.append(key)
-                    if not strict:
+                    if strict:
                         result[key] = KernelSceneParameter.UNUSED
 
         # Check for leftover empty values
-        if not strict and unused:
+        if strict and unused:
             raise ValueError(f"Unevaluated parameters: {unused}")
 
         return result

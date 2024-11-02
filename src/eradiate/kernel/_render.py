@@ -16,6 +16,44 @@ from ..rng import SeedState, root_seed_state
 logger = logging.getLogger(__name__)
 
 
+class SceneParameters(_MitsubaSceneParameters):
+    def __init__(self, properties=None, hierarchy=None, aliases=None):
+        super().__init__(properties, hierarchy)
+        self.aliases = aliases if aliases is not None else {}
+
+    def set_dirty(self, key: str):
+        # Inherit docstring
+
+        value, _, node, flags = self.properties[key]
+
+        is_nondifferentiable = flags & mi.ParamFlags.NonDifferentiable.value
+        if is_nondifferentiable and dr.grad_enabled(value):
+            mi.Log(
+                mi.LogLevel.Warn,
+                f"Parameter '{key}' is marked as non-differentiable but has "
+                "gradients enabled, unexpected results may occur!",
+            )
+
+        node_key = key  # Key of current node
+        while node is not None:
+            parent, depth = self.hierarchy[node]
+
+            name = node_key
+            if parent is not None:
+                if "." not in name and depth > 0:
+                    # We've hit the top level from an ID-aliased node:
+                    # Resolve the alias to finish climbing the hierarchy
+                    node_key = self.aliases[name]
+                node_key, name = node_key.rsplit(".", 1)
+
+            self.nodes_to_update.setdefault((depth, node), set())
+            self.nodes_to_update[(depth, node)].add(name)
+
+            node = parent
+
+        return self.properties[key]
+
+
 def mi_traverse(
     obj: mi.Object, name_id_override: str | list[str] | bool | None = None
 ) -> mi.SceneParameters:
@@ -128,7 +166,7 @@ def mi_traverse(
     cb = SceneTraversal(obj)
     obj.traverse(cb)
 
-    return mi.SceneParameters(cb.properties, cb.hierarchy, cb.aliases)
+    return SceneParameters(cb.properties, cb.hierarchy, cb.aliases)
 
 
 def mi_render(
@@ -206,7 +244,8 @@ def mi_render(
             )
 
             logger.debug("Updating Mitsuba scene parameters")
-            mi_params.update(kpmap.render(ctx))
+            updates = kpmap.render(ctx)
+            mi_params.update(updates)
 
             if sensors is None:
                 mi_sensors = [

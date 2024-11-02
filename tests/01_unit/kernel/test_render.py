@@ -6,12 +6,11 @@ import pytest
 
 from eradiate import KernelContext
 from eradiate.kernel import (
-    MitsubaObjectWrapper,
-    TypeIdLookupStrategy,
-    UpdateMapTemplate,
-    UpdateParameter,
+    KernelSceneParameterFlag,
+    KernelSceneParameterMap,
     mi_render,
     mi_traverse,
+    scene_parameter,
 )
 from eradiate.spectral.index import SpectralIndex
 from eradiate.units import unit_registry as ureg
@@ -41,103 +40,50 @@ SCENE_DICTS = {
 }
 
 
-def test_type_id_lookup_strategy(mode_mono):
-    mi_scene = mi.load_dict(
-        {
-            "type": "scene",
-            "bsdf": {"type": "diffuse", "id": "my_bsdf"},
-            "rectangle_1": {
-                "type": "rectangle",
-                "bsdf": {"type": "ref", "id": "my_bsdf"},
+@pytest.mark.parametrize(
+    "scene_dict, name_id_override, expected",
+    [
+        (
+            "referenced_bsdf",
+            False,
+            {
+                "_disk_1.bsdf.reflectance.value",
+                "_disk_1.to_world",
+                "_disk_1.silhouette_sampling_weight",
+                "_disk_2.bsdf.reflectance.value",
+                "_disk_2.to_world",
+                "_disk_2.silhouette_sampling_weight",
+                "_rectangle_1.to_world",
+                "_rectangle_1.silhouette_sampling_weight",
+                "_rectangle_2.to_world",
+                "_rectangle_2.silhouette_sampling_weight",
             },
-            "rectangle_2": {
-                "type": "rectangle",
-                "bsdf": {"type": "ref", "id": "my_bsdf"},
+        ),
+        (
+            "referenced_bsdf",
+            "my_bsdf",
+            {
+                "my_bsdf.reflectance.value",
+                "_disk_1.silhouette_sampling_weight",
+                "_disk_1.to_world",
+                "_disk_2.bsdf.reflectance.value",
+                "_disk_2.silhouette_sampling_weight",
+                "_disk_2.to_world",
+                "_rectangle_1.silhouette_sampling_weight",
+                "_rectangle_1.to_world",
+                "_rectangle_2.silhouette_sampling_weight",
+                "_rectangle_2.to_world",
             },
-            "disk_1": {
-                "type": "disk",
-                "bsdf": {"type": "ref", "id": "my_bsdf"},
-            },
-            "disk_2": {
-                "type": "disk",
-                "bsdf": {"type": "diffuse"},
-            },
-        }
-    )
+        ),
+    ],
+    ids=["referenced_bsdf-no_override", "referenced_bsdf-selected_override"],
+)
+def test_mi_traverse(mode_mono, scene_dict, name_id_override, expected):
+    mi_scene = mi.load_dict(SCENE_DICTS[scene_dict])
 
-    lookup_strategy = TypeIdLookupStrategy(
-        node_type=mi.BSDF, node_id="my_bsdf", parameter_relpath="reflectance.value"
-    )
-
-    for shape in mi_scene.shapes():
-        path = shape.id()
-        assert lookup_strategy(shape.bsdf(), path) == (
-            f"{path}.reflectance.value" if path != "disk_2" else None
-        )
-
-
-def test_mi_traverse_lookup(mode_mono):
-    mi_scene = mi.load_dict(
-        {
-            "type": "scene",
-            "bsdf": {"type": "diffuse", "id": "my_bsdf"},
-            "rectangle_1": {
-                "type": "rectangle",
-                "bsdf": {"type": "ref", "id": "my_bsdf"},
-            },
-            "rectangle_2": {
-                "type": "rectangle",
-                "bsdf": {"type": "ref", "id": "my_bsdf"},
-            },
-            "disk_1": {
-                "type": "disk",
-                "bsdf": {"type": "ref", "id": "my_bsdf"},
-            },
-            "disk_2": {
-                "type": "disk",
-                "bsdf": {"type": "diffuse"},
-            },
-        }
-    )
-
-    umap_template = UpdateMapTemplate(
-        {
-            "my_bsdf.reflectance.value": UpdateParameter(
-                evaluator=lambda x: x,
-                flags=UpdateParameter.Flags.ALL,
-                lookup_strategy=TypeIdLookupStrategy(
-                    node_type=mi.BSDF,
-                    node_id="my_bsdf",
-                    parameter_relpath="reflectance.value",
-                ),
-            )
-        }
-    )
-
-    mi_wrapper = mi_traverse(mi_scene, umap_template)
-
-    # Traversal succeeds
-    assert isinstance(mi_wrapper, MitsubaObjectWrapper)
-
-    # Parameter map is correctly extracted
-    assert set(mi_wrapper.parameters.keys()) == {
-        "my_bsdf.reflectance.value",
-        "disk_1.to_world",
-        "disk_1.silhouette_sampling_weight",
-        "disk_2.bsdf.reflectance.value",
-        "disk_2.to_world",
-        "disk_2.silhouette_sampling_weight",
-        "rectangle_1.to_world",
-        "rectangle_1.silhouette_sampling_weight",
-        "rectangle_2.to_world",
-        "rectangle_2.silhouette_sampling_weight",
-    }
-
-    # Parameter ID should be resolved in accordance with the declared lookup strategy
-    assert (
-        mi_wrapper.umap_template["my_bsdf.reflectance.value"].parameter_id
-        == "my_bsdf.reflectance.value"
-    )
+    params = mi_traverse(mi_scene, name_id_override=name_id_override)
+    assert isinstance(params, mi.SceneParameters)
+    assert set(params.keys()) == expected
 
 
 @pytest.mark.parametrize(
@@ -182,10 +128,9 @@ def test_mi_traverse_name_id_override(
     mode_mono, scene_dict, name_id_override, expected
 ):
     mi_scene = mi.load_dict(SCENE_DICTS[scene_dict])
-
-    mi_wrapper = mi_traverse(mi_scene, name_id_override=name_id_override)
-    assert isinstance(mi_wrapper.parameters, mi.SceneParameters)
-    assert set(mi_wrapper.parameters.keys()) == expected
+    params = mi_traverse(mi_scene, name_id_override=name_id_override)
+    assert isinstance(params, mi.SceneParameters)
+    assert set(params.keys()) == expected
 
 
 def test_mi_render(mode_mono):
@@ -211,27 +156,23 @@ def test_mi_render(mode_mono):
         }
     )
 
-    umap_template = UpdateMapTemplate(
+    mi_params = mi_traverse(mi_scene, name_id_override=True)
+
+    kpmap = KernelSceneParameterMap(
         {
-            "my_bsdf.reflectance.value": UpdateParameter(
-                evaluator=lambda ctx: ctx.kwargs["r"],
-                flags=UpdateParameter.Flags.ALL,
-                lookup_strategy=TypeIdLookupStrategy(
-                    node_type=mi.BSDF,
-                    node_id="my_bsdf",
-                    parameter_relpath="reflectance.value",
-                ),
+            "my_bsdf.reflectance.value": scene_parameter(
+                lambda ctx: ctx.kwargs["r"], flags=KernelSceneParameterFlag.ALL
             )
         }
     )
-
-    mi_wrapper = mi_traverse(mi_scene, umap_template)
 
     reflectances = [0.0, 0.5, 1.0]
     wavelengths = [400.0, 500.0, 600.0] * ureg.nm
 
     result = mi_render(
-        mi_wrapper,
+        mi_scene,
+        mi_params,
+        kpmap,
         ctxs=[
             KernelContext(si=SpectralIndex.new(w=w), kwargs={"r": r})
             for (r, w) in zip(reflectances, wavelengths)
@@ -280,27 +221,19 @@ def test_mi_render_multisensor(mode_mono):
         }
     )
 
-    umap_template = UpdateMapTemplate(
-        {
-            "my_bsdf.reflectance.value": UpdateParameter(
-                evaluator=lambda ctx: ctx.kwargs["r"],
-                flags=UpdateParameter.Flags.ALL,
-                lookup_strategy=TypeIdLookupStrategy(
-                    node_type=mi.BSDF,
-                    node_id="my_bsdf",
-                    parameter_relpath="reflectance.value",
-                ),
-            )
-        }
-    )
+    mi_params = mi_traverse(mi_scene, name_id_override=True)
 
-    mi_wrapper = mi_traverse(mi_scene, umap_template)
+    kpmap = KernelSceneParameterMap(
+        {"my_bsdf.reflectance.value": scene_parameter(lambda ctx: ctx.kwargs["r"])}
+    )
 
     reflectances = [0.0, 0.5, 1.0]
     wavelengths = [400.0, 500.0, 600.0] * ureg.nm
 
     result = mi_render(
-        mi_wrapper,
+        mi_scene,
+        mi_params,
+        kpmap,
         ctxs=[
             KernelContext(si=SpectralIndex.new(w=w), kwargs={"r": r})
             for (r, w) in zip(reflectances, wavelengths)
