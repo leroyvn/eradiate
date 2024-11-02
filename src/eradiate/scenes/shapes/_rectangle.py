@@ -8,9 +8,11 @@ import pinttr
 
 from ._core import ShapeNode
 from ..bsdfs import BSDF
-from ..core import BoundingBox
+from ..bsdfs._core import BSDFNode
+from ..core import Ref
 from ... import validators
 from ...attrs import define, documented
+from ...kernel import KernelDictionary, KernelSceneParameterMap
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
 from ...units import unit_registry as ureg
@@ -48,8 +50,9 @@ class RectangleShape(ShapeNode):
     Notes
     -----
     * If the `to_world` parameter is set, it will override the other parameters.
-      In that case, the transformation will be applied to a rectangle that covers the
-      [-1, -1, 0] to [1, 1, 0] area, with a normal pointing towards [0, 0, 1].
+      In that case, the transformation will be applied to a rectangle that
+      covers the [-1, -1, 0] to [1, 1, 0] area, with a normal pointing towards
+      [0, 0, 1].
     """
 
     edges: pint.Quantity = documented(
@@ -100,28 +103,31 @@ class RectangleShape(ShapeNode):
         default="[0, 1, 0]",
     )
 
-    def bbox(self) -> BoundingBox:
+    def kdict(self) -> KernelDictionary:
         # Inherit docstring
-        raise NotImplementedError
 
-    @property
-    def template(self) -> dict:
-        # Inherit docstring
-        length_units = uck.get("length")
-        scale = self.edges.m_as(length_units) * 0.5
         if self.to_world is not None:
-            trafo = self.to_world
+            to_world = self.to_world
         else:
-            trafo = mi.ScalarTransform4f.look_at(
-                origin=self.center.m_as(length_units),
-                target=self.center.m_as(length_units) + self.normal,
-                up=self.up,
+            length_units = uck.get("length")
+            scale = self.edges.m_as(length_units) * 0.5
+            center = self.center.m_as(length_units)
+            to_world = mi.ScalarTransform4f.look_at(
+                origin=center, target=center + self.normal, up=self.up
             ) @ mi.ScalarTransform4f.scale([scale[0], scale[1], 1.0])
 
-        result = {
-            "type": "rectangle",
-            "to_world": trafo,
-        }
+        result = KernelDictionary(
+            {"type": "rectangle", "to_world": to_world, "bsdf": self.bsdf.kdict()}
+        )
+        return result
+
+    def kpmap(self) -> KernelSceneParameterMap:
+        result = KernelSceneParameterMap()
+
+        if isinstance(self.bsdf, BSDFNode):
+            kpmap = self.bsdf.kpmap()
+            for k, v in kpmap.items():
+                result[f"bsdf.{k}"] = v
 
         return result
 
@@ -130,7 +136,7 @@ class RectangleShape(ShapeNode):
         cls,
         altitude: pint.Quantity = 0.0 * ureg.km,
         width: pint.Quantity = 1.0 * ureg.km,
-        bsdf: BSDF | None = None,
+        bsdf: BSDF | Ref | None = None,
     ) -> RectangleShape:
         """
         This class method constructor provides a simplified parametrization of
@@ -159,11 +165,12 @@ class RectangleShape(ShapeNode):
             A rectangle shape which can be used as the surface in a
             plane parallel geometry.
         """
+        kwargs = {"bsdf": bsdf} if bsdf is not None else {}
         altitude = pinttr.util.ensure_units(altitude, default_units=ucc.get("length"))
         return cls(
             edges=width,
             center=[0.0, 0.0, altitude.m] * altitude.units,
             normal=np.array([0, 0, 1]),
             up=np.array([0, 1, 0]),
-            bsdf=bsdf,
+            **kwargs,
         )

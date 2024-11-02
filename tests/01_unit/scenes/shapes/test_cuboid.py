@@ -7,7 +7,6 @@ from eradiate import KernelContext
 from eradiate import unit_context_config as ucc
 from eradiate import unit_context_kernel as uck
 from eradiate import unit_registry as ureg
-from eradiate.scenes.core import traverse
 from eradiate.scenes.shapes import CuboidShape
 from eradiate.test_tools.types import check_scene_element
 

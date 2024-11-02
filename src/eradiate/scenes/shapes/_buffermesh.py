@@ -9,10 +9,9 @@ import pint
 import pinttr
 
 from ._core import ShapeInstance
-from ..core import BoundingBox, traverse
+from ..core import BoundingBox
 from ...attrs import define, documented
 from ...contexts import KernelContext
-from ...kernel import UpdateParameter
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
 

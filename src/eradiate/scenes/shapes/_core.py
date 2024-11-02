@@ -5,7 +5,7 @@ from abc import ABC
 import attrs
 import mitsuba as mi
 
-from ..bsdfs import BSDF, bsdf_factory
+from ..bsdfs import BSDF, LambertianBSDF, bsdf_factory
 from ..core import BoundingBox, InstanceSceneElement, NodeSceneElement, Ref
 from ... import converters
 from ..._factory import Factory
@@ -45,22 +45,19 @@ class Shape:
         default='"shape"',
     )
 
-    bsdf: BSDF | Ref | None = documented(
+    bsdf: BSDF | Ref = documented(
         attrs.field(
-            default=None,
-            converter=attrs.converters.optional(bsdf_factory.convert),
-            validator=attrs.validators.optional(
-                attrs.validators.instance_of((BSDF, Ref))
-            ),
+            factory=LambertianBSDF,
+            converter=bsdf_factory.convert,
+            validator=attrs.validators.instance_of((BSDF, Ref)),
         ),
         doc="BSDF attached to the shape. If a dictionary is passed, it is "
         "interpreted by :class:`bsdf_factory.convert() <.Factory>`. "
         "If unset, no BSDF will be specified during the kernel dictionary "
-        "generation: the kernel's default will be used. If a :class:`.BSDF` "
-        "instance (or a corresponding dictionary specification) is passed, "
-        "its `id` member is automatically overridden.",
-        type=".BSDF or .Ref or None",
-        init_type=".BSDF or .Ref or dict, optional",
+        "generation: the kernel's default will be used.",
+        type=".BSDF or .Ref",
+        init_type=".BSDF or .Ref or dict",
+        default=":class:`LambertianBSDF() <.LambertianBSDF>`",
     )
 
     to_world: "mitsuba.ScalarTransform4f" = documented(
@@ -68,7 +65,7 @@ class Shape:
             converter=converters.to_mi_scalar_transform,
             default=None,
         ),
-        doc="Transform to scale, shift and rotate the shape. ",
+        doc="Transform to scale, shift and rotate the shape.",
         type="mitsuba.ScalarTransform4f or None",
         init_type="mitsuba.ScalarTransform4f or array-like, optional",
         default=None,
@@ -84,16 +81,6 @@ class Shape:
                     f"found: {type(value)}",
                 )
 
-    def __attrs_post_init__(self):
-        self.update()
-
-    def update(self) -> None:
-        # Inherit docstring
-
-        # Normalize child BSDF ID
-        if isinstance(self.bsdf, BSDF):
-            self.bsdf.id = self._bsdf_id
-
     @property
     def bbox(self) -> BoundingBox:
         """
@@ -105,14 +92,6 @@ class Shape:
     @property
     def _bsdf_id(self) -> str:
         return f"{self.id}_bsdf"
-
-    @property
-    def objects(self) -> dict[str, NodeSceneElement] | None:
-        # Inherit docstring
-        if self.bsdf is None:
-            return None
-        else:
-            return {"bsdf": self.bsdf}
 
 
 @attrs.define(eq=False, slots=False)

@@ -6,7 +6,6 @@ import pytest
 from eradiate import KernelContext
 from eradiate import unit_context_config as ucc
 from eradiate import unit_registry as ureg
-from eradiate.scenes.core import traverse
 from eradiate.scenes.shapes import RectangleShape
 from eradiate.test_tools.types import check_scene_element
 
@@ -16,15 +15,18 @@ from eradiate.test_tools.types import check_scene_element
     [({}, None), ({"bsdf": {"type": "lambertian", "reflectance": 0.0}}, 0.0)],
     ids=["noargs", "args"],
 )
-def test_rectangle_construct_kernel_dict(modes_all, kwargs, expected_reflectance):
+def test_rectangle_construct_kdict(modes_all, kwargs, expected_reflectance):
     rectangle = RectangleShape(**kwargs)
-    mi_wrapper = check_scene_element(rectangle, mi.Shape)
+    mi_obj, mi_params = check_scene_element(rectangle, mi.Shape)
 
     if expected_reflectance is not None:
-        assert mi_wrapper.parameters["bsdf.reflectance.value"] == expected_reflectance
+        assert mi_params["bsdf.reflectance.value"] == expected_reflectance
+
+    kpmap = rectangle.kpmap()
+    assert set(kpmap.keys()) == {"bsdf.reflectance.value"}
 
 
-def test_rectangle_construct_trafo(modes_all):
+def test_rectangle_construct_to_world(modes_all):
     assert RectangleShape(to_world=mi.Transform4f.scale(2))
 
 
@@ -73,19 +75,14 @@ def test_rectangle_construct_trafo(modes_all):
     ],
     ids=["edges", "center", "up", "normal_up", "to_world-only", "no-to_world", "full"],
 )
-def test_rectangle_params(mode_mono_double, kwargs, expected_transform):
+def test_rectangle_construct_params(mode_mono_double, kwargs, expected_transform):
     if "to_world" in kwargs:
-        trafo = kwargs.pop("to_world")
-        if trafo:
-            to_world = mi.ScalarTransform4f.translate((1, 1, 1))
-            rectangle = RectangleShape(**kwargs, to_world=to_world)
-    else:
-        rectangle = RectangleShape(**kwargs)
+        kwargs["to_world"] = mi.ScalarTransform4f.translate((1, 1, 1))
+    rectangle = RectangleShape(**kwargs)
 
     # Set edges
-    template, _ = traverse(rectangle)
-    kernel_dict = template.render(ctx=KernelContext())
-    to_world = kernel_dict["to_world"]
+    kdict = rectangle.kdict().render(ctx=KernelContext())
+    to_world = kdict["to_world"]
     assert dr.allclose(
         to_world.transform_affine(mi.Point3f(-1, -1, 0)), expected_transform[0]
     )

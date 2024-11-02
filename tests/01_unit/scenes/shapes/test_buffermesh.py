@@ -3,7 +3,6 @@ import numpy as np
 import pytest
 
 from eradiate.exceptions import TraversalError
-from eradiate.scenes.core import Scene, traverse
 from eradiate.scenes.shapes import BufferMeshShape
 from eradiate.test_tools.types import check_scene_element
 
