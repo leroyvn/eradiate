@@ -9,6 +9,7 @@ import inspect
 import re
 import typing as t
 from collections import OrderedDict
+from collections.abc import Mapping
 from numbers import Number
 
 import numpy as np
@@ -215,7 +216,7 @@ def flatten(d: t.Mapping, sep: str = ".", name: str = "") -> dict:
 
     for k, v in d.items():
         full_key = k if not name else f"{name}{sep}{k}"
-        if isinstance(v, dict):
+        if isinstance(v, Mapping):
             result.update(flatten(v, sep=sep, name=full_key))
         else:
             result[full_key] = v
