@@ -4,7 +4,7 @@ from abc import ABC
 
 import attrs
 
-from ..core import NodeSceneElement, SceneElement
+from ..core import CompositeSceneElement, NodeSceneElement, SceneElement
 from ..._factory import Factory
 from ...attrs import define, documented, get_doc
 
@@ -14,7 +14,7 @@ phase_function_factory.register_lazy_batch(
         (
             "_blend.BlendPhaseFunction",
             "blend_phase",
-            {},
+            {"aliases": ["blendphase"]},
         ),
         (
             "_hg.HenyeyGreensteinPhaseFunction",
@@ -34,7 +34,7 @@ phase_function_factory.register_lazy_batch(
         (
             "_tabulated.TabulatedPhaseFunction",
             "tab_phase",
-            {},
+            {"aliases": ["tabphase"]},
         ),
     ],
     cls_prefix="eradiate.scenes.phase",
@@ -42,11 +42,32 @@ phase_function_factory.register_lazy_batch(
 
 
 @define(eq=False, slots=False)
-class PhaseFunction(NodeSceneElement, ABC):
+class PhaseFunction(ABC):
     """
     An abstract base class defining common facilities for all phase functions.
+
+    Notes
+    -----
+    * This class is to be used as a mixin.
     """
 
+    # TODO: Delete
+    @property
+    def template(self):
+        raise NotImplementedError
+
+    @property
+    def params(self):
+        raise NotImplementedError
+
+
+@define(eq=False, slots=False)
+class PhaseFunctionNode(PhaseFunction, NodeSceneElement, ABC):
+    pass
+
+
+@define(eq=False, slots=False)
+class PhaseFunctionComposite(PhaseFunction, CompositeSceneElement, ABC):
     id: str | None = documented(
         attrs.field(
             default="phase",

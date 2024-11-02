@@ -8,16 +8,15 @@ import numpy as np
 
 import eradiate
 
-from ._core import PhaseFunction
+from ._core import PhaseFunctionNode
 from ..geometry import PlaneParallelGeometry, SceneGeometry, SphericalShellGeometry
 from ...attrs import define, documented
-from ...contexts import KernelContext
-from ...kernel import InitParameter, UpdateParameter
+from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
 from ...spectral.index import SpectralIndex
 
 
 @define(eq=False, slots=False)
-class RayleighPhaseFunction(PhaseFunction):
+class RayleighPhaseFunction(PhaseFunctionNode):
     """
     Rayleigh phase function [``rayleigh``].
 
@@ -86,8 +85,9 @@ class RayleighPhaseFunction(PhaseFunction):
         depolarization = self._eval_depolarization_factor_impl(si)
         return depolarization
 
-    @property
-    def template(self) -> dict:
+    def kdict(self) -> KernelDictionary:
+        # Inherit docstring
+
         if eradiate.mode().is_polarized:
             result = {"type": "rayleigh_polarized"}
 
@@ -100,7 +100,7 @@ class RayleighPhaseFunction(PhaseFunction):
                     to_world = self.geometry.atmosphere_volume_to_world
 
                 result["depolarization.type"] = "gridvolume"
-                result["depolarization.grid"] = InitParameter(
+                result["depolarization.grid"] = dict_parameter(
                     lambda ctx: mi.VolumeGrid(
                         np.reshape(
                             self.eval_depolarization_factor(ctx.si),
@@ -117,7 +117,7 @@ class RayleighPhaseFunction(PhaseFunction):
 
                 result["depolarization.type"] = "sphericalcoordsvolume"
                 result["depolarization.volume.type"] = "gridvolume"
-                result["depolarization.volume.grid"] = InitParameter(
+                result["depolarization.volume.grid"] = dict_parameter(
                     lambda ctx: mi.VolumeGrid(
                         np.reshape(
                             self.eval_depolarization_factor(ctx.si),
@@ -133,38 +133,29 @@ class RayleighPhaseFunction(PhaseFunction):
         else:
             return {"type": "rayleigh"}
 
-    @property
-    def params(self) -> dict[str, UpdateParameter]:
-        result = {}
+    def kpmap(self) -> KernelSceneParameterMap:
+        # Inherit docstring
+
+        result = KernelSceneParameterMap()
 
         if eradiate.mode().is_polarized:
             if self.geometry is None or isinstance(
                 self.geometry, PlaneParallelGeometry
             ):
-                result["depolarization.data"] = UpdateParameter(
+                result["depolarization.data"] = scene_parameter(
                     lambda ctx: np.reshape(
                         self.eval_depolarization_factor(ctx.si),
                         (-1, 1, 1, 1),
                     ).astype(np.float32),
                     UpdateParameter.Flags.SPECTRAL,
-                    # lookup_strategy=TypeIdLookupStrategy(
-                    #     node_type=mi.PhaseFunction,
-                    #     node_id=self.phase.id,
-                    #     parameter_relpath=,
-                    # ),
                 )
 
             elif isinstance(self.geometry, SphericalShellGeometry):
-                result["depolarization.volume.data"] = UpdateParameter(
+                result["depolarization.volume.data"] = scene_parameter(
                     lambda ctx: np.reshape(
                         self.eval_depolarization_factor(ctx.si),
                         (1, 1, -1, 1),
                     ).astype(np.float32),
                     UpdateParameter.Flags.SPECTRAL,
-                    # lookup_strategy=TypeIdLookupStrategy(
-                    #     node_type=mi.PhaseFunction,
-                    #     node_id=self.phase.id,
-                    #     parameter_relpath=,
-                    # ),
                 )
         return result

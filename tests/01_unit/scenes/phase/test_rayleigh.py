@@ -1,3 +1,5 @@
+# TODO: Refactor
+
 import mitsuba as mi
 import numpy as np
 
@@ -14,7 +16,7 @@ def test_rayleigh(modes_all_double):
     phase = RayleighPhaseFunction()
     check_scene_element(phase, mi.PhaseFunction)
 
-    kdict, _ = traverse(phase)
+    kdict = phase.kdict()
     if eradiate.mode().is_polarized:
         assert kdict.data["type"] == "rayleigh_polarized"
         assert "depolarization.type" in kdict.data

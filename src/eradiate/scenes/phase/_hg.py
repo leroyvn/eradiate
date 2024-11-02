@@ -2,15 +2,21 @@ from __future__ import annotations
 
 import attrs
 
-from ._core import PhaseFunction
+from ._core import PhaseFunctionNode
 from ..spectra import Spectrum, spectrum_factory
 from ... import validators
 from ...attrs import define, documented
-from ...kernel import InitParameter, UpdateParameter
+from ...kernel._kernel_dict_new import (
+    KernelDictionary,
+    KernelSceneParameterFlag,
+    KernelSceneParameterMap,
+    dict_parameter,
+    scene_parameter,
+)
 
 
 @define(eq=False, slots=False)
-class HenyeyGreensteinPhaseFunction(PhaseFunction):
+class HenyeyGreensteinPhaseFunction(PhaseFunctionNode):
     """
     Henyey-Greenstein phase function [``hg``].
 
@@ -33,23 +39,25 @@ class HenyeyGreensteinPhaseFunction(PhaseFunction):
         ),
         doc="Asymmetry parameter. Must be dimensionless. "
         "Must be in :math:`]-1, 1[`.",
-        type=":class:`.Spectrum`",
-        init_type=":class:`.Spectrum` or dict or float, optional",
+        type=".Spectrum",
+        init_type=".Spectrum or dict or float, optional",
         default="0.0",
     )
 
-    @property
-    def template(self) -> dict:
-        return {
-            "type": "hg",
-            "g": InitParameter(lambda ctx: float(self.g.eval(ctx.si))),
-        }
+    def kdict(self) -> KernelDictionary:
+        return KernelDictionary(
+            {
+                "type": "hg",
+                "g": dict_parameter(lambda ctx: float(self.g.eval(ctx.si))),
+            }
+        )
 
-    @property
-    def params(self) -> dict[str, UpdateParameter]:
-        return {
-            "g": UpdateParameter(
-                lambda ctx: float(self.g.eval(ctx.si)),
-                UpdateParameter.Flags.SPECTRAL,
-            )
-        }
+    def kpmap(self) -> KernelSceneParameterMap:
+        return KernelSceneParameterMap(
+            {
+                "g": scene_parameter(
+                    lambda ctx: float(self.g.eval(ctx.si)),
+                    KernelSceneParameterFlag.SPECTRAL,
+                )
+            }
+        )

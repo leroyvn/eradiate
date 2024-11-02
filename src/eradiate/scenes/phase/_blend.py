@@ -7,20 +7,25 @@ import attrs
 import mitsuba as mi
 import numpy as np
 
-from ._core import PhaseFunction, phase_function_factory
-from ..core import traverse
+from ._core import PhaseFunction, PhaseFunctionNode, phase_function_factory
 from ..geometry import PlaneParallelGeometry, SceneGeometry, SphericalShellGeometry
 from ...attrs import documented
 from ...contexts import KernelContext
-from ...kernel import InitParameter, UpdateParameter
+from ...kernel._kernel_dict_new import (
+    KernelDictionary,
+    KernelSceneParameterFlag,
+    KernelSceneParameterMap,
+    dict_parameter,
+    scene_parameter,
+)
 from ...spectral.index import SpectralIndex
 from ...util.misc import cache_by_id
 
 
 @attrs.define(eq=False, slots=False)
-class BlendPhaseFunction(PhaseFunction):
+class BlendPhaseFunction(PhaseFunctionNode):
     """
-    Blended phase function [``blend_phase``].
+    Blended phase function [``blend_phase``, ``blendphase``].
 
     This phase function aggregates two or more sub-phase functions
     (*components*) and blends them based on its `weights` parameter. Weights are
@@ -183,26 +188,27 @@ class BlendPhaseFunction(PhaseFunction):
         # Return selected components
         return weights[n_component, ...]
 
-    @property
-    def template(self) -> dict:
-        result = {"type": "blendphase"}
+    def kdict(self, geometry: SceneGeometry | None = None) -> KernelDictionary:
+        # TODO: Remove when self.geometry is deleted
+        if geometry is None:
+            geometry = self.geometry
+
+        result = KernelDictionary({"type": "blendphase"})
 
         for i in range(len(self.components) - 1):
             prefix = "phase_1." * i
 
             # Add components
-            template, _ = traverse(self.components[i])
+            kdict = self.components[i].kdict()
             result.update(
                 {
-                    **{f"{prefix}phase_0.{k}": v for k, v in template.items()},
+                    **{f"{prefix}phase_0.{k}": v for k, v in kdict.items()},
                     f"{prefix}phase_1.type": "blendphase",
                 }
             )
 
             # Assign conditional weight to second component
-            if self.geometry is None or isinstance(
-                self.geometry, PlaneParallelGeometry
-            ):
+            if geometry is None or isinstance(geometry, PlaneParallelGeometry):
                 # Note: This defines a partial and evaluates the component index.
                 # Passing i as the kwarg default value is essential to force the
                 # dereferencing of the loop variable.
@@ -215,15 +221,17 @@ class BlendPhaseFunction(PhaseFunction):
                     )
 
                 result[f"{prefix}weight.type"] = "gridvolume"
-                result[f"{prefix}weight.grid"] = InitParameter(eval_conditional_weights)
+                result[f"{prefix}weight.grid"] = dict_parameter(
+                    eval_conditional_weights
+                )
                 result[f"{prefix}weight.filter_type"] = "nearest"
-
+                
                 if self.geometry is not None:
                     result[f"{prefix}weight.to_world"] = (
                         self.geometry.atmosphere_volume_to_world
                     )
 
-            elif isinstance(self.geometry, SphericalShellGeometry):
+            elif isinstance(geometry, SphericalShellGeometry):
                 # Same comment as above
                 def eval_conditional_weights(ctx: KernelContext, n_component=i):
                     return mi.VolumeGrid(
@@ -235,7 +243,7 @@ class BlendPhaseFunction(PhaseFunction):
 
                 result[f"{prefix}weight.type"] = "sphericalcoordsvolume"
                 result[f"{prefix}weight.volume.type"] = "gridvolume"
-                result[f"{prefix}weight.volume.grid"] = InitParameter(
+                result[f"{prefix}weight.volume.grid"] = dict_parameter(
                     eval_conditional_weights
                 )
                 result[f"{prefix}weight.volume.filter_type"] = "nearest"
@@ -250,29 +258,30 @@ class BlendPhaseFunction(PhaseFunction):
                 )
 
         else:
-            template, _ = traverse(self.components[-1])
-            result.update({**{f"{prefix}phase_1.{k}": v for k, v in template.items()}})
+            kdict = self.components[-1].kdict()
+            result.update({**{f"{prefix}phase_1.{k}": v for k, v in kdict.items()}})
 
         return result
 
-    @property
-    def params(self) -> dict[str, UpdateParameter]:
-        result = {}
+    def kpmap(self, geometry: SceneGeometry | None = None) -> KernelSceneParameterMap:
+        # TODO: Remove when self.geometry is deleted
+        if geometry is None:
+            geometry = self.geometry
+
+        result = KernelSceneParameterMap()
 
         for i in range(len(self.components) - 1):
             prefix = "phase_1." * i
 
             # Add components
-            _, params = traverse(self.components[i])
+            kpmap = self.components[i].kpmap()
             result.update(
                 {
-                    **{f"{prefix}phase_0.{k}": v for k, v in params.items()},
+                    **{f"{prefix}phase_0.{k}": v for k, v in kpmap.items()},
                 }
             )
 
-            if self.geometry is None or isinstance(
-                self.geometry, PlaneParallelGeometry
-            ):
+            if geometry is None or isinstance(geometry, PlaneParallelGeometry):
                 # Note: This defines a partial and evaluates the component index.
                 # Passing i as the kwarg default value is essential to force the
                 # dereferencing of the loop variable.
@@ -283,12 +292,11 @@ class BlendPhaseFunction(PhaseFunction):
                     ).astype(np.float32)
 
                 # Assign conditional weight to second component
-                result[f"{prefix}weight.data"] = UpdateParameter(
-                    eval_conditional_weights,
-                    UpdateParameter.Flags.SPECTRAL,
+                result[f"{prefix}weight.data"] = scene_parameter(
+                    eval_conditional_weights, KernelSceneParameterFlag.SPECTRAL
                 )
 
-            elif isinstance(self.geometry, SphericalShellGeometry):
+            elif isinstance(geometry, SphericalShellGeometry):
                 # Same comment as above
                 def eval_conditional_weights(ctx: KernelContext, n_component=i):
                     return np.reshape(
@@ -297,16 +305,15 @@ class BlendPhaseFunction(PhaseFunction):
                     ).astype(np.float32)
 
                 # Assign conditional weight to second component
-                result[f"{prefix}weight.volume.data"] = UpdateParameter(
-                    eval_conditional_weights,
-                    UpdateParameter.Flags.SPECTRAL,
+                result[f"{prefix}weight.volume.data"] = scene_parameter(
+                    eval_conditional_weights, KernelSceneParameterFlag.SPECTRAL
                 )
 
             else:
                 raise NotImplementedError
 
         else:
-            _, params = traverse(self.components[-1])
-            result.update({**{f"{prefix}phase_1.{k}": v for k, v in params.items()}})
+            kpmap = self.components[-1].kpmap()
+            result.update({**{f"{prefix}phase_1.{k}": v for k, v in kpmap.items()}})
 
         return result

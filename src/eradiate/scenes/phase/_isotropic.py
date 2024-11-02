@@ -1,9 +1,10 @@
-from ._core import PhaseFunction
+from ._core import PhaseFunctionNode
 from ...attrs import define
+from ...kernel._kernel_dict_new import KernelDictionary, KernelSceneParameterMap
 
 
 @define(eq=False, slots=False)
-class IsotropicPhaseFunction(PhaseFunction):
+class IsotropicPhaseFunction(PhaseFunctionNode):
     """
     Isotropic phase function [``isotropic``].
 
@@ -11,6 +12,12 @@ class IsotropicPhaseFunction(PhaseFunction):
     all directions.
     """
 
-    @property
-    def template(self) -> dict:
-        return {"type": "isotropic"}
+    def kdict(self) -> KernelDictionary:
+        # Inherit docstring
+
+        return KernelDictionary({"type": "isotropic"})
+
+    def kpmap(self) -> KernelSceneParameterMap:
+        # Inherit docstring
+
+        return KernelSceneParameterMap()

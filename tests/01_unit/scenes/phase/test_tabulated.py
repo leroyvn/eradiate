@@ -55,8 +55,8 @@ def test_tabulated_force_polarized_off(modes_all_polarized, grid, request):
     phase = TabulatedPhaseFunction(
         data=request.getfixturevalue(grid), force_polarized_phase=False
     )
-    kdict, _ = eradiate.scenes.core.traverse(phase)
-    mdict = kdict.render(KernelContext())
+    kdict = phase.kdict()
+    mi_dict = kdict.render(KernelContext())
 
     assert not phase.is_polarized if grid != "polarized" else phase.is_polarized
     assert (
@@ -68,10 +68,10 @@ def test_tabulated_force_polarized_off(modes_all_polarized, grid, request):
 
     if grid != phase.is_polarized:
         assert (
-            mdict["type"] == "tabphase" if grid == "regular" else "tabphase_irregular"
+            mi_dict["type"] == "tabphase" if grid == "regular" else "tabphase_irregular"
         )
     else:
-        assert mdict["type"] == "tabphase_polarized"
+        assert mi_dict["type"] == "tabphase_polarized"
 
     # Kernel dict can be generated and instantiated
     check_scene_element(phase, mi.PhaseFunction)
@@ -84,12 +84,12 @@ def test_tabulated_force_polarized_on(modes_all_polarized, grid, request):
         data=request.getfixturevalue(grid), force_polarized_phase=True
     )
 
-    kdict, _ = eradiate.scenes.core.traverse(phase)
-    mdict = kdict.render(KernelContext())
+    kdict = phase.kdict()
+    mi_dict = kdict.render(KernelContext())
 
     assert phase.is_polarized
     assert phase._is_irregular
-    assert mdict["type"] == "tabphase_polarized"
+    assert mi_dict["type"] == "tabphase_polarized"
 
     # Kernel dict can be generated and instantiated
     check_scene_element(phase, mi.PhaseFunction)

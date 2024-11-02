@@ -10,9 +10,15 @@ import xarray as xr
 
 import eradiate
 
-from ._core import PhaseFunction
+from ._core import PhaseFunctionNode
 from ...attrs import define, documented
-from ...kernel import InitParameter, UpdateParameter
+from ...kernel._kernel_dict_new import (
+    KernelDictionary,
+    KernelSceneParameterFlag,
+    KernelSceneParameterMap,
+    dict_parameter,
+    scene_parameter,
+)
 from ...spectral.index import (
     CKDSpectralIndex,
     MonoSpectralIndex,
@@ -49,9 +55,9 @@ def _validate_data(instance, attribute, value):
 
 
 @define(eq=False, slots=False)
-class TabulatedPhaseFunction(PhaseFunction):
+class TabulatedPhaseFunction(PhaseFunctionNode):
     r"""
-    Tabulated phase function [``tab_phase``].
+    Tabulated phase function [``tab_phase``, ``tabphase``].
 
     A lookup table-based phase function. The ``data`` field is a
     :class:`~xarray.DataArray` with wavelength and angular dimensions.
@@ -205,52 +211,54 @@ class TabulatedPhaseFunction(PhaseFunction):
         """
         return self.eval_mono(w=w, i=i, j=j)
 
-    @property
-    def template(self):
-        phase_function = "tabphase"
+    def kdict(self) -> KernelDictionary:
+        # Inherit docstring
+        plugin_name = "tabphase"
         values_name = "values"
 
         if self.is_polarized:
-            phase_function = "tabphase_polarized"
+            plugin_name = "tabphase_polarized"
             values_name = "m11"
         else:
             if self._is_irregular:
-                phase_function = "tabphase_irregular"
+                plugin_name = "tabphase_irregular"
 
-        result = {
-            "type": phase_function,
-            values_name: InitParameter(
-                lambda ctx: ",".join(map(str, self.eval(ctx.si, 0, 0))),
-            ),
-        }
+        result = KernelDictionary(
+            {
+                "type": plugin_name,
+                values_name: dict_parameter(
+                    lambda ctx: ",".join(map(str, self.eval(ctx.si, 0, 0))),
+                ),
+            }
+        )
 
         if self.is_polarized:
             if self.has_polarized_data:
-                result["m12"] = InitParameter(
+                result["m12"] = dict_parameter(
                     lambda ctx: ",".join(map(str, self.eval(ctx.si, 0, 1))),
                 )
-                result["m33"] = InitParameter(
+                result["m33"] = dict_parameter(
                     lambda ctx: ",".join(map(str, self.eval(ctx.si, 2, 2))),
                 )
-                result["m34"] = InitParameter(
+                result["m34"] = dict_parameter(
                     lambda ctx: ",".join(map(str, self.eval(ctx.si, 2, 3))),
                 )
 
                 if self.particle_shape == "spheroidal":
-                    result["m22"] = InitParameter(
+                    result["m22"] = dict_parameter(
                         lambda ctx: ",".join(map(str, self.eval(ctx.si, 1, 1))),
                     )
 
-                    result["m44"] = InitParameter(
+                    result["m44"] = dict_parameter(
                         lambda ctx: ",".join(map(str, self.eval(ctx.si, 3, 3))),
                     )
 
                 elif self.particle_shape == "spherical":
-                    result["m22"] = InitParameter(
+                    result["m22"] = dict_parameter(
                         lambda ctx: ",".join(map(str, self.eval(ctx.si, 0, 0))),
                     )
 
-                    result["m44"] = InitParameter(
+                    result["m44"] = dict_parameter(
                         lambda ctx: ",".join(map(str, self.eval(ctx.si, 2, 2))),
                     )
 
@@ -261,72 +269,73 @@ class TabulatedPhaseFunction(PhaseFunction):
                 # case: no polarized data but forced polarized. Initialize the
                 # diagonal to have the same behaviour as with tabphase in
                 # polarized mode.
-                result["m22"] = InitParameter(
+                result["m22"] = dict_parameter(
                     lambda ctx: ",".join(map(str, self.eval(ctx.si, 0, 0))),
                 )
 
-                result["m33"] = InitParameter(
+                result["m33"] = dict_parameter(
                     lambda ctx: ",".join(map(str, self.eval(ctx.si, 0, 0))),
                 )
 
-                result["m44"] = InitParameter(
+                result["m44"] = dict_parameter(
                     lambda ctx: ",".join(map(str, self.eval(ctx.si, 0, 0))),
                 )
 
         if self._is_irregular:
-            result["nodes"] = InitParameter(
+            result["nodes"] = dict_parameter(
                 lambda ctx: ",".join(map(str, self.data.mu.values))
             )
 
         return result
 
-    @property
-    def params(self) -> dict[str, UpdateParameter]:
+    def kpmap(self) -> KernelSceneParameterMap:
         values_name = "values"
 
         if self.is_polarized:
             values_name = "m11"
 
-        result = {
-            values_name: UpdateParameter(
-                lambda ctx: self.eval(ctx.si, 0, 0),
-                UpdateParameter.Flags.SPECTRAL,
-            )
-        }
+        result = KernelSceneParameterMap(
+            {
+                values_name: scene_parameter(
+                    lambda ctx: self.eval(ctx.si, 0, 0),
+                    KernelSceneParameterFlag.SPECTRAL,
+                )
+            }
+        )
 
         if self.is_polarized:
             if self.has_polarized_data:
-                result["m12"] = UpdateParameter(
+                result["m12"] = scene_parameter(
                     lambda ctx: self.eval(ctx.si, 0, 1),
-                    UpdateParameter.Flags.SPECTRAL,
+                    KernelSceneParameterFlag.SPECTRAL,
                 )
-                result["m33"] = UpdateParameter(
+                result["m33"] = scene_parameter(
                     lambda ctx: self.eval(ctx.si, 2, 2),
-                    UpdateParameter.Flags.SPECTRAL,
+                    KernelSceneParameterFlag.SPECTRAL,
                 )
-                result["m34"] = UpdateParameter(
+                result["m34"] = scene_parameter(
                     lambda ctx: self.eval(ctx.si, 2, 3),
-                    UpdateParameter.Flags.SPECTRAL,
+                    KernelSceneParameterFlag.SPECTRAL,
                 )
 
                 if self.particle_shape == "spheroidal":
-                    result["m22"] = UpdateParameter(
+                    result["m22"] = scene_parameter(
                         lambda ctx: self.eval(ctx.si, 1, 1),
-                        UpdateParameter.Flags.SPECTRAL,
+                        KernelSceneParameterFlag.SPECTRAL,
                     )
-                    result["m44"] = UpdateParameter(
+                    result["m44"] = scene_parameter(
                         lambda ctx: self.eval(ctx.si, 3, 3),
-                        UpdateParameter.Flags.SPECTRAL,
+                        KernelSceneParameterFlag.SPECTRAL,
                     )
 
                 elif self.particle_shape == "spherical":
-                    result["m22"] = UpdateParameter(
+                    result["m22"] = scene_parameter(
                         lambda ctx: self.eval(ctx.si, 0, 0),
-                        UpdateParameter.Flags.SPECTRAL,
+                        KernelSceneParameterFlag.SPECTRAL,
                     )
-                    result["m44"] = UpdateParameter(
+                    result["m44"] = scene_parameter(
                         lambda ctx: self.eval(ctx.si, 2, 2),
-                        UpdateParameter.Flags.SPECTRAL,
+                        KernelSceneParameterFlag.SPECTRAL,
                     )
 
                 else:
@@ -336,19 +345,19 @@ class TabulatedPhaseFunction(PhaseFunction):
                 # case: no polarized data but forced polarized. Initialize the
                 # diagonal to have the same behaviour as with tabphase in
                 # polarized mode.
-                result["m22"] = UpdateParameter(
+                result["m22"] = scene_parameter(
                     lambda ctx: self.eval(ctx.si, 0, 0),
-                    UpdateParameter.Flags.SPECTRAL,
+                    KernelSceneParameterFlag.SPECTRAL,
                 )
 
-                result["m33"] = UpdateParameter(
+                result["m33"] = scene_parameter(
                     lambda ctx: self.eval(ctx.si, 0, 0),
-                    UpdateParameter.Flags.SPECTRAL,
+                    KernelSceneParameterFlag.SPECTRAL,
                 )
 
-                result["m44"] = UpdateParameter(
+                result["m44"] = scene_parameter(
                     lambda ctx: self.eval(ctx.si, 0, 0),
-                    UpdateParameter.Flags.SPECTRAL,
+                    KernelSceneParameterFlag.SPECTRAL,
                 )
 
         return result

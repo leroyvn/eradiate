@@ -4,7 +4,6 @@ import pytest
 
 from eradiate import KernelContext
 from eradiate import unit_registry as ureg
-from eradiate.scenes.core import traverse
 from eradiate.scenes.geometry import SceneGeometry
 from eradiate.scenes.phase import BlendPhaseFunction
 from eradiate.spectral.index import SpectralIndex
@@ -158,8 +157,8 @@ def test_blend_phase_geometry(mode_mono, geometry):
         weights=[0.25, 0.25, 0.5],
     )
     assert phase.geometry is None
-    template = traverse(phase)[0]
-    assert "weight.to_world" not in template
+    kdict = phase.kdict()
+    assert "weight.to_world" not in kdict
 
     # Appropriate geometry setup works
     geometry = SceneGeometry.convert(geometry)
@@ -169,8 +168,8 @@ def test_blend_phase_geometry(mode_mono, geometry):
         weights=[0.25, 0.25, 0.5],
         geometry=geometry,
     )
-    template = traverse(phase)[0]
-    to_world = np.array(template["weight.to_world"].matrix)
+    kdict = phase.kdict()
+    to_world = np.array(kdict["weight.to_world"].matrix)
     np.testing.assert_allclose(to_world, expected)
     check_scene_element(phase, mi.PhaseFunction)
 
@@ -188,10 +187,10 @@ def test_blend_phase_geometry(mode_mono, geometry):
         geometry=geometry,
     )
 
-    for comp in phase.components:
-        if isinstance(comp, BlendPhaseFunction):
-            template = traverse(comp)[0]
-            to_world = np.array(template["weight.to_world"].matrix)
+    for component in phase.components:
+        if isinstance(component, BlendPhaseFunction):
+            kdict = component.kdict()
+            to_world = np.array(kdict["weight.to_world"].matrix)
             np.testing.assert_allclose(to_world, expected)
 
     check_scene_element(phase, mi.PhaseFunction)
@@ -232,9 +231,9 @@ def test_blend_phase_kernel_dict_2_components(mode_mono, kwargs):
     )
     check_scene_element(phase, mi.PhaseFunction)
 
-    template, params = traverse(phase)
+    kdict = phase.kdict()
     ctx = KernelContext()
-    kernel_dict = mi_to_numpy(template.render(ctx, nested=False))
+    kernel_dict = mi_to_numpy(kdict.render(ctx, nested=False))
 
     # Check that the kernel dict is correct
     expected = {
@@ -254,7 +253,8 @@ def test_blend_phase_kernel_dict_2_components(mode_mono, kwargs):
     assert_cmp_dict(kernel_dict, expected)
 
     # Check that the parameter map is correct
-    assert set(params.keys()) == {"weight.data"}
+    kpmap = phase.kpmap()
+    assert set(kpmap.keys()) == {"weight.data"}
 
 
 @pytest.mark.parametrize(
@@ -311,8 +311,8 @@ def test_blend_phase_kernel_dict_3_components(mode_mono, kwargs, expected_mi_wei
     )
     check_scene_element(phase, mi.PhaseFunction)
 
-    template, params = traverse(phase)
-    kernel_dict = mi_to_numpy(template.render(KernelContext(), nested=False))
+    kdict = phase.kdict()
+    kernel_dict = mi_to_numpy(kdict.render(KernelContext(), nested=False))
 
     # Array weights
     expected = {
@@ -341,7 +341,8 @@ def test_blend_phase_kernel_dict_3_components(mode_mono, kwargs, expected_mi_wei
     assert_cmp_dict(expected, kernel_dict)
 
     # Check that the parameter map is correct
-    assert set(params.keys()) == {
+    kpmap = phase.kpmap()
+    assert set(kpmap.keys()) == {
         "weight.data",
         "phase_0.g",
         "phase_1.weight.data",
