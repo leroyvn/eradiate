@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pint
-import pinttr
+import pinttrs
 
 from ._core import AbstractDirectionalIllumination
 from ...attrs import define, documented
@@ -38,9 +38,9 @@ class AstroObjectIllumination(AbstractDirectionalIllumination):
     """
 
     angular_diameter: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             default=0.5358 * ureg.deg,
-            validator=[is_positive, pinttr.validators.has_compatible_units],
+            validator=[is_positive, pinttrs.validators.has_compatible_units],
             units=ucc.deferred("angle"),
         ),
         doc="Apparent diameter of the celestial body as seen from the point. "

@@ -10,7 +10,7 @@ from typing import Literal
 import attrs
 import numpy as np
 import pint
-import pinttr
+import pinttrs
 import xarray as xr
 
 from ._core import AbstractHeterogeneousAtmosphere
@@ -68,9 +68,9 @@ class ParticleLayer(AbstractHeterogeneousAtmosphere):
     """
 
     bottom: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             default=ureg.Quantity(0.0, ureg.km),
-            validator=[is_positive, pinttr.validators.has_compatible_units],
+            validator=[is_positive, pinttrs.validators.has_compatible_units],
             units=ucc.deferred("length"),
         ),
         doc="Bottom altitude of the particle layer.\n"
@@ -82,10 +82,10 @@ class ParticleLayer(AbstractHeterogeneousAtmosphere):
     )
 
     top: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             units=ucc.deferred("length"),
             default=ureg.Quantity(1.0, ureg.km),
-            validator=[is_positive, pinttr.validators.has_compatible_units],
+            validator=[is_positive, pinttrs.validators.has_compatible_units],
         ),
         doc="Top altitude of the particle layer.\n"
         "\n"
@@ -123,10 +123,10 @@ class ParticleLayer(AbstractHeterogeneousAtmosphere):
     )
 
     w_ref: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             units=ucc.deferred("wavelength"),
             default=550 * ureg.nm,
-            validator=[is_positive, pinttr.validators.has_compatible_units],
+            validator=[is_positive, pinttrs.validators.has_compatible_units],
         ),
         doc="Reference wavelength at which the extinction optical thickness is "
         "specified.\n"
@@ -138,10 +138,10 @@ class ParticleLayer(AbstractHeterogeneousAtmosphere):
     )
 
     tau_ref: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             units=ucc.deferred("dimensionless"),
             default=ureg.Quantity(0.2, ureg.dimensionless),
-            validator=[is_positive, pinttr.validators.has_compatible_units],
+            validator=[is_positive, pinttrs.validators.has_compatible_units],
         ),
         doc="Extinction optical thickness at the reference wavelength.\n"
         "\n"

@@ -8,8 +8,8 @@ import attrs
 import mitsuba as mi
 import numpy as np
 import pint
-import pinttr
-from pinttr.util import ensure_units
+import pinttrs
+from pinttrs.util import ensure_units
 
 from ._core import Measure
 from ... import converters, frame, validators
@@ -95,7 +95,7 @@ class Target:
 
 def _target_point_rectangle_xyz_converter(x):
     return converters.on_quantity(float)(
-        pinttr.converters.to_units(ucc.deferred("length"))(x)
+        pinttrs.converters.to_units(ucc.deferred("length"))(x)
     )
 
 
@@ -107,7 +107,7 @@ class TargetPoint(Target):
 
     # Target point in config units
     xyz: pint.Quantity = documented(
-        pinttr.field(units=ucc.deferred("length")),
+        pinttrs.field(units=ucc.deferred("length")),
         doc="Point coordinates.\n\nUnit-enabled field (default: ucc['length']).",
         type="quantity",
         init_type="array-like",
@@ -136,7 +136,7 @@ class TargetRectangle(Target):
     """
 
     xmin: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             converter=_target_point_rectangle_xyz_converter,
             units=ucc.deferred("length"),
         ),
@@ -148,7 +148,7 @@ class TargetRectangle(Target):
     )
 
     xmax: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             converter=_target_point_rectangle_xyz_converter,
             units=ucc.deferred("length"),
         ),
@@ -160,7 +160,7 @@ class TargetRectangle(Target):
     )
 
     ymin: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             converter=_target_point_rectangle_xyz_converter,
             units=ucc.deferred("length"),
         ),
@@ -172,7 +172,7 @@ class TargetRectangle(Target):
     )
 
     ymax: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             converter=_target_point_rectangle_xyz_converter,
             units=ucc.deferred("length"),
         ),
@@ -184,7 +184,7 @@ class TargetRectangle(Target):
     )
 
     z: pint.Quantity = documented(
-        pinttr.field(
+        pinttrs.field(
             default=0.0,
             converter=_target_point_rectangle_xyz_converter,
             units=ucc.deferred("length"),
@@ -279,7 +279,7 @@ class AbstractDistantMeasure(Measure, ABC):
     )
 
     ray_offset: pint.Quantity | None = documented(
-        pinttr.field(default=None, units=ucc.deferred("length")),
+        pinttrs.field(default=None, units=ucc.deferred("length")),
         doc="Manually control the distance between the target and ray origins. "
         "If unset, ray origins are positioned outside of the scene and this "
         "measure is rigorously distant.",
