@@ -11,7 +11,6 @@ from ..core import NodeSceneElement
 from ... import validators
 from ..._factory import Factory
 from ...attrs import define, documented, get_doc
-from ...kernel import InitParameter
 from ...spectral.response import DeltaSRF, SpectralResponseFunction
 from ...units import unit_registry as ureg
 

@@ -11,7 +11,13 @@ import eradiate
 from ._core import PhaseFunctionNode
 from ..geometry import PlaneParallelGeometry, SceneGeometry, SphericalShellGeometry
 from ...attrs import define, documented
-from ...kernel._kernel_dict import KernelDictionary, KernelSceneParameterMap
+from ...kernel import (
+    KernelDictionary,
+    KernelSceneParameterFlag,
+    KernelSceneParameterMap,
+    dict_parameter,
+    scene_parameter,
+)
 from ...spectral.index import SpectralIndex
 
 
@@ -89,7 +95,7 @@ class RayleighPhaseFunction(PhaseFunctionNode):
         # Inherit docstring
 
         if eradiate.mode().is_polarized:
-            result = {"type": "rayleigh_polarized"}
+            result = KernelDictionary({"type": "rayleigh_polarized"})
 
             if self.geometry is None or isinstance(
                 self.geometry, PlaneParallelGeometry
@@ -131,7 +137,7 @@ class RayleighPhaseFunction(PhaseFunctionNode):
 
             return result
         else:
-            return {"type": "rayleigh"}
+            return KernelDictionary({"type": "rayleigh"})
 
     def kpmap(self) -> KernelSceneParameterMap:
         # Inherit docstring
@@ -147,7 +153,7 @@ class RayleighPhaseFunction(PhaseFunctionNode):
                         self.eval_depolarization_factor(ctx.si),
                         (-1, 1, 1, 1),
                     ).astype(np.float32),
-                    UpdateParameter.Flags.SPECTRAL,
+                    KernelSceneParameterFlag.SPECTRAL,
                 )
 
             elif isinstance(self.geometry, SphericalShellGeometry):
@@ -156,6 +162,6 @@ class RayleighPhaseFunction(PhaseFunctionNode):
                         self.eval_depolarization_factor(ctx.si),
                         (1, 1, -1, 1),
                     ).astype(np.float32),
-                    UpdateParameter.Flags.SPECTRAL,
+                    KernelSceneParameterFlag.SPECTRAL,
                 )
         return result

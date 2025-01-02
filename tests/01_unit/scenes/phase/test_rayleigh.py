@@ -4,7 +4,6 @@ import mitsuba as mi
 import numpy as np
 
 import eradiate
-from eradiate.scenes.core import traverse
 from eradiate.scenes.geometry import PlaneParallelGeometry, SphericalShellGeometry
 from eradiate.scenes.phase import RayleighPhaseFunction
 from eradiate.spectral import CKDSpectralIndex

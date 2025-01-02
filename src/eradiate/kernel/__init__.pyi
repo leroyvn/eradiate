@@ -5,6 +5,7 @@ from ._bitmap import bitmap_to_dataarray as bitmap_to_dataarray
 from ._bitmap import bitmap_to_dataset as bitmap_to_dataset
 from ._bsdf import eval_bsdf as eval_bsdf
 from ._kernel_dict import KernelDictionary as KernelDictionary
+from ._kernel_dict import KernelDictionaryParameter as KernelDictionaryParameter
 from ._kernel_dict import KernelSceneParameter as KernelSceneParameter
 from ._kernel_dict import KernelSceneParameterFlag as KernelSceneParameterFlag
 from ._kernel_dict import KernelSceneParameterMap as KernelSceneParameterMap
