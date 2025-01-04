@@ -19,13 +19,16 @@ from eradiate.test_tools.types import check_scene_element
 def test_cuboid_construct_kernel_dict(modes_all, kwargs, expected_reflectance):
     cuboid = CuboidShape(**kwargs)
 
-    mi_wrapper = check_scene_element(cuboid, mi.Shape)
+    mi_obj, mi_params = check_scene_element(cuboid, mi.Shape)
 
     if expected_reflectance is not None:
-        assert mi_wrapper.parameters["bsdf.reflectance.value"] == expected_reflectance
+        assert mi_params["bsdf.reflectance.value"] == expected_reflectance
+
+    kpmap = cuboid.kpmap()
+    assert set(kpmap.keys()) == {"bsdf.reflectance.value"}
 
 
-def test_cuboid_construct_trafo(mode_mono):
+def test_cuboid_construct_to_world(mode_mono):
     assert CuboidShape(
         edges=[1, 1, 1], to_world=mi.Transform4f.rotate(axis=[1, 1, 1], angle=45)
     )
@@ -52,16 +55,11 @@ def test_cuboid_construct_trafo(mode_mono):
 )
 def test_cuboid_params(mode_mono_double, kwargs, expected_transform):
     if "to_world" in kwargs:
-        trafo = kwargs.pop("to_world")
-        if trafo:
-            to_world = mi.ScalarTransform4f.translate((2, 2, 2))
-            cuboid = CuboidShape(**kwargs, to_world=to_world)
-    else:
-        cuboid = CuboidShape(**kwargs)
+        kwargs["to_world"] = mi.ScalarTransform4f.translate((2, 2, 2))
+    cuboid = CuboidShape(**kwargs)
 
-    template, _ = traverse(cuboid)
-    kernel_dict = template.render(ctx=KernelContext())
-    to_world = kernel_dict["to_world"]
+    kdict = cuboid.kdict().render(ctx=KernelContext())
+    to_world = kdict["to_world"]
     assert dr.allclose(
         to_world.transform_affine(mi.Point3f(-1, -1, -1)), expected_transform[0]
     )
@@ -82,9 +80,8 @@ def test_cuboid_atmosphere(mode_mono_double):
         assert np.allclose(cuboid.center, [0, 0, 0.25] * ureg.km)
 
     with uck.override(length="m"):
-        template, _ = traverse(cuboid)
-        kernel_dict = template.render(ctx=KernelContext())
-        bbox = mi.load_dict(kernel_dict).bbox()
+        kdict = cuboid.kdict().render(ctx=KernelContext())
+        bbox = mi.load_dict(kdict).bbox()
         assert dr.allclose(bbox.min, [-500, -500, -500])
         assert dr.allclose(bbox.max, [500, 500, 1000])
 

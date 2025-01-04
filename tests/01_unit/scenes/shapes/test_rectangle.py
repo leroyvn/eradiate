@@ -80,7 +80,6 @@ def test_rectangle_construct_params(mode_mono_double, kwargs, expected_transform
         kwargs["to_world"] = mi.ScalarTransform4f.translate((1, 1, 1))
     rectangle = RectangleShape(**kwargs)
 
-    # Set edges
     kdict = rectangle.kdict().render(ctx=KernelContext())
     to_world = kdict["to_world"]
     assert dr.allclose(

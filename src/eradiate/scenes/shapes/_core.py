@@ -6,10 +6,12 @@ import attrs
 import mitsuba as mi
 
 from ..bsdfs import BSDF, LambertianBSDF, bsdf_factory
+from ..bsdfs._core import BSDFComposite, BSDFNode
 from ..core import BoundingBox, InstanceSceneElement, NodeSceneElement, Ref
 from ... import converters
 from ..._factory import Factory
 from ...attrs import define, documented, get_doc
+from ...kernel import KernelSceneParameterMap
 
 shape_factory = Factory()
 shape_factory.register_lazy_batch(
@@ -45,18 +47,20 @@ class Shape:
         default='"shape"',
     )
 
-    bsdf: BSDF | Ref = documented(
+    bsdf: BSDF | Ref | None = documented(
         attrs.field(
             factory=LambertianBSDF,
             converter=bsdf_factory.convert,
-            validator=attrs.validators.instance_of((BSDF, Ref)),
+            validator=attrs.validators.optional(
+                attrs.validators.instance_of((BSDF, Ref))
+            ),
         ),
         doc="BSDF attached to the shape. If a dictionary is passed, it is "
         "interpreted by :class:`bsdf_factory.convert() <.Factory>`. "
-        "If unset, no BSDF will be specified during the kernel dictionary "
-        "generation: the kernel's default will be used.",
-        type=".BSDF or .Ref",
-        init_type=".BSDF or .Ref or dict",
+        "If set to ``None``, no BSDF is specified during kernel dictionary "
+        "generation: the kernel's default is used.",
+        type=".BSDF or .Ref or None",
+        init_type=".BSDF or .Ref or dict or None, optional",
         default=":class:`LambertianBSDF() <.LambertianBSDF>`",
     )
 
@@ -94,17 +98,31 @@ class Shape:
         return f"{self.id}_bsdf"
 
 
-@attrs.define(eq=False, slots=False)
+@define(eq=False, slots=False)
 class ShapeNode(Shape, NodeSceneElement, ABC):
     """
     Interface for shapes which can be represented as Mitsuba scene dictionary
     nodes.
     """
 
-    pass
+    def kpmap(self) -> KernelSceneParameterMap:
+        # Inherit docstring
+
+        result = KernelSceneParameterMap()
+
+        if isinstance(self.bsdf, BSDFNode):
+            # TODO: Handle BSDF with set ID
+            kpmap = self.bsdf.kpmap()
+            for k, v in kpmap.items():
+                result[f"bsdf.{k}"] = v
+
+        elif isinstance(self.bsdf, BSDFComposite):
+            raise NotImplementedError
+
+        return result
 
 
-@attrs.define(eq=False, slots=False)
+@define(eq=False, slots=False)
 class ShapeInstance(Shape, InstanceSceneElement, ABC):
     """
     Interface for shapes which have to be expanded as Mitsuba objects.

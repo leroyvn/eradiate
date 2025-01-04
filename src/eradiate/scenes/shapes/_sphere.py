@@ -11,6 +11,7 @@ from ..bsdfs import BSDF
 from ..core import BoundingBox
 from ...attrs import define, documented
 from ...constants import EARTH_RADIUS
+from ...kernel import KernelDictionary
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
 from ...units import unit_registry as ureg
@@ -74,15 +75,17 @@ class SphereShape(ShapeNode):
 
         return BoundingBox(p1, p2)
 
-    @property
-    def template(self) -> dict:
-        result = {
-            "type": "sphere",
-            "center": self.center.m_as(uck.get("length")),
-            "radius": self.radius.m_as(uck.get("length")),
-        }
+    def kdict(self) -> KernelDictionary:
+        # Inherit docstring
+
+        result = KernelDictionary({"type": "sphere"})
         if self.to_world is not None:
             result["to_world"] = self.to_world
+        else:
+            units = uck.get("length")
+            result["center"] = self.center.m_as(units)
+            result["radius"] = self.radius.m_as(units)
+
         return result
 
     def contains(self, p: np.typing.ArrayLike, strict: bool = False) -> bool:

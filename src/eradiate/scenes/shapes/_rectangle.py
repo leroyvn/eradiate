@@ -8,11 +8,10 @@ import pinttr
 
 from ._core import ShapeNode
 from ..bsdfs import BSDF
-from ..bsdfs._core import BSDFNode
 from ..core import Ref
 from ... import validators
 from ...attrs import define, documented
-from ...kernel import KernelDictionary, KernelSceneParameterMap
+from ...kernel import KernelDictionary
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
 from ...units import unit_registry as ureg
@@ -109,26 +108,16 @@ class RectangleShape(ShapeNode):
         if self.to_world is not None:
             to_world = self.to_world
         else:
-            length_units = uck.get("length")
-            scale = self.edges.m_as(length_units) * 0.5
-            center = self.center.m_as(length_units)
+            units = uck.get("length")
+            scale = self.edges.m_as(units) * 0.5
+            center = self.center.m_as(units)
             to_world = mi.ScalarTransform4f.look_at(
                 origin=center, target=center + self.normal, up=self.up
             ) @ mi.ScalarTransform4f.scale([scale[0], scale[1], 1.0])
 
-        result = KernelDictionary(
-            {"type": "rectangle", "to_world": to_world, "bsdf": self.bsdf.kdict()}
-        )
-        return result
-
-    def kpmap(self) -> KernelSceneParameterMap:
-        result = KernelSceneParameterMap()
-
-        if isinstance(self.bsdf, BSDFNode):
-            kpmap = self.bsdf.kpmap()
-            for k, v in kpmap.items():
-                result[f"bsdf.{k}"] = v
-
+        result = KernelDictionary({"type": "rectangle", "to_world": to_world})
+        if self.bsdf is not None:
+            result["bsdf"] = self.bsdf.kdict()
         return result
 
     @classmethod

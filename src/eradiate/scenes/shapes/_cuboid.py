@@ -10,9 +10,10 @@ from pinttr.util import ensure_units
 
 from ._core import ShapeNode
 from ..bsdfs import BSDF
-from ..core import BoundingBox
+from ..core import BoundingBox, Ref
 from ...attrs import define, documented
 from ...contexts import KernelContext
+from ...kernel import KernelDictionary
 from ...kernel.transform import transform_affine
 from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
@@ -219,21 +220,21 @@ class CuboidShape(ShapeNode):
                 center.m_as(length_units)
             ) @ mi.ScalarTransform4f.scale(0.5 * edges.m_as(length_units))
 
-    @property
-    def template(self) -> dict:
-        length_units = uck.get("length")
+    def kdict(self) -> KernelDictionary:
+        # Inherit docstring
 
         if self.to_world is not None:
-            trafo = self.to_world
+            to_world = self.to_world
         else:
-            trafo = mi.ScalarTransform4f.translate(
+            length_units = uck.get("length")
+            to_world = mi.ScalarTransform4f.translate(
                 self.center.m_as(length_units)
             ) @ mi.ScalarTransform4f.scale(0.5 * self.edges.m_as(length_units))
 
-        return {
-            "type": "cube",
-            "to_world": trafo,
-        }
+        result = KernelDictionary({"type": "cube", "to_world": to_world})
+        if self.bsdf is not None:
+            result["bsdf"] = self.bsdf.kdict()
+        return result
 
     @classmethod
     def atmosphere(
@@ -242,7 +243,7 @@ class CuboidShape(ShapeNode):
         bottom: pint.Quantity = 0.0 * ureg.km,
         bottom_offset: pint.Quantity = None,
         width: pint.Quantity = 100.0 * ureg.km,
-        bsdf: BSDF | None = None,
+        bsdf: BSDF | Ref | None = None,
     ) -> CuboidShape:
         """
         This class method constructor provides a simplified parametrization of
@@ -271,7 +272,7 @@ class CuboidShape(ShapeNode):
             Length of the horizontal edges of the cuboid.
             If a unitless value is passed, it is interpreted as ``ucc['length']``.
 
-        bsdf : BSDF or dict, optional, default: None
+        bsdf : BSDF or Ref or dict, optional, default: None
             A BSDF specification, forwarded to the main constructor.
 
         Returns
