@@ -1,6 +1,41 @@
 import mitsuba as mi
+import pytest
 
 from eradiate.two import Scene, SceneObject
+
+
+@pytest.fixture
+def mi_log_level_info():
+    log_level = mi.log_level()
+    mi.set_log_level(mi.LogLevel.Info)
+    yield
+    mi.set_log_level(log_level)
+
+
+@pytest.fixture
+def mi_log_print():
+    # Temporarily install a custom print-based appender to allow logger output capture
+
+    # TODO: replace with mi.logger() after Mitsuba v3.7+ update
+    logger = mi.Thread.thread().logger()
+
+    appenders = []
+    while logger.appender_count() > 0:
+        app = logger.appender(0)
+        appenders.append(app)
+        logger.remove_appender(app)
+
+    class MyAppender(mi.Appender):
+        def append(self, level, text):
+            print(text)
+
+    logger.add_appender(MyAppender())
+
+    yield
+
+    logger.clear_appenders()
+    for app in appenders:
+        logger.add_appender(app)
 
 
 def test_scene_classvar(mode_mono):
@@ -37,13 +72,31 @@ def test_scene_construct(mode_mono):
     assert params["02_bsdf_diffuse.reflectance.value"] == 1.0
 
 
-def test_scene_rebuild(mode_mono):
-    mi.set_log_level(mi.LogLevel.Trace)
-    scene = Scene(
-        shapes={"sphere": SceneObject({"type": "cube"})},
-    )
+def test_scene_rebuild(mode_mono, mi_log_level_info, mi_log_print, capsys):
+    if mi.MI_ENABLE_EMBREE:
+        pytest.skip("Embree-based Mitsuba builds cannot be tested")
+
+    def rebuilt():
+        captured = capsys.readouterr()
+        return "Building a SAH kd-tree" in captured.out
+
+    cube = SceneObject({"type": "cube"})
+    scene = Scene(shapes={"cube": cube})
     scene.init()
-    print(scene.mi_scene)
-    i = mi.load_dict({"type": "path"})
-    s = mi.load_dict({"type": "perspective"})
-    mi.render(scene.mi_scene, sensor=s, integrator=i, spp=256)
+    assert rebuilt()
+
+    # Changing scene parameters from within the scene parameter tree triggers a
+    # BVH / kd-tree rebuild
+    params = mi.traverse(scene.mi_scene)
+    params["03_shape_cube.vertex_positions"] += 1.0
+    params.update()
+    assert rebuilt()
+
+    # Changing scene parameters from a "floating" object does not trigger a
+    # BVH / kd-tree rebuild
+    cube.scene_parameters["vertex_positions"] -= 1.0
+    cube.scene_parameters.update()
+    assert not rebuilt()
+    # But a manual scene parameter update does
+    scene.mi_scene.parameters_changed()
+    assert rebuilt()
