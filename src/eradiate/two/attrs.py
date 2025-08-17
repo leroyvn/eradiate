@@ -3,6 +3,9 @@ from html import escape
 from typing import Any, Mapping
 
 import attrs
+import pint
+
+from eradiate.two import units_formatting
 
 
 def get_fields(obj):
@@ -90,11 +93,21 @@ def _format_attrs_object(obj: Any, indent: int, collapsible: bool):
     )
 
 
+def _format_quantity(obj: Any):
+    """Format Pint quantity."""
+    obj_repr = units_formatting.inline_repr(obj, 50)
+    return f"<code>{escape(obj_repr)}</code>"
+
+
 def attrs_to_html(obj: Any, indent: int = 0, collapsible: bool = True):
     """Convert an attrs object to HTML representation with collapsible nested objects."""
     # Handle attrs objects first to avoid recursion with _repr_html_
     if attrs.has(obj):
         return _format_attrs_object(obj, indent, collapsible)
+
+    # Special case for Pint units
+    if isinstance(obj, pint.Quantity):
+        return _format_quantity(obj)
 
     # Check if object has its own HTML representation
     if hasattr(obj, "_repr_html_") and callable(getattr(obj, "_repr_html_")):
