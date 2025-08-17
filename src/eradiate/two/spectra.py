@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from functools import partial, singledispatchmethod
+from functools import singledispatchmethod
 
 import attrs
 import mitsuba as mi
@@ -76,11 +76,13 @@ class InterpolatedSpectrum(SceneObject):
         if quantity is None:
             quantity = "dimensionless"
         config_units = ucc.get(quantity)
-        values = ensure_units(np.atleast_1d(values), default_units=config_units)
+        values = ensure_units(
+            np.atleast_1d(values), default_units=config_units, convert=True
+        )
 
         config_units = ucc.get("wavelength")
         wavelengths = ensure_units(
-            np.atleast_1d(wavelengths), default_units=config_units
+            np.atleast_1d(wavelengths), default_units=config_units, convert=True
         )
 
         # Sort by ascending wavelength (required by numpy.interp in eval_mono)
@@ -89,7 +91,7 @@ class InterpolatedSpectrum(SceneObject):
         values = values[idx]
 
         object = mi.load_dict({"type": "uniform", "value": 0.5})
-        updaters = {"value": partial(self.eval_kernel, self)}
+        updaters = {"value": lambda ctx: self.eval_kernel(ctx.si)}
 
         self.__attrs_init__(object, updaters, wavelengths=wavelengths, values=values)
 
