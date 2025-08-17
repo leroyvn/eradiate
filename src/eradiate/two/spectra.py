@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from abc import ABCMeta, abstractmethod
 from functools import singledispatchmethod
+from typing import Any
 
 import attrs
 import mitsuba as mi
@@ -19,7 +21,7 @@ from ..units import unit_context_kernel as uck
 
 
 @attrs.define(init=False)
-class InterpolatedSpectrum(SceneObject):
+class Spectrum(SceneObject, metaclass=ABCMeta):
     quantity: PhysicalQuantity = attrs.field(
         kw_only=True,
         default=PhysicalQuantity.DIMENSIONLESS,
@@ -27,6 +29,48 @@ class InterpolatedSpectrum(SceneObject):
         repr=lambda x: x.value.upper(),
     )
 
+    @singledispatchmethod
+    def eval(self, si: SpectralIndex) -> pint.Quantity:
+        """
+        Evaluate spectrum at a given spectral index.
+
+        Parameters
+        ----------
+        si : :class:`.SpectralIndex`
+            Spectral index.
+
+        Returns
+        -------
+        value : quantity
+            Evaluated spectrum.
+
+        Notes
+        -----
+        This method dispatches evaluation to specialized methods depending
+        on the spectral index type.
+        """
+        raise NotImplementedError
+
+    @eval.register(MonoSpectralIndex)
+    def _(self, si) -> pint.Quantity:
+        return self.eval_mono(w=si.w)
+
+    @eval.register(CKDSpectralIndex)
+    def _(self, si) -> pint.Quantity:
+        return self.eval_ckd(w=si.w, g=si.g)
+
+    @abstractmethod
+    def eval_mono(self, w: ArrayLike) -> pint.Quantity:
+        w = ensure_units(w, ucc.get("wavelength"))
+        return np.interp(w, self.wavelengths, self.values, left=0.0, right=0.0)
+
+    @abstractmethod
+    def eval_ckd(self, w: ArrayLike, g: float) -> pint.Quantity:
+        return self.eval_mono(w=w)
+
+
+@attrs.define(init=False)
+class InterpolatedSpectrum(Spectrum):
     _values: np.ndarray = attrs.field(kw_only=True)
 
     @_values.validator
@@ -63,8 +107,8 @@ class InterpolatedSpectrum(SceneObject):
 
     def __init__(
         self,
-        values: ArrayLike | None = None,
         wavelengths: ArrayLike | None = None,
+        values: ArrayLike | None = None,
         dataarray: xr.DataArray | None = None,
         quantity: str | PhysicalQuantity | None = None,
     ):
@@ -91,7 +135,7 @@ class InterpolatedSpectrum(SceneObject):
         values = values[idx]
 
         object = mi.load_dict({"type": "uniform", "value": 0.5})
-        updaters = {"value": lambda ctx: self.eval_kernel(ctx.si)}
+        updaters = {"value": lambda ctx: self._eval_kernel(ctx.si)}
 
         self.__attrs_init__(object, updaters, wavelengths=wavelengths, values=values)
 
@@ -103,43 +147,25 @@ class InterpolatedSpectrum(SceneObject):
     def values(self):
         return self._values
 
-    def eval_kernel(self, si: SpectralIndex) -> np.ndarray:
+    def _eval_kernel(self, si: SpectralIndex) -> np.ndarray:
         kernel_units = uck.get(self.quantity)
         return self.eval(si).m_as(kernel_units)
 
-    @singledispatchmethod
-    def eval(self, si: SpectralIndex) -> pint.Quantity:
-        """
-        Evaluate spectrum at a given spectral index.
-
-        Parameters
-        ----------
-        si : :class:`.SpectralIndex`
-            Spectral index.
-
-        Returns
-        -------
-        value : quantity
-            Evaluated spectrum.
-
-        Notes
-        -----
-        This method dispatches evaluation to specialized methods depending
-        on the spectral index type.
-        """
-        raise NotImplementedError
-
-    @eval.register(MonoSpectralIndex)
-    def _(self, si) -> pint.Quantity:
-        return self.eval_mono(w=si.w)
-
-    @eval.register(CKDSpectralIndex)
-    def _(self, si) -> pint.Quantity:
-        return self.eval_ckd(w=si.w, g=si.g)
-
     def eval_mono(self, w: ArrayLike) -> pint.Quantity:
+        # Inherit docstring
         w = ensure_units(w, ucc.get("wavelength"))
         return np.interp(w, self.wavelengths, self.values, left=0.0, right=0.0)
 
     def eval_ckd(self, w: ArrayLike, g: float) -> pint.Quantity:
+        # Inherit docstring
         return self.eval_mono(w=w)
+
+
+def convert(value: Any) -> Spectrum:
+    if isinstance(value, Spectrum):
+        return value
+
+    if isinstance(value, xr.DataArray):
+        return InterpolatedSpectrum(dataarray=value)
+
+    raise TypeError

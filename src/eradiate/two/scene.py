@@ -5,6 +5,7 @@ from typing import ClassVar
 import attrs
 import mitsuba as mi
 
+from .attrs import attrs_to_html_with_styles
 from .scene_object import SceneObject
 
 
@@ -120,7 +121,7 @@ class Scene:
             method returns ``None``.
         """
         scene_dict = {"type": "scene"}
-        for section_name in ["bsdfs", "shapes", "emitters", "sensors"]:
+        for section_name in ["bsdfs", "shapes", "emitters"]:
             obj_id_prefix = self._get_object_id_prefix(section_name)
 
             for i_obj, (obj_id, obj) in enumerate(
@@ -147,3 +148,6 @@ class Scene:
             keys = []
 
         return self.mi_scene.parameters_changed(keys)
+
+    def _repr_html_(self):
+        return attrs_to_html_with_styles(self)
