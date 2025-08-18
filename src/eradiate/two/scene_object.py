@@ -33,6 +33,7 @@ class SceneObject(Generic[T]):
     """
 
     # Encapsulated kernel object
+    # TODO: Rename mi_object
     _object: T = attrs.field(
         repr=lambda x: f"<mi.{type(x).__name__} object [{x.class_().name()}]>"
     )
