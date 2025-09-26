@@ -12,7 +12,9 @@ from eradiate.test_tools.test_cases.ocean import (
 
 
 @pytest.mark.regression
-def test_ocean_grasp_coastal_no_atm(mode_mono_double, artefact_dir, session_timestamp):
+def test_ocean_grasp_coastal_no_atm(
+    mode_mono_double, artefact_dir, session_timestamp, plot_figures
+):
     """
     *Ocean GRASP Coastal no atm regression test*
 
@@ -41,13 +43,16 @@ def test_ocean_grasp_coastal_no_atm(mode_mono_double, artefact_dir, session_time
             threshold=1e-6,
             archive_dir=artefact_dir,
             variable="brf",
+            plot=plot_figures,
         )
 
         assert test.run(), f"{w = }"
 
 
 @pytest.mark.regression
-def test_ocean_grasp_open_no_atm(mode_mono_double, artefact_dir, session_timestamp):
+def test_ocean_grasp_open_no_atm(
+    mode_mono_double, artefact_dir, session_timestamp, plot_figures
+):
     """
     *Ocean GRASP Open no atm regression test*
 
@@ -80,7 +85,9 @@ def test_ocean_grasp_open_no_atm(mode_mono_double, artefact_dir, session_timesta
 
 
 @pytest.mark.regression
-def test_ocean_grasp_open_atm(mode_mono_double, artefact_dir, session_timestamp):
+def test_ocean_grasp_open_atm(
+    mode_mono_double, artefact_dir, session_timestamp, plot_figures
+):
     """
     *Ocean GRASP Open atm regression test*
 
@@ -107,6 +114,7 @@ def test_ocean_grasp_open_atm(mode_mono_double, artefact_dir, session_timestamp)
             threshold=0.01,
             archive_dir=artefact_dir,
             variable="radiance",
+            plot=plot_figures,
         )
 
         assert test.run(), f"{w = }"

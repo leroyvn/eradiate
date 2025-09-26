@@ -25,6 +25,7 @@ def pytest_addoption(parser):
         action="store",
         default=os.path.join(eradiate_source_dir, "test_artefacts/"),
     )
+    parser.addoption("--plot", action="store", default=False)
 
 
 # See: https://stackoverflow.com/a/55301318/3645374
@@ -102,6 +103,11 @@ pytest.register_assert_rewrite("eradiate.test_tools.types.check_scene_element")
 # ------------------------------------------------------------------------------
 #                                 Mode fixtures
 # ------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def plot_figures(pytestconfig):
+    return pytestconfig.getoption("plot")
 
 
 def generate_fixture(mode):

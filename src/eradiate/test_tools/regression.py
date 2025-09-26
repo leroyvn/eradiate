@@ -276,6 +276,13 @@ class RegressionTest(ABC):
         init_type="path-like",
     )
 
+    plot: bool = documented(
+        attrs.field(kw_only=True, converter=bool),
+        doc="Enable pyplot charts",
+        type="bool",
+        init_type="bool",
+    )
+
     def __attrs_pre_init__(self):
         if self.METRIC_NAME is None:
             raise TypeError(f"Unsupported test type {type(self).__name__}")
@@ -393,6 +400,9 @@ class RegressionTest(ABC):
             data.
         """
 
+        if not self.plot:
+            return
+
         fname = self.name
         ext = ".png"
 
@@ -416,6 +426,10 @@ class RegressionTest(ABC):
         """
         Draw a simple plot when no reference data is available.
         """
+
+        if not self.plot:
+            return
+
         vza = np.squeeze(self.value.vza.values)
         val = np.squeeze(self.value[self.variable].values)
 
@@ -431,6 +445,10 @@ class RegressionTest(ABC):
         """
         Draw a comparison plot with reference and test data displayed together.
         """
+
+        if not self.plot:
+            return
+
         vza = np.squeeze(self.value.vza.values)
         val = np.squeeze(self.value[self.variable].values)
         ref = np.squeeze(self.reference[self.variable].values)
@@ -553,6 +571,10 @@ class AbstractStudentTTest(RegressionTest):
         t_prim: float
             t' statistic issued from the test
         """
+
+        if not self.plot:
+            return
+
         fig, ax = plt.subplots()
         ax.grid()
         ax2 = ax.twinx()
@@ -779,6 +801,9 @@ class ZTest(RegressionTest):
             Z-statistic for each pair of measurements
         """
 
+        if not self.plot:
+            return
+
         fig, ax = plt.subplots()
         ax.grid()
         ax2 = ax.twinx()
@@ -888,6 +913,9 @@ class SidakTTest(RegressionTest):
         t_prim: array-like
             T-statistic for each pair of measurements
         """
+
+        if not self.plot:
+            return
 
         fig, ax = plt.subplots()
         ax.grid()
