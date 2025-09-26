@@ -287,6 +287,21 @@ class RegressionTest(ABC):
         if self.METRIC_NAME is None:
             raise TypeError(f"Unsupported test type {type(self).__name__}")
 
+    def __attrs_post_init__(self):
+        if self.plot:
+            if "w" in self.reference and self.reference.w.size > 1:
+                raise ValueError(
+                    "Regression charts are implemented for single a wavelength, "
+                    "but the reference dataset has a spectral dimension. "
+                    "Please disable the 'plot' option."
+                )
+            if "w" in self.value and self.value.w.size > 1:
+                raise ValueError(
+                    "Regression charts are implemented for single a wavelength, "
+                    "but the tested dataset has a spectral dimension. "
+                    "Please disable the 'plot' option."
+                )
+
     def run(self) -> bool:
         """
         This method controls the execution steps of the regression test:
@@ -851,7 +866,7 @@ class ZTest(RegressionTest):
         alpha_0 = 1.0 - (1.0 - self.threshold) ** (1.0 / result_np.size)
         accept_null = p_values > alpha_0
 
-        passed = np.count_nonzero(accept_null) >= 0.9975 * result_np.size
+        passed = np.count_nonzero(accept_null) >= int(0.9975 * result_np.size)
 
         if diagnostic_chart:
             self._plot_diagnostic(z=z)
@@ -859,7 +874,7 @@ class ZTest(RegressionTest):
         logger.info(f"min p-value = {min(p_values)}", also_console=True)
         logger.info(f"max p-value = {max(p_values)}", also_console=True)
         logger.info(
-            f"n passed    = {np.count_nonzero(accept_null)}/{0.99 * result_np.size}",
+            f"n passed    = {np.count_nonzero(accept_null)}/{int(0.9975 * result_np.size)}",
             also_console=True,
         )
         logger.info(f"alpha_1     = {self.threshold}", also_console=True)
@@ -972,7 +987,7 @@ class SidakTTest(RegressionTest):
         alpha_0 = 1.0 - (1.0 - self.threshold) ** (1.0 / result_np.size)
         accept_null = p_values > alpha_0
 
-        passed = np.count_nonzero(accept_null) >= 0.9975 * result_np.size
+        passed = np.count_nonzero(accept_null) >= int(0.9975 * result_np.size)
 
         if diagnostic_chart:
             self._plot_diagnostic(t_prim=t_prim)
@@ -980,7 +995,7 @@ class SidakTTest(RegressionTest):
         logger.info(f"min p-value = {min(p_values)}", also_console=True)
         logger.info(f"max p-value = {max(p_values)}", also_console=True)
         logger.info(
-            f"n passed    = {np.count_nonzero(accept_null)}/{0.99 * result_np.size}",
+            f"n passed    = {np.count_nonzero(accept_null)}/{int(0.9975 * result_np.size)}",
             also_console=True,
         )
         logger.info(f"alpha_1     = {self.threshold}", also_console=True)

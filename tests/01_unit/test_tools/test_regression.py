@@ -13,6 +13,7 @@ def test_instantiate():
         value=xr.Dataset(),
         reference=xr.Dataset(),
         threshold=0.05,
+        plot=False,
     )
 
     assert tt.Chi2Test(
@@ -21,6 +22,7 @@ def test_instantiate():
         value=xr.Dataset(),
         reference=xr.Dataset(),
         threshold=0.05,
+        plot=False,
     )
 
     assert tt.IndependantStudentTTest(
@@ -29,6 +31,7 @@ def test_instantiate():
         value=xr.Dataset(),
         reference=xr.Dataset(),
         threshold=0.05,
+        plot=False,
     )
 
     assert tt.PairedStudentTTest(
@@ -37,6 +40,7 @@ def test_instantiate():
         value=xr.Dataset(),
         reference=xr.Dataset(),
         threshold=0.05,
+        plot=False,
     )
 
     assert tt.ZTest(
@@ -45,6 +49,7 @@ def test_instantiate():
         value=xr.Dataset(),
         reference=xr.Dataset(),
         threshold=0.05,
+        plot=False,
     )
 
     # assert all arguments except reference are needed
@@ -55,6 +60,7 @@ def test_instantiate():
             value=xr.Dataset(),
             reference=xr.Dataset(),
             threshold=0.05,
+            plot=False,
         )
 
     with pytest.raises(TypeError):
@@ -63,6 +69,7 @@ def test_instantiate():
             value=xr.Dataset(),
             reference=xr.Dataset(),
             threshold=0.05,
+            plot=False,
         )
 
     with pytest.raises(TypeError):
@@ -71,6 +78,7 @@ def test_instantiate():
             archive_dir="tests/",
             reference=xr.Dataset(),
             threshold=0.05,
+            plot=False,
         )
 
     with pytest.raises(TypeError):
@@ -79,6 +87,7 @@ def test_instantiate():
             archive_dir="tests/",
             value=xr.Dataset(),
             reference=xr.Dataset(),
+            plot=False,
         )
 
     assert tt.Chi2Test(
@@ -86,6 +95,7 @@ def test_instantiate():
         archive_dir="tests/",
         value=xr.Dataset(),
         threshold=0.05,
+        plot=False,
     )
 
 
@@ -100,6 +110,7 @@ def test_reference_converter(tmp_path):
             value=xr.Dataset(),
             threshold=0.05,
             reference="./this/file/doesnot.exist",
+            plot=False,
         )
 
     # wrong file type
@@ -113,6 +124,7 @@ def test_reference_converter(tmp_path):
             value=xr.Dataset(),
             threshold=0.05,
             reference=tempfile,
+            plot=False,
         )
 
     # wrong data type
@@ -123,6 +135,7 @@ def test_reference_converter(tmp_path):
             value=xr.Dataset(),
             threshold=0.05,
             reference=np.zeros(25),
+            plot=False,
         )
 
 
@@ -156,6 +169,7 @@ def test_rmse_evaluate():
         reference=ref_ds,
         archive_dir="tests/",
         threshold=0.05,
+        plot=False,
     )
 
     _, rmse = test._evaluate()
@@ -211,6 +225,7 @@ def test_chi2_evaluate(mode_mono):
         reference=ref_ds,
         archive_dir="tests/",
         threshold=0.05,
+        plot=False,
     )
 
     _, p_value = test._evaluate()
