@@ -248,9 +248,14 @@ html_theme_options = {
     "navigation_with_keys": True,
     "nav_links_align": "center",
     "nav_links": [
-        {"title": "User guide", "url": "user_guide/index"},
-        {"title": "Tutorials", "url": "tutorials/index"},
-        {"title": "Data guide", "url": "data/intro"},
+        {
+            "title": "Usage",
+            "children": [
+                {"title": "User guide", "url": "user_guide/index"},
+                {"title": "Tutorials", "url": "tutorials/index"},
+                {"title": "Data guide", "url": "data/intro"},
+            ],
+        },
         {
             "title": "Reference",
             "children": [
@@ -259,6 +264,7 @@ html_theme_options = {
                 {"title": "Command-line interface", "url": "reference_cli"},
             ],
         },
+        {"title": "Contributing", "url": "contributing"},
         {"title": "Release notes", "url": "release_notes/index"},
     ],
 }
