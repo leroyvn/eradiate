@@ -378,6 +378,10 @@ class Experiment(ABC):
     def context_init(self) -> KernelContext:
         """
         Return a single context used for scene initialization.
+
+        Returns
+        -------
+        .KernelContext
         """
         pass
 
