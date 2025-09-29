@@ -1,10 +1,10 @@
 # Release notes
 
 ```{note}
-For now, Eradiate uses a [ZeroVer](https://0ver.org) versioning
-scheme. It reflects the relative instability of our API: breaking changes may
-happen at any time. We plan to switch to a versioning scheme more similar to
-SemVer in the future.
+Although Eradiate does not strictly follow [semantic versioning](https://semver.org/),
+we aim to maintain interface stability, refrain from introducing breaking
+changes unless strictly necessary (*i.e.* to correct severe issues) and test
+continuously against regressions on a variety of common scenarios.
 
 Updates are tracked in this change log. Every time you decide to update to a
 newer version, we recommend that you to go through the list of changes.
@@ -22,6 +22,7 @@ Emoji marks have the following meaning:
 ```{toctree}
 :maxdepth: 2
 
+v1.0.x.md
 v0.31.x.md
 v0.30.x.md
 v0.29.x.md
