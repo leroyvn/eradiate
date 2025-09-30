@@ -1680,6 +1680,7 @@ def create_rami4atm_hom45_lam_ec2s_m04_z30a000_brfpp():
     - Atmosphere: Molecular atmosphere using the AFGL 1986 (U.S. Standard) profile
     - Aerosol layer: Uniform layer ranging from 0 km to 2 km, with AOT at 550 nm = 0.2; aerosol dataset ``govaerts_2021-continental``
     - Surface: Lambertian
+    - Canopy: Homogeneous discrete canopy composed of disks of 5cm radius with a uniform orientation angle
     - Illumination: Directional illumination with a zenith angle of 30°
     - Sensor: Multi-distant measure covering the principal plane, from -75° to 75° with 2° increments, delta SRF positioned at λ = 660 nm
     - Uniform discrete canopy
@@ -1713,6 +1714,22 @@ def create_rami4atm_hom45_lam_ec2s_m04_z30a000_brfpp():
             ],
             "type": "heterogeneous",
         },
+        "canopy": {
+            "padding": 20,
+            "lai": 3.0,
+            "leaf_radius": 0.05,
+            "leaf_radius_units": "meter",
+            "l_horizontal": 25,
+            "l_horizontal_units": "meter",
+            "l_vertical": 2.0,
+            "l_vertical_units": "meter",
+            "nu": 1.0,
+            "mu": 1.0,
+            "leaf_reflectance": 0.05653,
+            "leaf_transmittance": 0.01692,
+            "construct": "homogeneous",
+            "type": "discrete_canopy",
+        },
         "illumination": {
             "zenith": 30.0,
             "zenith_units": "degree",
@@ -1743,27 +1760,27 @@ def create_rami4atm_hom45_lam_ec2s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-cases = [
-    create_rami4atm_hom00_bla_sd2s_m03_z30a000_brfpp,
-    create_rami4atm_hom00_whi_s00s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_bla_a00s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_e00s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_0c2s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_0c6s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_0d2s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_0d6s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_sc2s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_sc6s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_sd2s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_sd6s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_ac2s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_ac6s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_ad2s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_ad6s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_lam_ec2s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_ec2s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rli_ec2s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_ec6s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_ed2s_m04_z30a000_brfpp,
-    create_rami4atm_hom00_rpv_ed6s_m04_z30a000_brfpp,
-]
+registry = {
+    "hom00_whi_s00s_m04_z30a000_brfpp": create_rami4atm_hom00_whi_s00s_m04_z30a000_brfpp,
+    "hom00_bla_a00s_m04_z30a000_brfpp": create_rami4atm_hom00_bla_a00s_m04_z30a000_brfpp,
+    "hom00_rpv_e00s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_e00s_m04_z30a000_brfpp,
+    "hom00_rpv_0c2s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_0c2s_m04_z30a000_brfpp,
+    "hom00_rpv_0c6s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_0c6s_m04_z30a000_brfpp,
+    "hom00_rpv_0d2s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_0d2s_m04_z30a000_brfpp,
+    "hom00_rpv_0d6s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_0d6s_m04_z30a000_brfpp,
+    "hom00_rpv_sc2s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_sc2s_m04_z30a000_brfpp,
+    "hom00_rpv_sc6s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_sc6s_m04_z30a000_brfpp,
+    "hom00_rpv_sd2s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_sd2s_m04_z30a000_brfpp,
+    "hom00_rpv_sd6s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_sd6s_m04_z30a000_brfpp,
+    "hom00_rpv_ac2s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_ac2s_m04_z30a000_brfpp,
+    "hom00_rpv_ac6s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_ac6s_m04_z30a000_brfpp,
+    "hom00_rpv_ad2s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_ad2s_m04_z30a000_brfpp,
+    "hom00_rpv_ad6s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_ad6s_m04_z30a000_brfpp,
+    "hom00_lam_ec2s_m04_z30a000_brfpp": create_rami4atm_hom00_lam_ec2s_m04_z30a000_brfpp,
+    "hom00_rpv_ec2s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_ec2s_m04_z30a000_brfpp,
+    "hom00_rli_ec2s_m04_z30a000_brfpp": create_rami4atm_hom00_rli_ec2s_m04_z30a000_brfpp,
+    "hom00_rpv_ec6s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_ec6s_m04_z30a000_brfpp,
+    "hom00_rpv_ed2s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_ed2s_m04_z30a000_brfpp,
+    "hom00_rpv_ed6s_m04_z30a000_brfpp": create_rami4atm_hom00_rpv_ed6s_m04_z30a000_brfpp,
+    "hom45_lam_ec2s_m04_z30a000_brfpp": create_rami4atm_hom45_lam_ec2s_m04_z30a000_brfpp,
+}
