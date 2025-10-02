@@ -295,16 +295,7 @@ def create_rami4atm_hom00_rpv_0c2s_m04_z30a000_brfpp(spp=1000):
             "type": "rpv",
         },
         "atmosphere": {
-            "molecular_atmosphere": {
-                "has_absorption": False,
-                "has_scattering": False,
-                "type": "molecular",
-                "thermoprops": {
-                    "identifier": "afgl_1986-us_standard",
-                    "z": np.arange(0, 120.05, 0.05) * ureg.km,
-                },
-                "absorption_data": "monotropa",
-            },
+            "molecular_atmosphere": None,
             "particle_layers": [
                 {
                     "bottom": 0,
@@ -372,16 +363,7 @@ def create_rami4atm_hom00_rpv_0c6s_m04_z30a000_brfpp(spp=1000):
             "type": "rpv",
         },
         "atmosphere": {
-            "molecular_atmosphere": {
-                "has_absorption": False,
-                "has_scattering": False,
-                "type": "molecular",
-                "thermoprops": {
-                    "identifier": "afgl_1986-us_standard",
-                    "z": np.arange(0, 120.05, 0.05) * ureg.km,
-                },
-                "absorption_data": "monotropa",
-            },
+            "molecular_atmosphere": None,
             "particle_layers": [
                 {
                     "bottom": 0,
@@ -449,16 +431,7 @@ def create_rami4atm_hom00_rpv_0d2s_m04_z30a000_brfpp(spp=1000):
             "type": "rpv",
         },
         "atmosphere": {
-            "molecular_atmosphere": {
-                "has_absorption": False,
-                "has_scattering": False,
-                "type": "molecular",
-                "thermoprops": {
-                    "identifier": "afgl_1986-us_standard",
-                    "z": np.arange(0, 120.05, 0.05) * ureg.km,
-                },
-                "absorption_data": "monotropa",
-            },
+            "molecular_atmosphere": None,
             "particle_layers": [
                 {
                     "bottom": 0,
@@ -526,16 +499,7 @@ def create_rami4atm_hom00_rpv_0d6s_m04_z30a000_brfpp(spp=1000):
             "type": "rpv",
         },
         "atmosphere": {
-            "molecular_atmosphere": {
-                "has_absorption": False,
-                "has_scattering": False,
-                "type": "molecular",
-                "thermoprops": {
-                    "identifier": "afgl_1986-us_standard",
-                    "z": np.arange(0, 120.05, 0.05) * ureg.km,
-                },
-                "absorption_data": "monotropa",
-            },
+            "molecular_atmosphere": None,
             "particle_layers": [
                 {
                     "bottom": 0,
@@ -1377,7 +1341,7 @@ def create_rami4atm_hom00_rli_ec2s_m04_z30a000_brfpp(spp=1000):
             "f_iso": {"value": 0.032171, "type": "uniform"},
             "f_vol": {"value": -0.002886, "type": "uniform"},
             "f_geo": {"value": 0.001949, "type": "uniform"},
-            "type": "rossli",
+            "type": "rtls",
         },
         "atmosphere": {
             "molecular_atmosphere": {
