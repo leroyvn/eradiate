@@ -1,7 +1,7 @@
 import numpy as np
 
 from eradiate import unit_registry as ureg
-from eradiate.experiments import AtmosphereExperiment
+from eradiate.experiments import AtmosphereExperiment, CanopyAtmosphereExperiment
 
 
 def create_rami4atm_hom00_bla_sd2s_m03_z30a000_brfpp():
@@ -1667,7 +1667,7 @@ def create_rami4atm_hom00_rpv_ed6s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom45_lam_ec2s_m04_z30a000_brfpp():
+def create_rami4atm_hom45_lam_ec2s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM45_LAM_EC2S_M04*
 
@@ -1680,7 +1680,7 @@ def create_rami4atm_hom45_lam_ec2s_m04_z30a000_brfpp():
     - Atmosphere: Molecular atmosphere using the AFGL 1986 (U.S. Standard) profile
     - Aerosol layer: Uniform layer ranging from 0 km to 2 km, with AOT at 550 nm = 0.2; aerosol dataset ``govaerts_2021-continental``
     - Surface: Lambertian
-    - Canopy: Homogeneous discrete canopy composed of disks of 5cm radius with a uniform orientation angle
+    - Canopy: Homogeneous discrete canopy composed of disks of 5cm radius with a uniform orientation angle. The size of the canopy has been adjusted to avoid large computation times
     - Illumination: Directional illumination with a zenith angle of 30°
     - Sensor: Multi-distant measure covering the principal plane, from -75° to 75° with 2° increments, delta SRF positioned at λ = 660 nm
     - Uniform discrete canopy
@@ -1719,7 +1719,7 @@ def create_rami4atm_hom45_lam_ec2s_m04_z30a000_brfpp():
             "lai": 3.0,
             "leaf_radius": 0.05,
             "leaf_radius_units": "meter",
-            "l_horizontal": 25,
+            "l_horizontal": 5,
             "l_horizontal_units": "meter",
             "l_vertical": 2.0,
             "l_vertical_units": "meter",
@@ -1746,7 +1746,15 @@ def create_rami4atm_hom45_lam_ec2s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
+                "target": {
+                    "type": "rectangle",
+                    "xmin": -2.5,
+                    "xmax": 2.5,
+                    "ymin": -2.5,
+                    "ymax": 2.5,
+                    "z": 2.0,
+                },
             }
         ],
         "ckd_quad_config": {
@@ -1757,7 +1765,7 @@ def create_rami4atm_hom45_lam_ec2s_m04_z30a000_brfpp():
         "integrator": {"type": "piecewise_volpath", "moment": True},
     }
 
-    return AtmosphereExperiment(**config)
+    return CanopyAtmosphereExperiment(**config)
 
 
 registry = {
