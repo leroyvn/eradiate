@@ -1,0 +1,220 @@
+import attr
+import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+from robot.api import logger
+
+import eradiate
+from eradiate import fresolver
+from eradiate.test_tools.regression import SidakTTest, figure_to_html
+from eradiate.test_tools.test_cases.rami4atm import (
+    registry,
+)
+
+brf_cases = [c for c in registry if c != "hom00_bla_a00s_m04_z30a000_brfpp"]
+boa_cases = [
+    "hom00_rpv_ec2s_m04_z30a000_brfpp",
+    "hom45_lam_ec2s_m04_z30a000_brfpp",
+]
+
+
+@pytest.mark.regression
+@pytest.mark.slow
+@pytest.mark.parametrize("case", brf_cases)
+def test_rami4atm_brf(mode_ckd_double, case, artefact_dir):
+    ctor = registry[case]
+    exp = ctor(spp=1000)
+    result = eradiate.run(exp)
+    logger.info(result._repr_html_(), html=True)
+
+    reference = fresolver.load_dataset(
+        f"tests/regression_test_references/rami4atm/{case}-ref.nc"
+    )
+
+    test = SidakTTest(
+        name=case,
+        value=result,
+        reference=reference,
+        threshold=0.01,
+        archive_dir=artefact_dir,
+        variable="radiance",
+        plot=False,
+    )
+
+    passed = test.run(diagnostic=True)
+
+    assert passed
+
+
+@pytest.mark.regression
+@pytest.mark.slow
+@pytest.mark.parametrize("case", boa_cases)
+@pytest.mark.filterwarnings(
+    "ignore:User-specified a background spectral grid is overridden by atmosphere spectral grid"
+)
+def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
+    spp = 1000
+    ctor = registry[case]
+    case = case.replace("brfpp", "boa")
+    srf = fresolver.load_dataset("srf/sentinel_2a-msi-4.nc")
+
+    if "hom00" in case:
+        extra_objects = {
+            "boa_white_reference_patch": {
+                "factory": "shape",
+                "type": "rectangle",
+                "center": [0, 0, 0.1],
+                "edges": [1, 1],
+                "bsdf": {"type": "lambertian", "reflectance": 1.0},
+            }
+        }
+        target = [0, 0, 0.1]
+    else:
+        extra_objects = {
+            "boa_white_reference_patch": {
+                "factory": "shape",
+                "type": "rectangle",
+                "center": [0, 0, 2.1],
+                "edges": [5, 5],
+                "bsdf": {"type": "lambertian", "reflectance": 1.0},
+            }
+        }
+        target = {
+            "type": "rectangle",
+            "xmin": -2.5,
+            "xmax": 2.5,
+            "ymin": -2.5,
+            "ymax": 2.5,
+            "z": 2.1,
+        }
+
+    exp1 = ctor(spp=spp)
+    exp1 = attr.evolve(
+        exp1,
+        measures=[
+            {
+                "type": "multi_distant",
+                "spp": spp,
+                "ray_offset": 1.0,
+                "srf": srf,
+                "construct": "hplane",
+                "zeniths": np.arange(-75, 76, 1),
+                "zeniths_units": "degree",
+                "azimuth": 0.0,
+                "azimuth_units": "degree",
+                "target": target,
+            }
+        ],
+    )
+    exp2 = attr.evolve(exp1, extra_objects=extra_objects)
+    dflux = {
+        "type": "distantflux",
+        "ray_offset": 1.0,
+        "target": target,
+        "srf": srf,
+        "spp": spp,
+    }
+    exp3 = attr.evolve(exp1, measures=[dflux])
+    exp4 = attr.evolve(exp2, measures=[dflux])
+
+    result1 = eradiate.run(exp1)
+    result2 = eradiate.run(exp2)
+    result3 = eradiate.run(exp3)
+    result4 = eradiate.run(exp4)
+
+    result_hdrf = result1.radiance_srf / result2.radiance_srf
+    result_bhr = result3.radiosity_srf / result4.radiosity_srf
+
+    # Combine a reference dataset
+    result = result1.rename(
+        dict(radiance_srf="radiance_srf1", radiance_var="radiance_var1")
+    )
+    result["radiance_srf2"] = result2.radiance_srf
+    result["radiance_var2"] = result2.radiance_var
+    result["radiosity_srf3"] = result3.radiosity_srf
+    result["radiosity_var3"] = result3.sector_radiosity_var
+    result["radiosity_srf4"] = result4.radiosity_srf
+    result["radiosity_var4"] = result4.sector_radiosity_var
+    result["hdrf"] = result_hdrf
+    result["bhr"] = result_bhr
+
+    # Handle numerical variance estimates, assuming:
+    #  - Gaussian nature
+    #  - Null covariance of different experiments or pixels
+    #  - Local linearity of radiance and radiosity
+    #  - Scalar SRF
+    srf_weight = srf.srf.interp(w=result.w.values).fillna(1e-6) / srf.srf.sum()
+    radiance_var1 = (result.radiance_var1 * srf_weight**2).sum(dim="w")
+    radiance_var2 = (result.radiance_var2 * srf_weight**2).sum(dim="w")
+    result["hdrf_var"] = (1 / result.radiance_srf2**2) * radiance_var1 + (
+        result.radiance_srf1**2 / result.radiance_srf2**4
+    ) * radiance_var2
+    radiosity_var3 = (result.radiosity_var3 * srf_weight**2).sum(dim="w")
+    radiosity_var4 = (result.radiosity_var4 * srf_weight**2).sum(dim="w")
+    result["bhr_var"] = (
+        (1 / result.radiosity_srf4**2) * radiosity_var3
+        + (result.radiosity_srf3**2 / result.radiosity_srf4**4) * radiosity_var4
+    ).sum(dim=["x_index", "y_index"])
+    logger.info(result._repr_html_(), html=True)
+
+    test_name = case.replace("brfpp", "boa")
+    reference = fresolver.load_dataset(
+        f"tests/regression_test_references/rami4atm/{test_name}-ref.nc"
+    )
+
+    if plot_figures:
+        fig = plt.figure()
+        plt.grid()
+        for K in range(3, 0, -1):
+            plt.fill_between(
+                result.vza.squeeze(),
+                reference.hdrf.squeeze() - K * np.sqrt(result.hdrf_var.squeeze()),
+                reference.hdrf.squeeze() + K * np.sqrt(result.hdrf_var.squeeze()),
+                alpha=0.3 / K,
+                color="red",
+                label=f"$HDRF_{{ref}}\\pm{K}\\sigma$",
+            )
+        plt.errorbar(
+            result.vza.squeeze(),
+            result.hdrf.squeeze(),
+            3 * np.sqrt(result.hdrf_var.squeeze()),
+            label="HDRF $\\pm 3\\sigma$",
+            linewidth=1.0,
+            capsize=1,
+        )
+        plt.errorbar(
+            0.0,
+            result.bhr.squeeze(),
+            3 * np.sqrt(result.bhr_var.squeeze()),
+            marker="x",
+            color="black",
+            label="BHR $\\pm 3\\sigma$",
+            linewidth=1.0,
+        )
+        plt.errorbar(
+            0.0,
+            reference.bhr.squeeze(),
+            3 * np.sqrt(reference.bhr_var.squeeze()),
+            marker="x",
+            color="black",
+            label="BHR_{ref} $\\pm 3\\sigma$",
+            linewidth=1.0,
+        )
+        plt.xlabel("vza")
+        plt.ylabel("reflectance")
+        plt.legend()
+        html_fig = figure_to_html(fig)
+        logger.info(html_fig, html=True)
+
+    test = SidakTTest(
+        name=test_name,
+        value=result,
+        reference=reference,
+        threshold=0.01,
+        archive_dir=artefact_dir,
+        variable="hdrf",
+        plot=plot_figures,
+    )
+
+    assert np.allclose(result.bhr.values, reference.bhr.values)
+    assert test.run(plot_figures)
