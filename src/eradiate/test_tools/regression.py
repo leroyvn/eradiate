@@ -289,20 +289,26 @@ class RegressionTest(ABC):
 
     def __attrs_post_init__(self):
         if self.plot:
-            if "w" in self.reference and self.reference.w.size > 1:
+            if (
+                "w" in self.reference[self.variable]
+                and self.reference[self.variable].w.size > 1
+            ):
                 raise ValueError(
                     "Regression charts are implemented for single a wavelength, "
                     "but the reference dataset has a spectral dimension. "
                     "Please disable the 'plot' option."
                 )
-            if "w" in self.value and self.value.w.size > 1:
+            if (
+                "w" in self.value[self.variable]
+                and self.value[self.variable].w.size > 1
+            ):
                 raise ValueError(
                     "Regression charts are implemented for single a wavelength, "
                     "but the tested dataset has a spectral dimension. "
                     "Please disable the 'plot' option."
                 )
 
-    def run(self) -> bool:
+    def run(self, diagnostic=False) -> bool:
         """
         This method controls the execution steps of the regression test:
 
@@ -339,7 +345,7 @@ class RegressionTest(ABC):
 
         # else (we have a reference value), evaluate the test metric
         try:
-            passed, metric_value = self._evaluate()
+            passed, metric_value = self._evaluate(diagnostic)
             msg = "\n".join(
                 [
                     "Test passed" if passed else "Test did not pass",
@@ -928,9 +934,6 @@ class SidakTTest(RegressionTest):
         t_prim: array-like
             T-statistic for each pair of measurements
         """
-
-        if not self.plot:
-            return
 
         fig, ax = plt.subplots()
         ax.grid()
