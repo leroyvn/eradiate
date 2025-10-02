@@ -4,7 +4,7 @@ from eradiate import unit_registry as ureg
 from eradiate.experiments import AtmosphereExperiment, CanopyAtmosphereExperiment
 
 
-def create_rami4atm_hom00_bla_sd2s_m03_z30a000_brfpp():
+def create_rami4atm_hom00_bla_sd2s_m03_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_BLA_SD2S_M03*
 
@@ -65,7 +65,7 @@ def create_rami4atm_hom00_bla_sd2s_m03_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-3",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -79,7 +79,7 @@ def create_rami4atm_hom00_bla_sd2s_m03_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_whi_s00s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_whi_s00s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_WHI_S00S_M04*
 
@@ -128,7 +128,7 @@ def create_rami4atm_hom00_whi_s00s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -142,7 +142,7 @@ def create_rami4atm_hom00_whi_s00s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_bla_a00s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_bla_a00s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_BLA_S00S_M04*
 
@@ -191,7 +191,7 @@ def create_rami4atm_hom00_bla_a00s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -205,7 +205,7 @@ def create_rami4atm_hom00_bla_a00s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_e00s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_e00s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_E00S_M04*
 
@@ -257,7 +257,7 @@ def create_rami4atm_hom00_rpv_e00s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -271,7 +271,7 @@ def create_rami4atm_hom00_rpv_e00s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_0c2s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_0c2s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_0C2S_M04*
 
@@ -334,7 +334,7 @@ def create_rami4atm_hom00_rpv_0c2s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -348,7 +348,7 @@ def create_rami4atm_hom00_rpv_0c2s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_0c6s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_0c6s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_0C6S_M04*
 
@@ -411,7 +411,7 @@ def create_rami4atm_hom00_rpv_0c6s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -425,7 +425,7 @@ def create_rami4atm_hom00_rpv_0c6s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_0d2s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_0d2s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_0D2S_M04*
 
@@ -488,7 +488,7 @@ def create_rami4atm_hom00_rpv_0d2s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -502,7 +502,7 @@ def create_rami4atm_hom00_rpv_0d2s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_0d6s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_0d6s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_0D6S_M04*
 
@@ -565,7 +565,7 @@ def create_rami4atm_hom00_rpv_0d6s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -579,7 +579,7 @@ def create_rami4atm_hom00_rpv_0d6s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_sc2s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_sc2s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_SC2S_M04*
 
@@ -643,7 +643,7 @@ def create_rami4atm_hom00_rpv_sc2s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -657,7 +657,7 @@ def create_rami4atm_hom00_rpv_sc2s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_sc6s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_sc6s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_SC6S_M04*
 
@@ -721,7 +721,7 @@ def create_rami4atm_hom00_rpv_sc6s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -735,7 +735,7 @@ def create_rami4atm_hom00_rpv_sc6s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_sd2s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_sd2s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_SD2S_M04*
 
@@ -799,7 +799,7 @@ def create_rami4atm_hom00_rpv_sd2s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -813,7 +813,7 @@ def create_rami4atm_hom00_rpv_sd2s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_sd6s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_sd6s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_SD6S_M04*
 
@@ -877,7 +877,7 @@ def create_rami4atm_hom00_rpv_sd6s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -891,7 +891,7 @@ def create_rami4atm_hom00_rpv_sd6s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_ac2s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_ac2s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_AC2S_M04*
 
@@ -955,7 +955,7 @@ def create_rami4atm_hom00_rpv_ac2s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -969,7 +969,7 @@ def create_rami4atm_hom00_rpv_ac2s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_ac6s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_ac6s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_AC6S_M04*
 
@@ -1033,7 +1033,7 @@ def create_rami4atm_hom00_rpv_ac6s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -1047,7 +1047,7 @@ def create_rami4atm_hom00_rpv_ac6s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_ad2s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_ad2s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_AD2S_M04*
 
@@ -1111,7 +1111,7 @@ def create_rami4atm_hom00_rpv_ad2s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -1125,7 +1125,7 @@ def create_rami4atm_hom00_rpv_ad2s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_ad6s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_ad6s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_AD2S_M04*
 
@@ -1189,7 +1189,7 @@ def create_rami4atm_hom00_rpv_ad6s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -1203,7 +1203,7 @@ def create_rami4atm_hom00_rpv_ad6s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_lam_ec2s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_lam_ec2s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_LAM_EC2S_M04*
 
@@ -1264,7 +1264,7 @@ def create_rami4atm_hom00_lam_ec2s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -1278,7 +1278,7 @@ def create_rami4atm_hom00_lam_ec2s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_ec2s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_ec2s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_EC2S_M04*
 
@@ -1342,7 +1342,7 @@ def create_rami4atm_hom00_rpv_ec2s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -1356,7 +1356,7 @@ def create_rami4atm_hom00_rpv_ec2s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rli_ec2s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rli_ec2s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RLI_EC2S_M04*
 
@@ -1419,7 +1419,7 @@ def create_rami4atm_hom00_rli_ec2s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -1433,7 +1433,7 @@ def create_rami4atm_hom00_rli_ec2s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_ec6s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_ec6s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_EC6S_M04*
 
@@ -1497,7 +1497,7 @@ def create_rami4atm_hom00_rpv_ec6s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -1511,7 +1511,7 @@ def create_rami4atm_hom00_rpv_ec6s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_ed2s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_ed2s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_ED2S_M04*
 
@@ -1575,7 +1575,7 @@ def create_rami4atm_hom00_rpv_ed2s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
@@ -1589,7 +1589,7 @@ def create_rami4atm_hom00_rpv_ed2s_m04_z30a000_brfpp():
     return AtmosphereExperiment(**config)
 
 
-def create_rami4atm_hom00_rpv_ed6s_m04_z30a000_brfpp():
+def create_rami4atm_hom00_rpv_ed6s_m04_z30a000_brfpp(spp=1000):
     r"""
     *RAMI4ATM HOM00_RPV_ED6S_M04*
 
@@ -1653,7 +1653,7 @@ def create_rami4atm_hom00_rpv_ed6s_m04_z30a000_brfpp():
                 "azimuth": 0.0,
                 "azimuth_units": "degree",
                 "srf": "sentinel_2a-msi-4",
-                "spp": 1000,
+                "spp": spp,
             }
         ],
         "ckd_quad_config": {
