@@ -513,7 +513,7 @@ class RMSETest(RegressionTest):
 
     METRIC_NAME = "rmse"
 
-    def _evaluate(self) -> tuple[bool, float]:
+    def _evaluate(self, diagnostic_chart=False) -> tuple[bool, float]:
         value_np = self.value.brf.values
         ref_np = self.reference.brf.values
         if np.shape(value_np) != np.shape(ref_np):
