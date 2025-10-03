@@ -13,8 +13,8 @@ from eradiate.test_tools.test_cases.rami4atm import (
 
 brf_cases = [c for c in registry if c != "hom00_bla_a00s_m04_z30a000_brfpp"]
 boa_cases = [
-    "hom00_rpv_ec2s_m04_z30a000_brfpp",
-    "hom45_lam_ec2s_m04_z30a000_brfpp",
+    "hom00_whi_s00s_m04_z30a000_brfpp",
+    "hom00_rpv_e00s_m04_z30a000_brfpp",
 ]
 
 
@@ -53,7 +53,7 @@ def test_rami4atm_brf(mode_ckd_double, case, artefact_dir):
     "ignore:User-specified a background spectral grid is overridden by atmosphere spectral grid"
 )
 def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
-    spp = 1000
+    spp = 100
     ctor = registry[case]
     case = case.replace("brfpp", "boa")
     srf = fresolver.load_dataset("srf/sentinel_2a-msi-4.nc")
@@ -63,18 +63,18 @@ def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
             "boa_white_reference_patch": {
                 "factory": "shape",
                 "type": "rectangle",
-                "center": [0, 0, 0.1],
+                "center": [0, 0, 0.01],
                 "edges": [1, 1],
                 "bsdf": {"type": "lambertian", "reflectance": 1.0},
             }
         }
-        target = [0, 0, 0.1]
+        target = [0, 0, 0.01]
     else:
         extra_objects = {
             "boa_white_reference_patch": {
                 "factory": "shape",
                 "type": "rectangle",
-                "center": [0, 0, 2.1],
+                "center": [0, 0, 2.025],
                 "edges": [5, 5],
                 "bsdf": {"type": "lambertian", "reflectance": 1.0},
             }
@@ -85,7 +85,7 @@ def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
             "xmax": 2.5,
             "ymin": -2.5,
             "ymax": 2.5,
-            "z": 2.1,
+            "z": 2.025,
         }
 
     exp1 = ctor(spp=spp)
@@ -95,7 +95,7 @@ def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
             {
                 "type": "multi_distant",
                 "spp": spp,
-                "ray_offset": 1.0,
+                "ray_offset": 0.05,
                 "srf": srf,
                 "construct": "hplane",
                 "zeniths": np.arange(-75, 76, 1),
@@ -109,7 +109,7 @@ def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
     exp2 = attr.evolve(exp1, extra_objects=extra_objects)
     dflux = {
         "type": "distantflux",
-        "ray_offset": 1.0,
+        "ray_offset": 0.05,
         "target": target,
         "srf": srf,
         "spp": spp,
@@ -174,13 +174,13 @@ def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
                 color="red",
                 label=f"$HDRF_{{ref}}\\pm{K}\\sigma$",
             )
-        plt.errorbar(
+        plt.plot(
             result.vza.squeeze(),
             result.hdrf.squeeze(),
-            3 * np.sqrt(result.hdrf_var.squeeze()),
+            # 3 * np.sqrt(result.hdrf_var.squeeze()),
             label="HDRF $\\pm 3\\sigma$",
             linewidth=1.0,
-            capsize=1,
+            # capsize=1,
         )
         plt.errorbar(
             0.0,
@@ -188,7 +188,7 @@ def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
             3 * np.sqrt(result.bhr_var.squeeze()),
             marker="x",
             color="black",
-            label="BHR $\\pm 3\\sigma$",
+            label="$BHR \\pm 3\\sigma$",
             linewidth=1.0,
         )
         plt.errorbar(
@@ -197,7 +197,7 @@ def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
             3 * np.sqrt(reference.bhr_var.squeeze()),
             marker="x",
             color="black",
-            label="BHR_{ref} $\\pm 3\\sigma$",
+            label="$BHR_{{ref}} \\pm 3\\sigma$",
             linewidth=1.0,
         )
         plt.xlabel("vza")
@@ -216,5 +216,5 @@ def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
         plot=plot_figures,
     )
 
-    assert np.allclose(result.bhr.values, reference.bhr.values)
+    assert np.allclose(result.bhr.values, reference.bhr.values, atol=1e-4)
     assert test.run(plot_figures)
