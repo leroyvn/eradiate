@@ -87,9 +87,8 @@ dev = [
 eradiate = "eradiate.cli:main"
 
 [project.urls]
-changelog = "https://github.com/eradiate/eradiate/CHANGELOG.md"
-documentation = "https://eradiate.readthedocs.io"
-repository = "https://github.com/eradiate/eradiate"
+Changelog = "https://github.com/eradiate/eradiate/releases"
+Documentation = "https://eradiate.readthedocs.io"
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
