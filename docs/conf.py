@@ -295,7 +295,7 @@ latex_elements = {
 }
 
 latex_engine = "xelatex"
-latex_logo = "_images/eradiate-logo-typo-black.png"
+latex_logo = "_static/eradiate-logo-typo-black.png"
 
 latex_documents = [
     (
