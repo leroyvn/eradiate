@@ -9,10 +9,10 @@ import joseki
 import numpy as np
 import pytest
 
-from .data import make_particle_dataset
-from .util import check_plugin
-from .. import fresolver
-from .. import unit_registry as ureg
+from ..data import make_particle_dataset
+from ..util import check_plugin
+from ... import fresolver
+from ... import unit_registry as ureg
 
 
 @pytest.fixture
