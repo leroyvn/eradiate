@@ -9,7 +9,7 @@ import shutil
 import time
 import urllib.parse
 import urllib.request
-from pathlib import Path, PosixPath
+from pathlib import Path, PurePosixPath
 from typing import ClassVar, Literal
 from urllib.parse import urljoin
 
@@ -54,7 +54,7 @@ class Resource:
     _EXTENSIONS: ClassVar[dict] = {"zip": "zip", "tar.gz": "tar.gz"}
 
     def filename(self) -> str:
-        return f"{PosixPath(self.keyword)}.{Resource._EXTENSIONS[self.type]}"
+        return f"{PurePosixPath(self.keyword)}.{Resource._EXTENSIONS[self.type]}"
 
 
 @define
@@ -262,7 +262,7 @@ class AssetManager:
         """
         if isinstance(resource, str):
             resource = self._manifest[resource]
-        dirname = PosixPath(resource.keyword)
+        dirname = PurePosixPath(resource.keyword)
         return self.unpack_dir / Path(dirname)
 
     def _list_files(self, resource_id: str) -> list[Path]:
