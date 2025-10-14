@@ -106,6 +106,13 @@ referencing the target resources by their IDs, *e.g.*:
     Installing resource 'aerosol/core-v1'
     Installing resource 'bsdf/core-v1'
 
+.. important::
+
+    On Windows, symlink creation is not allowed by default. This is a known
+    issue for which we are still looking to solve. However, there are workarounds,
+    documented in the following
+    `GitHub issue <https://github.com/eradiate/eradiate/issues/525>`__.
+
 Resource archives that are not already available locally will be downloaded from
 the remote data registry. They will be unpacked and linked to the
 version-dependent installation directory. The cache and unpacking locations are,
