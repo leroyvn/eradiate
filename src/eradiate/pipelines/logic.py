@@ -670,16 +670,6 @@ def gather_bitmaps(
             name = "bitmap"
             da = bitmap_to_dataarray(result_dict[name])
 
-            # Add spectral and sensor dimensions to img array
-            sensor_data[f"{var_name}_raw"].append(da.expand_dims(dim=all_coords))
-
-            if gather_variance:
-                name = "m2"
-                da_m2 = bitmap_to_dataarray(result_dict[name])
-                sensor_data[f"{var_name}_m2_raw"].append(
-                    da_m2.expand_dims(dim=all_coords)
-                )
-
         else:
             components = ["I", "Q", "U", "V"]
             stokes = []
@@ -688,20 +678,13 @@ def gather_bitmaps(
             da = xr.concat(stokes, "stokes")
             da = da.assign_coords({"stokes": components})
 
-            # Add spectral and sensor dimensions to img array
-            sensor_data[f"{var_name}_raw"].append(da.expand_dims(dim=all_coords))
+        # Add spectral and sensor dimensions to img array
+        sensor_data[f"{var_name}_raw"].append(da.expand_dims(dim=all_coords))
 
-            if gather_variance:
-                m2_components = ["m2_" + s for s in components]
-                stokes_m2 = []
-                for s in m2_components:
-                    stokes_m2.append(bitmap_to_dataarray(result_dict[s]))
-                da_m2 = xr.concat(stokes_m2, "stokes")
-                da_m2 = da_m2.assign_coords({"stokes": components})
-
-                sensor_data[f"{var_name}_m2_raw"].append(
-                    da_m2.expand_dims(dim=all_coords)
-                )
+        if gather_variance:
+            name = "m2"
+            da_m2 = bitmap_to_dataarray(result_dict[name])
+            sensor_data[f"{var_name}_m2_raw"].append(da_m2.expand_dims(dim=all_coords))
 
     # Combine all the data
     result = {k: xr.combine_by_coords(v) if v else None for k, v in sensor_data.items()}
@@ -876,16 +859,20 @@ def viewing_angles(angles: np.ndarray) -> xr.Dataset:
 
 
 def moment2_to_variance(
-    expectation: xr.DataArray, m2: xr.DataArray, spp: xr.DataArray
+    expectation: xr.DataArray,
+    m2: xr.DataArray,
+    spp: xr.DataArray,
+    calculate_stokes: bool,
 ) -> xr.DataArray:
     """
-    Calculate the variance (central 2nd moment) from the raw 2nd moment and expected value.
+    Calculate the variance (central 2nd moment) from the raw 2nd moment and
+    expected value.
 
     Parameters
     ----------
     expectation : DataArray
-        The data expected value. For Monte Carlo integration, this is the output of
-        the estimator.
+        The data expected value. For Monte Carlo integration, this is the output
+        of the estimator.
 
     m2 : DataArray
         The data's raw 2nd moment.
@@ -893,17 +880,45 @@ def moment2_to_variance(
     spp : DataArray
         The number of samples per pixels used during the Monte Carlo integration.
 
+    calculate_stokes : bool
+        Specifies whether the expectation is a Stokes vector.
+
     Returns
     -------
     DataArray
-        The variance (central 2nd moment) of the data. The DataArray has the same shape
-        as the expectation or m2.
+        The variance (central 2nd moment) of the data. The DataArray has the
+        same shape as the expectation or m2.
+
+    Raises
+    ------
+    RuntimeError
+        If the ``expectation`` and ``m2`` arrays have different dimensions (we
+        don't want unexpected broadcasting to happen).
 
     Notes
     -----
     This function calculates the Monte-Carlo variance, which aggregates the variance
     of each sample. It thus needs to be divided by the spp.
+
+    In polarized mode (``calculate_stokes=True``), the m2 array only contains
+    the 'I' (intensity) component, while the expectation may contain the full
+    Stokes vector. The function automatically selects the 'I' component from
+    expectation when needed.
     """
+
+    # In polarized mode, m2 only contains the 'I' component
+    # Select it from expectation if it has a 'stokes' dimension
+    if calculate_stokes and "stokes" in expectation.dims:
+        expectation = expectation.sel(stokes="I", drop=True)
+
+    dims_m2 = set(m2.dims)
+    dims_expectation = set(expectation.dims)
+    if dims_m2 != dims_expectation:
+        raise RuntimeError(
+            "expectation and m2 must have the same dimensions, got "
+            f"{expectation.dims = } and {m2.dims = }"
+        )
+
     variance = (m2 - expectation * expectation) / spp
     variance.name = m2.name.replace("m2", "var")
     return variance
