@@ -143,18 +143,33 @@ def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
     #  - Null covariance of different experiments or pixels
     #  - Local linearity of radiance and radiosity
     #  - Scalar SRF
-    srf_weight = srf.srf.interp(w=result.w.values).fillna(1e-6) / srf.srf.sum()
-    radiance_var1 = (result.radiance_var1 * srf_weight**2).sum(dim="w")
-    radiance_var2 = (result.radiance_var2 * srf_weight**2).sum(dim="w")
-    result["hdrf_var"] = (1 / result.radiance_srf2**2) * radiance_var1 + (
-        result.radiance_srf1**2 / result.radiance_srf2**4
-    ) * radiance_var2
-    radiosity_var3 = (result.radiosity_var3 * srf_weight**2).sum(dim="w")
-    radiosity_var4 = (result.radiosity_var4 * srf_weight**2).sum(dim="w")
-    result["bhr_var"] = (
-        (1 / result.radiosity_srf4**2) * radiosity_var3
-        + (result.radiosity_srf3**2 / result.radiosity_srf4**4) * radiosity_var4
-    ).sum(dim=["x_index", "y_index"])
+    srf_weight = srf.srf.interp(w=result.w.values).fillna(1e-9)
+    srf_sum = srf_weight.sum()
+
+    # HDRF var
+    S1 = result.radiance_srf1.sum() / srf_sum
+    S2 = result.radiance_srf2.sum() / srf_sum
+    v_S1 = (result.radiance_var1 * srf_weight**2).sum(dim="w") / (srf_weight**2).sum()
+    v_S2 = (result.radiance_var2 * srf_weight**2).sum(dim="w") / (srf_weight**2).sum()
+
+    d_hdrf_d_S1 = 1 / S2
+    d_hdrf_d_S2 = -S1 / S2**2
+
+    v_hdrf = d_hdrf_d_S1**2 * v_S1 + d_hdrf_d_S2**2 * v_S2
+    result["hdrf_var"] = v_hdrf
+
+    # BHR var
+    S3 = result.radiosity_srf3.sum() / srf_sum
+    S4 = result.radiosity_srf4.sum() / srf_sum
+    v_S3 = (result.radiosity_var3 * srf_weight**2).sum(dim="w") / (srf_weight**2).sum()
+    v_S4 = (result.radiosity_var4 * srf_weight**2).sum(dim="w") / (srf_weight**2).sum()
+
+    d_bhr_d_S3 = 1 / S4
+    d_bhr_d_S4 = -S3 / S4**2
+
+    v_bhr = d_bhr_d_S3**2 * v_S3 + d_bhr_d_S4**2 * v_S4
+    result["bhr_var"] = v_bhr.sum(dim=["x_index", "y_index"])
+
     logger.info(result._repr_html_(), html=True)
 
     test_name = case.replace("brfpp", "boa")
@@ -165,7 +180,7 @@ def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
     if plot_figures:
         fig = plt.figure()
         plt.grid()
-        for K in range(3, 0, -1):
+        for K in range(1, 4):
             plt.fill_between(
                 result.vza.squeeze(),
                 reference.hdrf.squeeze() - K * np.sqrt(result.hdrf_var.squeeze()),
