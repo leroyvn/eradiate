@@ -25,7 +25,9 @@ def pytest_addoption(parser):
         action="store",
         default=os.path.join(eradiate_source_dir, "test_artefacts/"),
     )
-    parser.addoption("--plot", action="store", default=False)
+    parser.addoption(
+        "--plot", action="store_true", default=False, help="Produce and save plots."
+    )
 
 
 # See: https://stackoverflow.com/a/55301318/3645374
@@ -37,6 +39,11 @@ def artefact_dir(pytestconfig):
         os.makedirs(option_value)
 
     return option_value
+
+
+@pytest.fixture(scope="session")
+def plot_figures(pytestconfig):
+    return pytestconfig.getoption("plot")
 
 
 # ------------------------------------------------------------------------------
@@ -103,11 +110,6 @@ pytest.register_assert_rewrite("eradiate.test_tools.types.check_scene_element")
 # ------------------------------------------------------------------------------
 #                                 Mode fixtures
 # ------------------------------------------------------------------------------
-
-
-@pytest.fixture
-def plot_figures(pytestconfig):
-    return pytestconfig.getoption("plot")
 
 
 def generate_fixture(mode):
