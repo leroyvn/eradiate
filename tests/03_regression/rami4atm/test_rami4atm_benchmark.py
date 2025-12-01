@@ -7,22 +7,17 @@ from robot.api import logger
 import eradiate
 from eradiate import fresolver
 from eradiate.test_tools.regression import SidakTTest, figure_to_html
-from eradiate.test_tools.test_cases.rami4atm import (
-    registry,
-)
+from eradiate.test_tools.test_cases import rami4atm
 
-brf_cases = [c for c in registry if c != "hom00_bla_a00s_m04_z30a000_brfpp"]
-boa_cases = [
-    "hom00_whi_s00s_m04_z30a000_brfpp",
-    "hom00_rpv_e00s_m04_z30a000_brfpp",
-]
+brf_cases = [c for c in rami4atm.registry if c != "hom00_bla_a00s_m04_z30a000_brfpp"]
+boa_cases = ["hom00_whi_s00s_m04_z30a000_brfpp", "hom00_rpv_e00s_m04_z30a000_brfpp"]
 
 
 @pytest.mark.regression
 @pytest.mark.slow
 @pytest.mark.parametrize("case", brf_cases)
 def test_rami4atm_brf(mode_ckd_double, case, artefact_dir):
-    ctor = registry[case]
+    ctor = rami4atm.registry[case]
     exp = ctor(spp=1000)
     result = eradiate.run(exp)
     logger.info(result._repr_html_(), html=True)
@@ -54,7 +49,7 @@ def test_rami4atm_brf(mode_ckd_double, case, artefact_dir):
 )
 def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
     spp = 100
-    ctor = registry[case]
+    ctor = rami4atm.registry[case]
     case = case.replace("brfpp", "boa")
     srf = fresolver.load_dataset("srf/sentinel_2a-msi-4.nc")
 
@@ -93,7 +88,7 @@ def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
         exp1,
         measures=[
             {
-                "type": "multi_distant",
+                "type": "mdistant",
                 "spp": spp,
                 "ray_offset": 0.05,
                 "srf": srf,
@@ -127,7 +122,7 @@ def test_rami4atm_boa(mode_ckd_double, case, artefact_dir, plot_figures):
 
     # Combine a reference dataset
     result = result1.rename(
-        dict(radiance_srf="radiance_srf1", radiance_var="radiance_var1")
+        {"radiance_srf": "radiance_srf1", "radiance_var": "radiance_var1"}
     )
     result["radiance_srf2"] = result2.radiance_srf
     result["radiance_var2"] = result2.radiance_var

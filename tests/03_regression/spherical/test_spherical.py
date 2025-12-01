@@ -4,6 +4,7 @@ import pytest
 import eradiate
 from eradiate import fresolver
 from eradiate import unit_registry as ureg
+from eradiate.constants import EARTH_RADIUS
 from eradiate.experiments import AtmosphereExperiment
 from eradiate.test_tools.regression import SidakTTest
 
@@ -13,14 +14,16 @@ from eradiate.test_tools.regression import SidakTTest
 def test_spherical(mode_ckd_double, artefact_dir, plot_figures):
     spp = 100
     config = {
+        "geometry": "spherical_shell",
         "surface": {
-            "rho_0": {"value": 0.017051, "type": "uniform"},
-            "k": {"value": 0.95, "type": "uniform"},
-            "g": {"value": -0.1, "type": "uniform"},
-            "rho_c": {"value": 0.017051, "type": "uniform"},
             "type": "rpv",
+            "rho_0": {"type": "uniform", "value": 0.017051},
+            "k": {"type": "uniform", "value": 0.95},
+            "g": {"type": "uniform", "value": -0.1},
+            "rho_c": {"type": "uniform", "value": 0.017051},
         },
         "atmosphere": {
+            "type": "molecular",
             "has_absorption": True,
             "has_scattering": True,
             "thermoprops": {
@@ -28,35 +31,25 @@ def test_spherical(mode_ckd_double, artefact_dir, plot_figures):
                 "z": np.arange(0, 120.05, 0.05) * ureg.km,
             },
             "absorption_data": "monotropa",
-            "type": "molecular",
         },
         "illumination": {
-            "zenith": 30.0,
-            "zenith_units": "degree",
-            "azimuth": 0.0,
-            "azimuth_units": "degree",
             "type": "directional",
+            "zenith": 30.0 * ureg.deg,
+            "azimuth": 0.0 * ureg.deg,
         },
         "measures": [
             {
                 "type": "mdistant",
                 "construct": "hplane",
-                "zeniths": np.arange(-85, 65, 1),
-                "zeniths_units": "degree",
-                "azimuth": 0.0,
-                "azimuth_units": "degree",
+                "zeniths": np.arange(-85.0, 65.0, 1.0) * ureg.deg,
+                "azimuth": 0.0 * ureg.deg,
                 "srf": "sentinel_2a-msi-4",
                 "spp": spp,
-                "target": [0.0, 0.0, 6378.1] * ureg.km,
+                "target": [0.0, 0.0, EARTH_RADIUS] * ureg.km,
             }
         ],
-        "ckd_quad_config": {
-            "policy": "fixed",
-            "type": "gauss_legendre",
-            "ng_max": 16,
-        },
+        "ckd_quad_config": {"type": "gauss_legendre", "ng_max": 16, "policy": "fixed"},
         "integrator": {"type": "volpath", "moment": True},
-        "geometry": "spherical_shell",
     }
 
     exp = AtmosphereExperiment(**config)
