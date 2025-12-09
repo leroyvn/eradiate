@@ -2,8 +2,74 @@ import functools
 
 import numpy as np
 
-from ...experiments import CanopyAtmosphereExperiment
+from ...experiments import AtmosphereExperiment, CanopyAtmosphereExperiment
 from ...units import unit_registry as ureg
+
+
+def create_rami4atm_hom00_bla_sd2s_m03_z30a000_brfpp():
+    r"""
+    *RAMI4ATM HOM00_BLA_SD2S_M03*
+
+    This scenario is based on the ``HOM00_BLA_SD2S_M03_z30a000-brfpp`` scenario
+    of the RAMI4ATM benchmark.
+
+    *Scene setup*
+
+    - Geometry: 1D plane-parallel
+    - Atmosphere: Molecular atmosphere using the AFGL 1986 (U.S. Standard) profile
+    - Aerosol layer: Uniform layer ranging from 0 km to 2 km, with AOT at 550 nm = 0.5; aerosol dataset ``govaerts_2021-desert``
+    - Surface: Black
+    - Illumination: Directional illumination with a zenith angle of 30°
+    - Sensor: Multi-distant measure covering the principal plane, from -75° to 75° with 2° increments, delta SRF positioned at λ = 550 nm
+    """
+    # TODO: This test case definition is kept for compatibility, it could be factored in create_rami4atm()
+    config = {
+        "surface": {
+            "type": "lambertian",
+            "reflectance": {"value": 0.0, "type": "uniform"},
+        },
+        "atmosphere": {
+            "type": "heterogeneous",
+            "molecular_atmosphere": {
+                "type": "molecular",
+                "has_absorption": False,
+                "has_scattering": True,
+                "thermoprops": {
+                    "identifier": "afgl_1986-us_standard",
+                    "z": np.arange(0, 120.05, 0.05) * ureg.km,
+                },
+                "absorption_data": "monotropa",
+            },
+            "particle_layers": [
+                {
+                    "bottom": 0.0 * ureg.m,
+                    "top": 2000.0 * ureg.m,
+                    "distribution": {"type": "uniform"},
+                    "tau_ref": 0.2,
+                    "dataset": "govaerts_2021-desert",
+                }
+            ],
+        },
+        "illumination": {
+            "type": "directional",
+            "zenith": 30.0 * ureg.deg,
+            "azimuth": 0.0 * ureg.deg,
+        },
+        "measures": [
+            {
+                "type": "mdistant",
+                "construct": "hplane",
+                "zeniths": np.arange(-75.0, 76.0, 2.0) * ureg.deg,
+                "azimuth": 0.0 * ureg.deg,
+                "srf": "sentinel_2a-msi-3",
+                "spp": 1000,
+            }
+        ],
+        "ckd_quad_config": {"type": "gauss_legendre", "ng_max": 16, "policy": "fixed"},
+        "integrator": {"type": "piecewise_volpath", "moment": True},
+    }
+
+    return AtmosphereExperiment(**config)
 
 
 def create_rami4atm(id: str, spp: int):
