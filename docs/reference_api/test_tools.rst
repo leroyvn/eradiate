@@ -30,7 +30,7 @@
    RMSETest
    Chi2Test
    AbstractStudentTTest
-   IndependantStudentTTest
+   IndependentStudentTTest
    PairedStudentTTest
    ZTest
    SidakTTest
