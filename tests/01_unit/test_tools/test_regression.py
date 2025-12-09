@@ -5,10 +5,21 @@ import xarray as xr
 import eradiate.test_tools.regression as tt
 
 
-def test_instantiate():
+@pytest.mark.parametrize(
+    "cls, name",
+    [
+        (tt.RMSETest, "rmse"),
+        (tt.Chi2Test, "chi2"),
+        (tt.IndependentStudentTTest, "t-test"),
+        (tt.PairedStudentTTest, "t-test"),
+        (tt.ZTest, "z-test"),
+    ],
+    ids=["rmse", "chi2", "t-test", "t-test", "z-test"],
+)
+def test_instantiate(cls, name):
     # instantiate the test with reasonable defaults
-    assert tt.RMSETest(
-        name="rmse",
+    assert cls(
+        name=name,
         archive_dir="tests/",
         value=xr.Dataset(),
         reference=xr.Dataset(),
@@ -16,42 +27,8 @@ def test_instantiate():
         plot=False,
     )
 
-    assert tt.Chi2Test(
-        name="chi2",
-        archive_dir="tests/",
-        value=xr.Dataset(),
-        reference=xr.Dataset(),
-        threshold=0.05,
-        plot=False,
-    )
 
-    assert tt.IndependantStudentTTest(
-        name="t-test",
-        archive_dir="tests/",
-        value=xr.Dataset(),
-        reference=xr.Dataset(),
-        threshold=0.05,
-        plot=False,
-    )
-
-    assert tt.PairedStudentTTest(
-        name="t-test",
-        archive_dir="tests/",
-        value=xr.Dataset(),
-        reference=xr.Dataset(),
-        threshold=0.05,
-        plot=False,
-    )
-
-    assert tt.ZTest(
-        name="z-test",
-        archive_dir="tests/",
-        value=xr.Dataset(),
-        reference=xr.Dataset(),
-        threshold=0.05,
-        plot=False,
-    )
-
+def test_instantiate_fail():
     # assert all arguments except reference are needed
     # only one subclass of RegressionTest (Chi2Test) is tested
     with pytest.raises(TypeError):
