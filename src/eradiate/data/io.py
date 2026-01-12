@@ -12,7 +12,7 @@ import pint
 import pinttrs
 import xarray as xr
 
-from ..data import fresolver
+from . import fresolver
 from ..typing import PathLike
 from ..units import unit_context_config as ucc
 from ..units import unit_registry as ureg

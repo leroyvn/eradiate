@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import pytest
 from typing_extensions import ParamSpec, TypeAlias
 
-from .. import fresolver
+from ..data import fresolver
 from ..typing import PathLike
 
 

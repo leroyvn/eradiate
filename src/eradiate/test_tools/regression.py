@@ -15,8 +15,8 @@ import xarray as xr
 from numpy.typing import ArrayLike
 from robot.api import logger
 
-from .. import fresolver
 from ..attrs import define, documented
+from ..data import fresolver
 from ..exceptions import DataError
 from ..typing import PathLike
 from ..util.misc import summary_repr
