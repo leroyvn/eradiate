@@ -13,7 +13,7 @@ from axsdb import AbsorptionDatabase, ErrorHandlingConfiguration
 
 from ._core import AbstractHeterogeneousAtmosphere
 from ..core import traverse
-from ..phase import PhaseFunction, RayleighPhaseFunction
+from ..phase import PhaseFunction, RayleighPhaseFunction, phase_function_factory
 from ... import converters
 from ...attrs import define, documented
 from ...contexts import KernelContext
@@ -158,6 +158,16 @@ class MolecularAtmosphere(AbstractHeterogeneousAtmosphere):
         default="None",
     )
 
+    #: For debugging purposes only
+    _phase: PhaseFunction | None = attrs.field(
+        default=None,
+        converter=attrs.converters.optional(phase_function_factory.convert),
+        validator=attrs.validators.optional(
+            attrs.validators.instance_of(PhaseFunction)
+        ),
+        repr=False,
+    )
+
     error_handler_config: ErrorHandlingConfiguration | None = documented(
         attrs.field(
             kw_only=True,
@@ -219,13 +229,17 @@ class MolecularAtmosphere(AbstractHeterogeneousAtmosphere):
     def phase(self) -> PhaseFunction:
         # Inherit docstring
 
-        def eval_depolarization_factor(si: SpectralIndex) -> np.ndarray:
-            return self.eval_depolarization_factor(si).m_as("dimensionless")
+        if self._phase is None:
+            def eval_depolarization_factor(si: SpectralIndex) -> np.ndarray:
+                return self.eval_depolarization_factor(si).m_as("dimensionless")
 
-        # pass callable for depolarization to phase function for InitParams and UpdateParams.
-        return RayleighPhaseFunction(
-            depolarization=eval_depolarization_factor, geometry=self.geometry
-        )
+            # pass callable for depolarization to phase function for InitParams and UpdateParams.
+            return RayleighPhaseFunction(
+                depolarization=eval_depolarization_factor, geometry=self.geometry
+            )
+
+        else:
+            return self._phase
 
     @property
     def radprops_profile(self) -> RadProfile:
