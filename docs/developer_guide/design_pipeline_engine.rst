@@ -1,17 +1,17 @@
 .. _sec-developer_guide-design_pipeline_engine:
 
-Pipeline Engine Design Note
-===========================
+Design note: Pipeline engine
+============================
 
-Context
--------
+Motivation
+----------
 
-The Eradiate radiative transfer model uses computational pipelines for
-postprocessing simulation results. These pipelines involve chained operations
-(CKD quadrature aggregation, spectral response function application, BRDF
-computation, etc.) organized as directed acyclic graphs.
+Eradiate uses computational pipelines for postprocessing simulation results.
+These pipelines involve chained operations (CKD quadrature aggregation, spectral
+response function application, BRDF computation, etc.) organized as directed
+acyclic graphs (DAG).
 
-Previously, Eradiate used `Hamilton <https://github.com/dagworks-inc/hamilton>`_
+Previously, Eradiate used `Hamilton <https://github.com/dagworks-inc/hamilton>`__
 for pipeline management. While Hamilton is feature-rich, several friction points
 motivated exploring an alternative:
 
@@ -24,11 +24,20 @@ motivated exploring an alternative:
    working around decorator semantics.
 4. **Debugging difficulty**: Stacked decorators obscure the execution flow.
 
-Design Goals
+In addition, Hamilton does not receive as much care as we would hope, which
+occasionally resulted in critical issues remaining unaddressed --- and us having
+to contribute fixing a codebase we do not know well to do so efficiently.
+
+After looking for alternatives, it turned out that no well-maintained,
+off-the-shelf library existed that implements the feature set we needed.
+We eventually decided to write our own pipeline engine, effectively going back
+to a home-grown solution, benefitting from our experience with Hamilton.
+
+Design goals
 ------------
 
 - **Simplicity**: Clear, explicit API with minimal indirection.
-- **Flexibility**: Build pipelines programmatically with full Python control.
+- **Flexibility**: Build pipelines programmatically.
 - **Debuggability**: Straightforward call stack, no decorator layers.
 - **Completeness**: Pre/post hooks, input injection, subgraph extraction,
   visualization.
@@ -36,144 +45,108 @@ Design Goals
 Architecture
 ------------
 
-Overview
-^^^^^^^^
-
 The engine is built on `networkx <https://networkx.org/>`_ and consists of two
-core types::
+core types:
 
-    eradiate.pipelines.engine
-    ├── Pipeline    — DAG manager and executor
-    └── Node        — Single computation step
+:class:`~eradiate.pipelines.engine.Pipeline` : DAG manager and executor.
+    This class manages a ``networkx.DiGraph`` and a node registry. Its internal
+    state is:
 
-Node
-^^^^
+    - **_graph**: A :class:`networkx.DiGraph` instance that holds the DAG
+      structure (includes both computation nodes and virtual input
+      placeholders).
+    - **_nodes**: A ``dict[str, Node]`` that maps names to ``Node`` objects.
+    - **_virtual_inputs**: A ``set[str]`` that tracks dependencies with no
+      backing node.
+    - **_cache**: A ``dict[str, Any]`` which holds per-execution result cache.
+    - **validate**: Global toggle for pre/post functions.
 
-An `attrs <https://www.attrs.org/>`_-decorated class representing a computation
-step:
 
-- **func**: The callable to execute. Its parameter names must match the
-  names of its dependencies.
-- **dependencies**: Explicit list of upstream node or virtual input names.
-- **pre_funcs / post_funcs**: Hook lists for validation, logging, or
-  inspection. Users supply plain callables; no built-in validator factories are
-  provided. Controlled by the per-node ``validate`` flag and the pipeline-level
-  ``validate`` flag.
-- **metadata**: Arbitrary key-value tags (used in visualization and for
-  user-defined queries).
+:class:`~eradiate.pipelines.engine.Node` : Single computation step.
+    An `attrs <https://www.attrs.org/>`_-decorated class representing a
+    computation step. Its internal state is:
 
-Pipeline
-^^^^^^^^
+    - **func**: The callable to execute. Its parameter names must match the
+      names of its dependencies.
+    - **dependencies**: Explicit list of upstream node or virtual input names.
+    - **pre_funcs / post_funcs**: Hook lists for validation, logging, or
+      inspection. Users supply plain callables; no built-in validator factories
+      are provided. Controlled by the per-node ``validate`` flag and the
+      pipeline-level ``validate`` flag.
+    - **metadata**: Arbitrary key-value tags (used in visualization and for
+      user-defined queries).
 
-The ``Pipeline`` class manages a ``networkx.DiGraph`` and a node registry. Its
-internal state:
-
-- ``_graph: nx.DiGraph`` — DAG structure (includes both computation nodes and
-  virtual input placeholders).
-- ``_nodes: dict[str, Node]`` — Maps names to ``Node`` objects.
-- ``_virtual_inputs: set[str]`` — Tracks dependencies with no backing node.
-- ``_cache: dict[str, Any]`` — Per-execution result cache.
-- ``validate: bool`` — Global toggle for pre/post functions.
-
-Key Design Decisions
+Key design decisions
 --------------------
 
-Imperative API over Decorators
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Imperative API over decorators
+    The engine uses method calls
+    (:meth:`pipeline.add_node(...) <.Pipeline.add_node>`) rather than decorators
+    to define nodes. This makes conditional logic, dynamic construction, and
+    debugging straightforward::
 
-The engine uses method calls (``pipeline.add_node(...)``) rather than decorators
-to define nodes. This makes conditional logic, dynamic construction, and
-debugging straightforward:
+        # Plain Python: no framework DSL
+        if mode == "ckd":
+            pipeline.add_node("aggregate", aggregate_ckd, dependencies=["raw"])
+        else:
+            pipeline.add_node("aggregate", lambda raw: raw, dependencies=["raw"])
 
-.. code-block:: python
+    Compared to Hamilton's equivalent::
 
-    # Plain Python — no framework DSL
-    if mode == "ckd":
-        pipeline.add_node("aggregate", aggregate_ckd, dependencies=["raw"])
-    else:
-        pipeline.add_node("aggregate", lambda raw: raw, dependencies=["raw"])
+        @config.when(mode="ckd")
+        def aggregate(raw): ...
 
-Compared to Hamilton's equivalent:
+        @config.when(mode="mono")
+        def aggregate(raw): ...
 
-.. code-block:: python
+Explicit dependencies
+    Dependencies are declared as a list of names rather than inferred from
+    function parameter names. This decouples the function signature from the
+    graph structure and makes the DAG explicit.
 
-    @config.when(mode="ckd")
-    def aggregate(raw): ...
+Virtual inputs
+    Dependencies referencing non-existent nodes are automatically classified as
+    **virtual inputs** and tracked in a separate set. This emerged as a natural
+    generalization: rather than requiring all source data to be wrapped in
+    no-argument nodes, external data can be injected at execution time via the
+    ``inputs`` parameter.
 
-    @config.when(mode="mono")
-    def aggregate(raw): ...
+    Virtual inputs are represented in the graph as placeholder nodes (stored
+    with ``node=None`` in graph data) so that networkx algorithms (topological
+    sort, ancestor queries) work uniformly.
 
-Explicit Dependencies
-^^^^^^^^^^^^^^^^^^^^^
+    A virtual input can later be "promoted" to a real computation node by
+    calling :meth:`~.Pipeline.add_node` with the same name.
 
-Dependencies are declared as a list of names rather than inferred from function
-parameter names. This decouples the function signature from the graph structure
-and makes the DAG explicit.
+Unified ``inputs`` parameter
+    The ``inputs`` parameter dict to :meth:`~.Pipeline.execute` serves two
+    purposes:
 
-Virtual Inputs
-^^^^^^^^^^^^^^
+    - **virtual input values**: provide data for dependencies without backing
+      nodes;
+    - **node bypasses**: provide pre-computed values for existing nodes,
+      skipping their execution and excluding their upstream dependencies from
+      the execution plan.
 
-Dependencies referencing non-existent nodes are automatically classified as
-**virtual inputs** and tracked in a separate set. This emerged as a natural
-generalization: rather than requiring all source data to be wrapped in
-no-argument nodes, external data can be injected at execution time via the
-``inputs`` parameter.
+    The :meth:`~.Pipeline.execute` method distinguishes between the two by
+    checking whether the key exists in ``_nodes`` or ``_virtual_inputs``.
 
-Virtual inputs are represented in the graph as placeholder nodes (stored with
-``node=None`` in graph data) so that networkx algorithms (topological sort,
-ancestor queries) work uniformly.
+Generalized pre/post hooks
+    The pre/post hooks are implemented in a very flexible manner, allowing to
+    perform data validation during execution, log, or transform data (the latter
+    being discouraged). **Pre-functions** operate on the inputs to the node's
+    function, while  **post-functions** operator on the node output.
 
-A virtual input can later be "promoted" to a real computation node by calling
-``add_node()`` with the same name.
+    Global and per-node toggle (both ``validate``) control whether hooks run. No
+    built-in validator factory functions are provided; users supply plain
+    callables directly.
 
-Unified ``inputs`` Parameter
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Earlier iterations had a separate ``bypass_data`` parameter for skipping node
-computation. This was unified into a single ``inputs`` dict that serves two
-purposes:
-
-- **Virtual input values**: Provides data for dependencies without backing
-  nodes.
-- **Node bypasses**: Provides pre-computed values for existing nodes, skipping
-  their execution and excluding their upstream dependencies from the execution
-  plan.
-
-The ``execute()`` method distinguishes between the two by checking whether the
-key exists in ``_nodes`` or ``_virtual_inputs``.
-
-Generalized Pre/Post Hooks
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Earlier iterations used ``pre_validators`` / ``post_validators`` (and a separate
-``add_interceptor()`` mechanism for side-effect callbacks). These were unified
-into ``pre_funcs`` / ``post_funcs``:
-
-- **Pre-functions** receive the gathered inputs dict and can validate, log, or
-  transform (though transformation is not encouraged).
-- **Post-functions** receive the node output and can validate, log, or capture
-  intermediate values.
-
-This subsumes both validation and interception use cases with a single, simpler
-mechanism. A global toggle (``validate``) and per-node toggle (also ``validate``)
-control whether hooks run. No built-in validator factory functions are provided;
-users supply plain callables directly.
-
-Visualization Integrated into Pipeline
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Rather than a separate visualization module, export methods (``write_dot``,
-``write_png``, ``write_svg``, ``visualize``) live directly on ``Pipeline``. This
-keeps the API cohesive and supports Jupyter auto-display via ``_repr_svg_()``.
-
-Visualization uses `pydot <https://github.com/pydot/pydot>`_ (optional
-dependency) with a fixed style vocabulary:
-
-- Computation nodes: filled blue boxes.
-- Virtual inputs: filled gold ellipses.
-- Highlighted nodes: coral fill.
-- Metadata rendered in italics.
-- Optional legend subgraph.
+Visualization integrated into pipeline
+    Export methods (``write_dot``, ``write_png``, ``write_svg``, ``visualize``)
+    live directly on :class:`~eradiate.pipelines.engine.Pipeline``. This keeps
+    the API cohesive and supports Jupyter auto-display via ``_repr_svg_()``.
+    Visualization uses `pydot <https://github.com/pydot/pydot>`_ (optional
+    dependency).
 
 Execution Algorithm
 -------------------
@@ -231,31 +204,13 @@ Comparison with Hamilton
       - Built-in; user supplies callables
     * - Subgraph extraction
       - Not built-in
-      - ``extract_subgraph()``
+      - :meth:`~.Pipeline.extract_subgraph()`
     * - Input injection
       - Override inputs dict
       - Unified ``inputs`` parameter
     * - Debugging
       - Complex (decorator stack)
       - Standard Python call stack
-
-File Organization
------------------
-
-::
-
-    src/eradiate/pipelines/
-    ├── __init__.py       — Public API: Pipeline, Node
-    ├── engine.py         — Pipeline and Node implementation
-    ├── definitions.py    — Post-processing pipeline assembly
-    ├── logic.py          — Post-processing operation functions
-    └── _config.py        — Pipeline configuration utility (private)
-
-    tests/01_unit/pipelines/
-    ├── test_engine_core.py          — Core engine functionality
-    ├── test_engine_virtual_inputs.py — Virtual input support
-    ├── test_engine_integration.py   — End-to-end engine workflows
-    └── test_logic.py                — Post-processing logic functions
 
 Dependencies
 ------------
@@ -265,11 +220,10 @@ Dependencies
 - **pydot** (optional): Graphviz DOT generation for visualization.
 - **IPython** (optional): Jupyter notebook inline display.
 
-Design Evolution
+Design evolution
 ----------------
 
-The implementation went through several iterations (initially developed in the
-eradiate-disort package before migration to Eradiate core):
+The implementation went through several iterations:
 
 1. **Initial implementation**: Core Pipeline/Node with ``bypass_data``,
    ``add_interceptor()``, ``pre_validators``/``post_validators``, separate
@@ -281,13 +235,3 @@ eradiate-disort package before migration to Eradiate core):
 4. **API simplification**: Renamed ``bypass_data`` to ``inputs``, removed
    ``add_interceptor()``, generalized validators to
    ``pre_funcs``/``post_funcs``, removed built-in validator factories.
-
-Future Directions
------------------
-
-Potential enhancements if needed:
-
-- **Parallel execution**: Compute independent nodes concurrently.
-- **Progress callbacks**: For long-running pipelines.
-- **Pipeline composition**: Merge multiple pipelines.
-- **Serialization**: Save/load pipeline definitions.
