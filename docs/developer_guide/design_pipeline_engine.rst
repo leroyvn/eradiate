@@ -30,7 +30,7 @@ Design Goals
 - **Simplicity**: Clear, explicit API with minimal indirection.
 - **Flexibility**: Build pipelines programmatically with full Python control.
 - **Debuggability**: Straightforward call stack, no decorator layers.
-- **Completeness**: Validation hooks, input injection, subgraph extraction,
+- **Completeness**: Pre/post hooks, input injection, subgraph extraction,
   visualization.
 
 Architecture
@@ -40,12 +40,11 @@ Overview
 ^^^^^^^^
 
 The engine is built on `networkx <https://networkx.org/>`_ and consists of two
-core types and a validation utilities module::
+core types::
 
-    eradiate.pipelines
+    eradiate.pipelines.engine
     ├── Pipeline    — DAG manager and executor
-    ├── Node        — Single computation step
-    └── validation  — Reusable validator factories
+    └── Node        — Single computation step
 
 Node
 ^^^^
@@ -53,13 +52,14 @@ Node
 An `attrs <https://www.attrs.org/>`_-decorated class representing a computation
 step:
 
-- **``func``**: The callable to execute. Its parameter names must match the
+- **func**: The callable to execute. Its parameter names must match the
   names of its dependencies.
-- **``dependencies``**: Explicit list of upstream node or virtual input names.
-- **``pre_funcs`` / ``post_funcs``**: Hook lists for validation, logging, or
-  inspection, controlled by ``validate_enabled`` and the pipeline's global
-  validation flag.
-- **``metadata``**: Arbitrary key-value tags (used in visualization and for
+- **dependencies**: Explicit list of upstream node or virtual input names.
+- **pre_funcs / post_funcs**: Hook lists for validation, logging, or
+  inspection. Users supply plain callables; no built-in validator factories are
+  provided. Controlled by the per-node ``validate`` flag and the pipeline-level
+  ``validate`` flag.
+- **metadata**: Arbitrary key-value tags (used in visualization and for
   user-defined queries).
 
 Pipeline
@@ -73,7 +73,7 @@ internal state:
 - ``_nodes: dict[str, Node]`` — Maps names to ``Node`` objects.
 - ``_virtual_inputs: set[str]`` — Tracks dependencies with no backing node.
 - ``_cache: dict[str, Any]`` — Per-execution result cache.
-- ``validate_globally: bool`` — Global toggle for pre/post functions.
+- ``validate: bool`` — Global toggle for pre/post functions.
 
 Key Design Decisions
 --------------------
@@ -155,8 +155,9 @@ into ``pre_funcs`` / ``post_funcs``:
   intermediate values.
 
 This subsumes both validation and interception use cases with a single, simpler
-mechanism. A global toggle (``validate_globally``) and per-node toggle
-(``validate_enabled``) control whether hooks run.
+mechanism. A global toggle (``validate``) and per-node toggle (also ``validate``)
+control whether hooks run. No built-in validator factory functions are provided;
+users supply plain callables directly.
 
 Visualization Integrated into Pipeline
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -225,9 +226,9 @@ Comparison with Hamilton
     * - Dynamic construction
       - Difficult
       - Natural
-    * - Validation
+    * - Pre/post hooks
       - Separate add-on
-      - Built-in pre/post hooks
+      - Built-in; user supplies callables
     * - Subgraph extraction
       - Not built-in
       - ``extract_subgraph()``
@@ -244,17 +245,17 @@ File Organization
 ::
 
     src/eradiate/pipelines/
-    ├── __init__.py       — Public API: Pipeline, Node, validation
+    ├── __init__.py       — Public API: Pipeline, Node
     ├── engine.py         — Pipeline and Node implementation
     ├── definitions.py    — Post-processing pipeline assembly
     ├── logic.py          — Post-processing operation functions
-    └── validation.py     — Validator factory functions
+    └── _config.py        — Pipeline configuration utility (private)
 
-    tests/pipelines/
-    ├── test_core.py          — Core functionality
-    ├── test_validation.py    — Validator functions
-    ├── test_virtual_inputs.py — Virtual input support
-    └── test_integration.py   — End-to-end workflows
+    tests/01_unit/pipelines/
+    ├── test_engine_core.py          — Core engine functionality
+    ├── test_engine_virtual_inputs.py — Virtual input support
+    ├── test_engine_integration.py   — End-to-end engine workflows
+    └── test_logic.py                — Post-processing logic functions
 
 Dependencies
 ------------
@@ -279,7 +280,7 @@ eradiate-disort package before migration to Eradiate core):
    added legend support, Jupyter auto-display.
 4. **API simplification**: Renamed ``bypass_data`` to ``inputs``, removed
    ``add_interceptor()``, generalized validators to
-   ``pre_funcs``/``post_funcs``.
+   ``pre_funcs``/``post_funcs``, removed built-in validator factories.
 
 Future Directions
 -----------------
