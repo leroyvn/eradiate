@@ -14,6 +14,5 @@ Hereafter is a collection of detailed guides for developers.
    factory_guide
    lazy_loading
    design_atmosphere
-   pipeline_engine
    design_pipeline_engine
    benchmark
