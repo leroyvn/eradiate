@@ -8,7 +8,7 @@ import mitsuba as mi
 
 from . import spectra
 from .scene_object import SceneObject
-from .. import KernelContext
+from ... import KernelContext
 
 
 class Material(SceneObject, metaclass=ABCMeta):

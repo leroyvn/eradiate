@@ -5,8 +5,8 @@ from typing import ClassVar
 import attrs
 import mitsuba as mi
 
-from .attrs import attrs_to_html_with_styles
 from .scene_object import SceneObject
+from ..repr_html import to_html_with_styles
 
 
 @attrs.define(eq=False)
@@ -150,4 +150,4 @@ class Scene:
         return self.mi_scene.parameters_changed(keys)
 
     def _repr_html_(self):
-        return attrs_to_html_with_styles(self)
+        return to_html_with_styles(self)

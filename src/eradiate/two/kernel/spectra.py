@@ -14,10 +14,10 @@ from numpy.typing import ArrayLike
 from pinttrs.util import ensure_units, units_compatible
 
 from .scene_object import SceneObject
-from ..spectral import CKDSpectralIndex, MonoSpectralIndex, SpectralIndex
-from ..units import PhysicalQuantity, to_quantity
-from ..units import unit_context_config as ucc
-from ..units import unit_context_kernel as uck
+from ...spectral import CKDSpectralIndex, MonoSpectralIndex, SpectralIndex
+from ...units import PhysicalQuantity, to_quantity
+from ...units import unit_context_config as ucc
+from ...units import unit_context_kernel as uck
 
 
 @attrs.define(init=False)
@@ -104,6 +104,10 @@ class InterpolatedSpectrum(Spectrum):
         if np.any(np.isnan(value)):
             raise ValueError("Detected NaN in 'wavelengths'")
 
+    @property
+    def _exposed_scene_parameters(self) -> list[str] | None:
+        return ["value"]
+
     def __init__(
         self,
         wavelengths: ArrayLike | None = None,
@@ -152,7 +156,7 @@ class InterpolatedSpectrum(Spectrum):
 
     def eval_mono(self, w: ArrayLike) -> pint.Quantity:
         # Inherit docstring
-        w = ensure_units(w, ucc.get("wavelength"))
+        w = ensure_units(w, default_units=ucc.get("wavelength"))
         return np.interp(w, self.wavelengths, self.values, left=0.0, right=0.0)
 
     def eval_ckd(self, w: ArrayLike, g: float) -> pint.Quantity:
