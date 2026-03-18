@@ -1,22 +1,43 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
 from html import escape
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 import attrs
 import pint
+import pydantic
 
-from eradiate.two import units_formatting
+from . import units_formatting
+
+if TYPE_CHECKING:
+    import mitsuba as mi
 
 
 def get_fields(obj):
-    """Get fields from attrs class."""
+    """Get fields from an attrs or pydantic class instance."""
     if attrs.has(obj):
         return [
             (f.name, getattr(obj, f.name), False if f.repr is False else True)
             for f in attrs.fields(type(obj))
         ]
+    elif isinstance(obj, pydantic.BaseModel):
+        return [
+            (name, getattr(obj, name), field.repr)
+            for name, field in type(obj).model_fields.items()
+        ]
     else:
         return []
+
+
+def _is_structured(obj: Any) -> bool:
+    """Return True if obj is an attrs or pydantic model instance."""
+    return attrs.has(obj) or isinstance(obj, pydantic.BaseModel)
+
+
+def _is_block_content(html: str) -> bool:
+    """Return True if the HTML represents a block-level element (nested object, sequence, dict)."""
+    return html.startswith(("<details", "<div", "<ul"))
 
 
 def _make_collapsible(summary: str, content: str, collapsible: bool):
@@ -29,7 +50,7 @@ def _make_collapsible(summary: str, content: str, collapsible: bool):
 def _format_sequence(obj: Sequence, indent: int, collapsible: bool):
     """Format list or tuple objects."""
     items = "".join(
-        f"<li>{attrs_to_html(item, indent + 1, collapsible)}</li>" for item in obj
+        f"<li>{to_html(item, indent + 1, collapsible)}</li>" for item in obj
     )
     content = f"<ul>{items}</ul>"
 
@@ -41,10 +62,12 @@ def _format_sequence(obj: Sequence, indent: int, collapsible: bool):
 
 def _format_dict(obj: Mapping, indent, collapsible):
     """Format dictionary objects."""
-    rows = "".join(
-        f"<tr><td>{escape(str(k))}</td><td>{attrs_to_html(v, indent + 1, collapsible)}</td></tr>"
-        for k, v in obj.items()
-    )
+    rows_parts = []
+    for k, v in obj.items():
+        v_html = to_html(v, indent + 1, collapsible)
+        cls = " class='field-block'" if _is_block_content(v_html) else ""
+        rows_parts.append(f"<tr><td{cls}>{escape(str(k))}</td><td>{v_html}</td></tr>")
+    rows = "".join(rows_parts)
     content = f"<table>{rows}</table>"
 
     if collapsible and len(obj) > 0:
@@ -68,19 +91,24 @@ def _format_repr_object(obj: Any, collapsible: bool):
     return f"<code>{escape(obj_repr)}</code>"
 
 
-def _format_attrs_object(obj: Any, indent: int, collapsible: bool):
-    """Format attrs objects."""
+def _format_structured_object(obj: Any, indent: int, collapsible: bool):
+    """Format attrs or pydantic model instances."""
     class_name = obj.__class__.__name__
     field_data = get_fields(obj)
+    kind = "attrs" if attrs.has(obj) else "pydantic"
 
-    field_rows = [
-        f"<tr><td>{escape(field_name)}</td><td>{attrs_to_html(field_value, indent + 1, collapsible)}</td></tr>"
-        for field_name, field_value, has_repr in field_data
-        if has_repr
-    ]
+    field_rows = []
+    for field_name, field_value, has_repr in field_data:
+        if not has_repr:
+            continue
+        v_html = to_html(field_value, indent + 1, collapsible)
+        cls = " class='field-block'" if _is_block_content(v_html) else ""
+        field_rows.append(
+            f"<tr><td{cls}>{escape(field_name)}</td><td>{v_html}</td></tr>"
+        )
 
     content = "".join(field_rows)
-    css_class = f"{class_name} attrs"
+    css_class = f"{class_name} {kind}"
 
     if collapsible and indent > 0:
         n_fields = len([x for x in field_data if x[2] is not False])
@@ -99,11 +127,26 @@ def _format_quantity(obj: Any):
     return f"<code>{escape(obj_repr)}</code>"
 
 
-def attrs_to_html(obj: Any, indent: int = 0, collapsible: bool = True):
-    """Convert an attrs object to HTML representation with collapsible nested objects."""
-    # Handle attrs objects first to avoid recursion with _repr_html_
-    if attrs.has(obj):
-        return _format_attrs_object(obj, indent, collapsible)
+def _format_mi_object(obj: mi.Object):
+    """Format a Mitsuba object with an abbreviated repr."""
+    obj_repr = f"<mi.{type(obj).__name__} object [{obj.class_name()}]>"
+    return f"<code>{escape(obj_repr)}</code>"
+
+
+def to_html(obj: Any, indent: int = 0, collapsible: bool = True):
+    """Convert an attrs or pydantic object to an HTML representation with collapsible nested objects."""
+    # Handle attrs/pydantic objects first to avoid recursion with _repr_html_
+    if _is_structured(obj):
+        return _format_structured_object(obj, indent, collapsible)
+
+    # Special case for Mitsuba objects
+    try:
+        import mitsuba as mi
+
+        if isinstance(obj, mi.Object):
+            return _format_mi_object(obj)
+    except ImportError:
+        pass
 
     # Special case for Pint units
     if isinstance(obj, pint.Quantity):
@@ -140,9 +183,9 @@ def _minify_css(css: str) -> str:
     return css.strip()
 
 
-def attrs_to_html_with_styles(obj: Any, collapsible: bool = True) -> str:
+def to_html_with_styles(obj: Any, collapsible: bool = True) -> str:
     """Generate HTML with embedded CSS styles for better presentation."""
-    html_content = attrs_to_html(obj, collapsible=collapsible)
+    html_content = to_html(obj, collapsible=collapsible)
 
     styles = """
     <style>
@@ -224,7 +267,11 @@ def attrs_to_html_with_styles(obj: Any, collapsible: bool = True) -> str:
         font-weight: bold;
         text-align: right;
         width: 1%;
+        padding-top: 4px;
         white-space: nowrap;
+    }
+    .structured-root td.field-block {
+        padding-top: 13px;
     }
     .structured-root td:last-child {
         text-align: left;
