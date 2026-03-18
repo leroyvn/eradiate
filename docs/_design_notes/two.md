@@ -15,6 +15,7 @@ without significantly breaking the interface.
 
 - Separate configuration and radiometric backend (applies mostly for 1D scenes,
   3D scenes would only run through Mitsuba) → backend architecture
+- Configuration components use Pydantic for validation and serde
 - Data formats:
   - New aerosol data format (derived from libRadtran)
   - New atmospheric database format
@@ -30,8 +31,7 @@ without significantly breaking the interface.
   - With band SRF: Apply SPP to whole band, distribute it on SRF pro rata of bin
     bin weight in final measurand
 - Documentation: Reorganize user manual, increase tutorial coverage, port
-  numerical methods document
-  (~ATBD) to Sphinx
+  numerical methods document (~ATBD) to Sphinx
 - LLVM variant support
 - Material library / definitions
 - Coordinate transformations
