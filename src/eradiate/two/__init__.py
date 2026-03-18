@@ -5,8 +5,8 @@ if TYPE_CHECKING:
 
     mi.set_variant("scalar_rgb")
 
-from .scene import Scene
-from .scene_object import SceneObject
+from .kernel.scene import Scene
+from .kernel.scene_object import SceneObject
 
 __all__ = [
     "Scene",
