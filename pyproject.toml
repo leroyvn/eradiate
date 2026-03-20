@@ -107,6 +107,7 @@ scripts = ["setpath.sh"]
 
 [tool.pixi.tasks]
 kernel-configure = { cmd = "cmake -S ext/mitsuba -B ext/mitsuba/build -DCMAKE_BUILD_TYPE=Release -GNinja --preset eradiate" }
+kernel-configure-tinybvh = { cmd = "cmake -S ext/mitsuba -B ext/mitsuba/build -DCMAKE_BUILD_TYPE=Release -GNinja --preset eradiate -DMI_ENABLE_TINYBVH=ON" }
 kernel-build = { cmd = "cmake --build ext/mitsuba/build", depends-on = [
   "kernel-configure",
 ] }
