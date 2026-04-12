@@ -18,14 +18,19 @@ from pydantic import ConfigDict, Field, field_validator
 
 from . import spectrum
 from .object import Object
-from .spectrum import AnySpectrum, SolarIrradianceSpectrum, Spectrum, UniformSpectrum
+from .spectrum import (
+    AnySpectrum,
+    BaseSpectrum,
+    SolarIrradianceSpectrum,
+    UniformSpectrum,
+)
 from ...config import settings
 from ...frame import AzimuthConvention, angles_to_direction
 from ...units import unit_context_config as ucc
 from ...units import unit_registry as ureg
 
 
-class Illumination(Object):
+class BaseIllumination(Object):
     """
     Abstract base class for illumination configuration objects.
     """
@@ -34,12 +39,12 @@ class Illumination(Object):
     """Scene element identifier."""
 
 
-# ---------------------------------------------------------------------------
-# Constant illumination
-# ---------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+#                              Constant illumination
+# ------------------------------------------------------------------------------
 
 
-class ConstantIllumination(Illumination):
+class ConstantIllumination(BaseIllumination):
     """
     Constant (isotropic) illumination.
 
@@ -64,7 +69,7 @@ class ConstantIllumination(Illumination):
 
     @field_validator("radiance", mode="before")
     @classmethod
-    def _coerce_radiance(cls, v: Any) -> Spectrum:
+    def _coerce_radiance(cls, v: Any) -> BaseSpectrum:
         return spectrum.convert(v, quantity="radiance")
 
 
@@ -84,7 +89,7 @@ def _azimuth_converter(value: pint.Quantity) -> pint.Quantity:
     return value
 
 
-class DirectionalIllumination(Illumination):
+class DirectionalIllumination(BaseIllumination):
     """
     Directional (collimated) illumination.
 
@@ -142,7 +147,7 @@ class DirectionalIllumination(Illumination):
 
     @field_validator("irradiance", mode="before")
     @classmethod
-    def _coerce_irradiance(cls, v: Any) -> Spectrum:
+    def _coerce_irradiance(cls, v: Any) -> BaseSpectrum:
         return spectrum.convert(v, quantity="irradiance")
 
     @property
@@ -158,9 +163,9 @@ class DirectionalIllumination(Illumination):
         ).reshape((3,))
 
 
-# ---------------------------------------------------------------------------
-# Astronomical-object illumination
-# ---------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+#                        Astronomical-object illumination
+# ------------------------------------------------------------------------------
 
 
 class AstroObjectIllumination(DirectionalIllumination):
