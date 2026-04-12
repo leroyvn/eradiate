@@ -26,7 +26,7 @@ from ...units import unit_context_config as ucc
 from ...units import unit_registry as ureg
 
 
-class Spectrum(Object):
+class BaseSpectrum(Object):
     """
     Abstract base class for spectrum configuration objects.
 
@@ -97,6 +97,7 @@ class Spectrum(Object):
         ----------
         w : quantity or array-like
             Bin centre wavelength.
+
         g : float
             g-point within the bin.
 
@@ -126,7 +127,7 @@ class Spectrum(Object):
         raise NotImplementedError
 
 
-class UniformSpectrum(Spectrum):
+class UniformSpectrum(BaseSpectrum):
     """
     A spectrum with a constant (wavelength-independent) value.
 
@@ -135,6 +136,7 @@ class UniformSpectrum(Spectrum):
     value : quantity or float
         Constant spectral value. A bare float is converted to the default
         units for :attr:`quantity`.
+
     quantity : PhysicalQuantity or str, optional
         Physical quantity represented by this spectrum.
         Default: ``"dimensionless"``.
@@ -182,7 +184,7 @@ class UniformSpectrum(Spectrum):
         return self.value * (wmax - wmin)
 
 
-class InterpolatedSpectrum(Spectrum):
+class InterpolatedSpectrum(BaseSpectrum):
     """
     A spectrum defined by a table of wavelength–value pairs, evaluated via
     linear interpolation.
@@ -241,7 +243,7 @@ class InterpolatedSpectrum(Spectrum):
                     f"(expected '{expected}')"
                 ),
             )
-        # Attach proper units if values arrived unit-less
+        # Attach proper units if values arrived unitless
         if vals.units == ureg.dimensionless and expected != ureg.dimensionless:
             self.values = vals.magnitude * expected
 
@@ -295,7 +297,7 @@ class InterpolatedSpectrum(Spectrum):
         return result * val_units * wl_units
 
 
-class SolarIrradianceSpectrum(Spectrum):
+class SolarIrradianceSpectrum(BaseSpectrum):
     """
     A spectrum that reads solar irradiance values from a bundled dataset.
 
@@ -350,7 +352,9 @@ class SolarIrradianceSpectrum(Spectrum):
 AnySpectrum = Union[UniformSpectrum, InterpolatedSpectrum, SolarIrradianceSpectrum]
 
 
-def convert(value: Any, quantity: str | PhysicalQuantity = "dimensionless") -> Spectrum:
+def convert(
+    value: Any, quantity: str | PhysicalQuantity = "dimensionless"
+) -> BaseSpectrum:
     """
     Convert a value to a :class:`Spectrum` configuration object.
 
@@ -371,7 +375,7 @@ def convert(value: Any, quantity: str | PhysicalQuantity = "dimensionless") -> S
     -------
     Spectrum
     """
-    if isinstance(value, Spectrum):
+    if isinstance(value, BaseSpectrum):
         return value
 
     if isinstance(value, xr.DataArray):
