@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
 
-from .experiment import Experiment
+from .core.experiment import Experiment
 
 if TYPE_CHECKING:
     import xarray as xr
