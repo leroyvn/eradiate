@@ -16,7 +16,7 @@ class Backend(metaclass=ABCMeta):
     _results: dict
 
     @abstractmethod
-    def validate(self, exp: Experiment):
+    def validate(self, exp: Experiment) -> None:
         """
         Check internal state consistency and compatibility with the passed
         Experiment configuration. The default implementation raises an exception.
@@ -33,7 +33,7 @@ class Backend(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def process(self, exp: Experiment, measurement: None | int | str = None):
+    def process(self, exp: Experiment, measurement: None | int | str = None) -> None:
         """
         Run the processing step for a given Experiment configuration.
 
