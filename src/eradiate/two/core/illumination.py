@@ -14,12 +14,12 @@ from typing import Any, Literal
 import numpy as np
 import pint
 from pinttrs.util import ensure_units
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from . import spectrum
+from ._factory import Registry
 from .object import Object
 from .spectrum import (
-    AnySpectrum,
     BaseSpectrum,
     SolarIrradianceSpectrum,
     UniformSpectrum,
@@ -29,6 +29,8 @@ from ...frame import AzimuthConvention, angles_to_direction
 from ...units import unit_context_config as ucc
 from ...units import unit_registry as ureg
 
+illumination_registry: Registry["BaseIllumination"] = Registry("illumination")
+
 
 class BaseIllumination(Object):
     """
@@ -37,6 +39,13 @@ class BaseIllumination(Object):
 
     id: str = "illumination"
     """Scene element identifier."""
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _dispatch(cls, value, handler, info):
+        if cls is not BaseIllumination:
+            return handler(value)
+        return illumination_registry.dispatch(value, handler, BaseIllumination)
 
 
 # ------------------------------------------------------------------------------
@@ -61,7 +70,7 @@ class ConstantIllumination(BaseIllumination):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     type: Literal["constant"] = "constant"
-    radiance: AnySpectrum = Field(
+    radiance: BaseSpectrum = Field(
         default_factory=lambda: UniformSpectrum(
             value=1.0 * ucc.get("radiance"), quantity="radiance"
         )
@@ -120,7 +129,7 @@ class DirectionalIllumination(BaseIllumination):
     zenith: pint.Quantity = Field(default_factory=lambda: 0.0 * ureg.deg)
     azimuth: pint.Quantity = Field(default_factory=lambda: 0.0 * ureg.deg)
     azimuth_convention: AzimuthConvention = Field(default=None)
-    irradiance: AnySpectrum = Field(default_factory=SolarIrradianceSpectrum)
+    irradiance: BaseSpectrum = Field(default_factory=SolarIrradianceSpectrum)
 
     @field_validator("zenith", mode="before")
     @classmethod
@@ -205,3 +214,12 @@ class AstroObjectIllumination(DirectionalIllumination):
             azimuth_convention=self.azimuth_convention,
             flip=False,
         ).reshape((3,))
+
+
+# ---------------------------------------------------------------------------
+# Registry population
+# ---------------------------------------------------------------------------
+
+illumination_registry.register("constant", ConstantIllumination)
+illumination_registry.register("directional", DirectionalIllumination)
+illumination_registry.register("astro_object", AstroObjectIllumination)

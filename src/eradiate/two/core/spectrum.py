@@ -19,11 +19,14 @@ from numpy.typing import ArrayLike
 from pinttrs.util import ensure_units, units_compatible
 from pydantic import ConfigDict, field_validator, model_validator
 
+from ._factory import Registry
 from .object import Object
 from ...spectral import CKDSpectralIndex, MonoSpectralIndex, SpectralIndex
 from ...units import PhysicalQuantity
 from ...units import unit_context_config as ucc
 from ...units import unit_registry as ureg
+
+spectrum_registry: Registry["BaseSpectrum"] = Registry("spectrum")
 
 
 class BaseSpectrum(Object):
@@ -37,6 +40,14 @@ class BaseSpectrum(Object):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     quantity: PhysicalQuantity = PhysicalQuantity.DIMENSIONLESS
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _dispatch(cls, value, handler, info):
+        if cls is not BaseSpectrum:
+            return handler(value)
+        return spectrum_registry.dispatch(value, handler, BaseSpectrum)
+
     """Physical quantity represented by this spectrum."""
 
     @field_validator("quantity", mode="before")
@@ -346,7 +357,15 @@ class SolarIrradianceSpectrum(BaseSpectrum):
 
 
 # ---------------------------------------------------------------------------
-# Type alias for spectrum union with discriminator
+# Registry population
+# ---------------------------------------------------------------------------
+
+spectrum_registry.register("uniform", UniformSpectrum)
+spectrum_registry.register("interpolated", InterpolatedSpectrum)
+spectrum_registry.register("solar_irradiance", SolarIrradianceSpectrum)
+
+# ---------------------------------------------------------------------------
+# Type alias (for IDEs and static type checkers)
 # ---------------------------------------------------------------------------
 
 AnySpectrum = Union[UniformSpectrum, InterpolatedSpectrum, SolarIrradianceSpectrum]
