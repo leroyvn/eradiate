@@ -4,11 +4,3 @@ if TYPE_CHECKING:
     import mitsuba as mi
 
     mi.set_variant("scalar_rgb")
-
-from .kernel.scene import Scene
-from .kernel.scene_object import SceneObject
-
-__all__ = [
-    "Scene",
-    "SceneObject",
-]
