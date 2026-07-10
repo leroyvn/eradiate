@@ -113,7 +113,9 @@ def atmosphere_experiment():
     ],
 )
 def test_run_function(modes_all_double, atmosphere_experiment, measures, expected_type):
-    result = eradiate.run(atmosphere_experiment, measures=measures, spp=4)
+    # spp must be >= the default ckd_quad_config.ng_max (16) since it is now
+    # distributed across a bin's quadrature g-points
+    result = eradiate.run(atmosphere_experiment, measures=measures, spp=16)
     assert isinstance(result, expected_type)
 
 
