@@ -113,9 +113,11 @@ def atmosphere_experiment():
     ],
 )
 def test_run_function(modes_all_double, atmosphere_experiment, measures, expected_type):
-    # spp must be >= the default ckd_quad_config.ng_max (16) since it is now
-    # distributed across a bin's quadrature g-points
-    result = eradiate.run(atmosphere_experiment, measures=measures, spp=16)
+    # In ckd mode, this sample count target is now distributed across the
+    # bin's quadrature g-points (previously applied flatly to each of them),
+    # so it is scaled up by the default ckd_quad_config.ng_max (16) to
+    # preserve the sample count used before this change.
+    result = eradiate.run(atmosphere_experiment, measures=measures, spp=4 * 16)
     assert isinstance(result, expected_type)
 
 
