@@ -77,7 +77,7 @@ def plot_polarfilm(
     azimuth_convention = (
         AzimuthConvention.convert(azimuth_convention)
         if azimuth_convention is not None
-        else settings.AZIMUTH_CONVENTION
+        else settings.azimuth_convention
     )
     values = da.transpose("x_index", "y_index").values.ravel()
     zeniths = da["vza"].values.ravel()  # Degree

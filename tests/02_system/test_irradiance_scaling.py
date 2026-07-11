@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import attrs
 import dateutil
 import numpy as np
@@ -77,7 +75,7 @@ def test_radiance_scaling(modes_all_double, measure, scale, datetime):
     # The radiance is proportional to the scaling factor
     if datetime is not None:
         # Use Eradiate's Skyfield cache directory
-        skyfield_cache_dir = Path(settings["data_path"]) / "cached" / "skyfield"
+        skyfield_cache_dir = settings.data_path / "cached" / "skyfield"
         skyfield_cache_dir.mkdir(parents=True, exist_ok=True)
         loader = Loader(skyfield_cache_dir)
 

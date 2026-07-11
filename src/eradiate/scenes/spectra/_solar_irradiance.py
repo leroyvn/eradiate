@@ -3,7 +3,6 @@ from __future__ import annotations
 import datetime
 import importlib.util
 import warnings
-from pathlib import Path
 from typing import Any
 
 import attrs
@@ -212,9 +211,7 @@ class SolarIrradianceSpectrum(Spectrum):
                         skyfield_cache_dir = get_skyfield_data_path()
                     except ImportError:
                         # Otherwise store ephemeris files in Eradiate's cache directory
-                        skyfield_cache_dir = (
-                            Path(settings["data_path"]) / "cached" / "skyfield"
-                        )
+                        skyfield_cache_dir = settings.data_path / "cached" / "skyfield"
                         skyfield_cache_dir.mkdir(parents=True, exist_ok=True)
 
                     _SKYFIELD_LOADER = Loader(skyfield_cache_dir)

@@ -77,6 +77,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_design",  # Tabs, buttons, grids...
     "sphinxcontrib.bibtex",  # BibTeX bibliography
+    "sphinxcontrib.pydantic",  # Pydantic model documentation
     "sphinx_iconify",  # More icons (integration in Shibuya theme is automatic)
     # Custom extensions
     "pluginref",  # :plugin: role for cross-referencing Mitsuba plugin docs

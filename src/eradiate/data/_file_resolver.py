@@ -222,7 +222,7 @@ class FileResolver:
 
 
 #: Unique file resolver instance (exposed as :data:`eradiate.fresolver`)
-fresolver = FileResolver(settings["path"])
+fresolver = FileResolver(settings.path)
 fresolver.append(asset_manager.install_dir)
 if SOURCE_DIR:
     fresolver.append(SOURCE_DIR / "resources/data")

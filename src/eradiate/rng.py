@@ -19,9 +19,9 @@ class SeedState:
 
     _seed: np.random.SeedSequence | None = attrs.field(
         default=None,
-        converter=lambda x: x
-        if isinstance(x, np.random.SeedSequence)
-        else np.random.SeedSequence(x),
+        converter=lambda x: (
+            x if isinstance(x, np.random.SeedSequence) else np.random.SeedSequence(x)
+        ),
     )
 
     def reset(self, seed=None):
@@ -92,7 +92,7 @@ def reset_seed_state(seed: int | None = None) -> None:
     if seed is None:
         from .config import settings
 
-        seed = settings.get("RNG_SEED")
+        seed = settings.rng_seed
         if seed == "random":
             seed = None
         else:

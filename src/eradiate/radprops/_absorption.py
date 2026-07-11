@@ -24,7 +24,7 @@ def get_error_handling_config():
     from ..config import settings
 
     return ErrorHandlingConfiguration.convert(
-        settings.get("ABSORPTION_DATABASE.ERROR_HANDLING")
+        settings.absorption_database.error_handling
     )
 
 

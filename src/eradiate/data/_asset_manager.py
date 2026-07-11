@@ -72,10 +72,10 @@ class AssetManager:
     :data:`eradiate.asset_manager <.asset_manager>` is initialized based on
     user-specified configuration:
 
-    * ``cache_dir`` ⇒ ``<settings["data_path"]>/cached``
-    * ``unpack_dir`` ⇒ ``<settings["data_path"]>/unpacked``
-    * ``install_dir`` ⇒ ``<settings["data_path"]>/installed/eradiate-v<__version__>``
-    * ``base_uri`` ⇒ ``settings["data_url"]``
+    * ``cache_dir`` ⇒ ``<settings.data_path>/cached``
+    * ``unpack_dir`` ⇒ ``<settings.data_path>/unpacked``
+    * ``install_dir`` ⇒ ``<settings.data_path>/installed/eradiate-v<__version__>``
+    * ``base_uri`` ⇒ ``settings.data_url``
 
     Examples
     --------
@@ -334,7 +334,7 @@ class AssetManager:
                 manifest_age = time.time() - os.path.getmtime(self.manifest_path)
             else:
                 manifest_age = float("inf")
-            download = not settings.get("OFFLINE") and (manifest_age > 86400.0)
+            download = not settings.offline and (manifest_age > 86400.0)
 
         if download:
             self._update_manifest()
@@ -650,8 +650,8 @@ class AssetManager:
 
 #: Unique asset manager instance (exposed as :data:`eradiate.asset_manager`).
 asset_manager = AssetManager(
-    cache_dir=Path(settings["data_path"]) / "cached",
-    unpack_dir=Path(settings["data_path"]) / "unpacked",
-    install_dir=Path(settings["data_path"]) / "installed" / f"eradiate-v{_version}",
-    base_uri=settings["data_url"],
+    cache_dir=settings.data_path / "cached",
+    unpack_dir=settings.data_path / "unpacked",
+    install_dir=settings.data_path / "installed" / f"eradiate-v{_version}",
+    base_uri=settings.data_url,
 )
