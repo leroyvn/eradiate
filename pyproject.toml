@@ -223,9 +223,9 @@ lint = { cmd = """ruff check""" }
 lint-ext = { cmd = """ruff check --extend-select B,C4,SIM,PIE,UP,PERF,NPY,RUF""" }
 
 [tool.pixi.environments]
-default = { solve-group = "dev" }
-prod = { features = ["py310", "kernel", "recommended"], solve-group = "dev" }
+default = { features = ["py310", "recommended", "test", "dev"], solve-group = "dev" }
 test = { features = ["py310", "recommended", "test"], solve-group = "dev" }
+# Deprecated
 dev = { features = ["py310", "recommended", "test", "dev"], solve-group = "dev" }
 docs = { features = ["py311", "recommended", "docs"] }
 # The following environments exist only to ensure that a production environment
