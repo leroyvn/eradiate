@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
+from typing import Any
 
 import typer
-from click import Command, Group
 
 import eradiate.cli
 
@@ -13,7 +12,7 @@ from .util import write_if_modified
 
 def get_docs_for_click_markdown(
     *,
-    obj: Command,
+    obj: Any,
     ctx: typer.Context,
     indent: int = 0,
     name: str = "",
@@ -63,8 +62,10 @@ def get_docs_for_click_markdown(
         docs += "\n"
     if obj.epilog:
         docs += f"{obj.epilog}\n\n"
-    if isinstance(obj, Group):
-        group: Group = cast(Group, obj)
+    # Duck-typed group check: Typer vendors its own Click fork, so TyperGroup is
+    # not a subclass of click.Group and isinstance() checks silently fail.
+    if hasattr(obj, "list_commands"):
+        group = obj
         commands = group.list_commands(ctx)
         if commands:
             docs += "**Commands**:\n\n"
