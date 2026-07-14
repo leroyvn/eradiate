@@ -412,8 +412,6 @@ rich==15.0.0
     # via
     #   eradiate (pyproject.toml)
     #   typer
-robotframework==7.4.2
-    # via eradiate (pyproject.toml:docs)
 roman-numerals==4.1.0
     # via sphinx
 rpds-py==2026.6.3
