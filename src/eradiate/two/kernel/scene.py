@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import logging
 from typing import ClassVar
 
 import attrs
 import mitsuba as mi
 
+from eradiate.contexts import KernelContext
+
+from .materials import Material
 from .scene_object import SceneObject
 from ..repr_html import to_html_with_styles
+
+logger = logging.getLogger(__name__)
 
 
 @attrs.define(eq=False)
@@ -23,19 +29,19 @@ class Scene:
         :class:`~mitsuba.PhaseFunction` instance.
 
     media : dict, optional
-        Mapping of phase function IDs to scene objects encapsulating a
+        Mapping of medium IDs to scene objects encapsulating a
         :class:`~mitsuba.Medium` instance.
 
-    bsdfs : dict, optional
-        Mapping of phase function IDs to scene objects encapsulating a
+    materials : dict, optional
+        Mapping of BSDF IDs to scene objects encapsulating a
         :class:`~mitsuba.BSDF` instance.
 
     shapes : dict, optional
-        Mapping of phase function IDs to scene objects encapsulating a
+        Mapping of shape IDs to scene objects encapsulating a
         :class:`~mitsuba.Shape` instance.
 
     emitters : dict, optional
-        Mapping of phase function IDs to scene objects encapsulating an
+        Mapping of emitter IDs to scene objects encapsulating an
         :class:`~mitsuba.Emitter` instance.
     """
 
@@ -45,45 +51,48 @@ class Scene:
         factory=dict
     )
 
-    #: Mapping of phase function IDs to scene objects encapsulating a
+    #: Mapping of medium IDs to scene objects encapsulating a
     #: :class:`~mitsuba.Medium` instance.
     media: dict[str, SceneObject[mi.Medium]] = attrs.field(factory=dict)
 
-    #: Mapping of phase function IDs to scene objects encapsulating a
+    #: Mapping of BSDF IDs to scene objects encapsulating a
     #: :class:`~mitsuba.BSDF` instance.
-    bsdfs: dict[str, SceneObject[mi.BSDF]] = attrs.field(factory=dict)
+    materials: dict[str, Material] = attrs.field(factory=dict)
 
-    #: Mapping of phase function IDs to scene objects encapsulating a
+    #: Mapping of shape IDs to scene objects encapsulating a
     #: :class:`~mitsuba.Shape` instance.
     shapes: dict[str, SceneObject[mi.Shape]] = attrs.field(factory=dict)
 
-    #: Mapping of phase function IDs to scene objects encapsulating an
+    #: Mapping of emitter IDs to scene objects encapsulating an
     #: :class:`~mitsuba.Emitter` instance.
     emitters: dict[str, SceneObject[mi.Emitter]] = attrs.field(factory=dict)
 
     #: Internal :class:`mitsuba.Scene` instance once initialized (otherwise ``None``).
-    mi_scene: mi.Scene | None = attrs.field(default=None, init=False)
+    mi_scene: mi.Scene | None = attrs.field(default=None, init=False, repr=False)
 
+    # Defines kernel scene sections and their order
     _SECTIONS: ClassVar[list[str]] = [
         "phase_functions",
         "media",
-        "bsdfs",
+        "materials",
         "shapes",
         "emitters",
     ]
 
+    # Maps kernel object type to section name
     _OBJECT_TYPES_TO_SECTIONS: ClassVar[dict[str, str]] = {
         "phase_function": "phase_functions",
         "medium": "media",
-        "bsdf": "bsdfs",
+        "material": "materials",
         "shape": "shapes",
         "emitter": "emitters",
     }
 
+    # Maps section content to Mitsuba ID prefix
     _SECTIONS_TO_OBJECT_TYPES: ClassVar[dict[str, str]] = {
         "phase_functions": "phase_function",
         "media": "medium",
-        "bsdfs": "bsdf",
+        "materials": "bsdf",
         "shapes": "shape",
         "emitters": "emitter",
     }
@@ -121,10 +130,10 @@ class Scene:
             method returns ``None``.
         """
         scene_dict = {"type": "scene"}
-        for section_name in ["bsdfs", "shapes", "emitters"]:
+        for section_name in ["materials", "shapes", "emitters"]:
             obj_id_prefix = self._get_object_id_prefix(section_name)
 
-            for i_obj, (obj_id, obj) in enumerate(
+            for _i_obj, (obj_id, obj) in enumerate(
                 self._get_object_dict(section_name).items()
             ):
                 obj_id = f"{obj_id_prefix}_{obj_id}"
@@ -144,10 +153,18 @@ class Scene:
         if self.mi_scene is None:
             return None
 
-        if keys is None:
-            keys = []
+        keys = keys or []
 
         return self.mi_scene.parameters_changed(keys)
 
     def _repr_html_(self):
         return to_html_with_styles(self)
+
+    def update(self, ctx: KernelContext):
+        for section_id in self._SECTIONS:
+            logger.debug(f"Updating scene section '{section_id}'")
+            section = getattr(self, section_id)
+            for obj in section.values():
+                # TODO: avoid double updates of shared objects
+                # TODO: update children (e.g. spectra)
+                obj.update(ctx)

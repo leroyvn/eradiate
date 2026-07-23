@@ -4,7 +4,7 @@ import pint
 from pydantic import ConfigDict, model_validator
 
 from ._factory import Registry
-from .bsdf import BaseBSDF
+from .material import BaseMaterial
 from .object import Object
 
 surface_registry: Registry["BaseSurface"] = Registry("surface")
@@ -17,7 +17,7 @@ class BaseSurface(Object):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    bsdf: BaseBSDF
+    material: BaseMaterial
     elevation: pint.Quantity
 
     @model_validator(mode="wrap")

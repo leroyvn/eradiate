@@ -68,7 +68,7 @@ class Spectrum(SceneObject, metaclass=ABCMeta):
         return self.eval_mono(w=w)
 
 
-@attrs.define(init=False)
+@attrs.define(eq=False, init=False)
 class InterpolatedSpectrum(Spectrum):
     _values: np.ndarray = attrs.field(kw_only=True)
 

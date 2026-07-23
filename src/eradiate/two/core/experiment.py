@@ -4,7 +4,7 @@ import pint
 
 from .atmosphere import Atmosphere
 from .illumination import BaseIllumination
-from .measurement import MeasurementRegistry
+from .measurement import BaseMeasurement
 from .object import Object
 from .surface import BaseSurface
 
@@ -22,7 +22,7 @@ class AtmosphereExperiment(Experiment):
     atmosphere: Atmosphere | None
     illumination: BaseIllumination | None
     surface: BaseSurface | None
-    measurements: MeasurementRegistry
+    measurements: dict[str, BaseMeasurement]
 
 
 class BaseGeometry(Object):
