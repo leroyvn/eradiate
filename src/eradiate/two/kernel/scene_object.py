@@ -33,7 +33,7 @@ class SceneObject(Generic[T]):
     """
 
     # Encapsulated kernel object
-    _mi_object: T = attrs.field(
+    _object: T = attrs.field(
         repr=lambda x: f"<mi.{type(x).__name__} object [{x.class_name()}]>"
     )
 
@@ -92,7 +92,7 @@ class SceneObject(Generic[T]):
 
     def __call__(self) -> T:
         """Return the encapsulated kernel object."""
-        return self._mi_object
+        return self._object
 
     def id(self) -> str:
         """Return the ID of the encapsulated kernel object."""
