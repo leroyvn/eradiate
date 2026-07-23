@@ -11,9 +11,9 @@ from .scene_object import SceneObject
 from ... import KernelContext
 
 
-class Material(SceneObject, metaclass=ABCMeta):
+class Material(SceneObject["mi.BSDF"], metaclass=ABCMeta):
     @abstractmethod
-    def _updating_children(self) -> list[SceneObject]:
+    def updating_children(self) -> list[SceneObject]:
         """
         Return a list of child scene objects that must be updated upon a call to
         :meth:`.update`.
@@ -43,13 +43,13 @@ class Material(SceneObject, metaclass=ABCMeta):
         dict or None
         """
         if children and not return_dict:
-            for child in self._updating_children():
+            for child in self.updating_children():
                 # TODO: Add logging debug message
                 child.update(ctx)
         return super().update(ctx, return_dict)
 
 
-@attrs.define(init=False)
+@attrs.define(eq=False, init=False)
 class DiffuseMaterial(Material):
     reflectance: spectra.Spectrum = attrs.field(kw_only=True)
 
@@ -58,5 +58,5 @@ class DiffuseMaterial(Material):
         object = mi.load_dict({"type": "diffuse", "reflectance": reflectance()})
         self.__attrs_init__(object, reflectance=reflectance)
 
-    def _updating_children(self) -> list[SceneObject]:
+    def updating_children(self) -> list[SceneObject]:
         return [self.reflectance]

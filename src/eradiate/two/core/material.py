@@ -8,25 +8,25 @@ from ._factory import Registry
 from .object import Object
 from .spectrum import BaseSpectrum
 
-bsdf_registry: Registry["BaseBSDF"] = Registry("bsdf")
+material_registry: Registry["BaseMaterial"] = Registry("material")
 
 
-class BaseBSDF(Object):
+class BaseMaterial(Object):
     """
-    Abstract base class for BSDF configuration objects.
+    Abstract base class for material configuration objects.
     """
 
     @model_validator(mode="wrap")
     @classmethod
     def _dispatch(cls, value, handler, info):
-        if cls is not BaseBSDF:
+        if cls is not BaseMaterial:
             return handler(value)
-        return bsdf_registry.dispatch(value, handler, BaseBSDF)
+        return material_registry.dispatch(value, handler, BaseMaterial)
 
 
-class DiffuseBSDF(BaseBSDF):
+class DiffuseMaterial(BaseMaterial):
     """
-    Lambertian (perfectly diffuse) BSDF.
+    Lambertian (perfectly diffuse) material.
 
     Parameters
     ----------
@@ -42,4 +42,4 @@ class DiffuseBSDF(BaseBSDF):
 # Registry population
 # ---------------------------------------------------------------------------
 
-bsdf_registry.register("diffuse", DiffuseBSDF)
+material_registry.register("diffuse", DiffuseMaterial)

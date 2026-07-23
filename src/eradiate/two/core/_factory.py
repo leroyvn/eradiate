@@ -1,7 +1,7 @@
 """
 Plugin-style registry/factory for Pydantic-based configuration types.
 
-Each type family (Spectrum, BSDF, etc.) has a module-level :class:`.Registry`
+Each type family (Spectrum, Material, etc.) has a module-level :class:`.Registry`
 instance. Base classes install a ``model_validator(mode="wrap")`` that
 delegates to :meth:`.Registry.dispatch`, which resolves the ``"type"`` key in
 incoming dicts and calls ``model_validate`` on the correct registered class.
