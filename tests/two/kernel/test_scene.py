@@ -52,22 +52,22 @@ class TestScene:
         # included in a scene dict (id is set here to prove the point!)
 
         scene = Scene(
-            bsdfs={"diffuse": diffuse},
+            materials={"diffuse": diffuse},
             shapes={"sphere": SceneObject({"type": "sphere", "bsdf": diffuse()})},
         )
         scene.init()
 
         # Object ID is mutated and set to a scene-controlled value
-        assert scene.bsdfs["diffuse"].id() == "02_bsdf_diffuse"
+        assert scene.materials["diffuse"].id() == "02_bsdf_diffuse"
         assert diffuse.id() == "02_bsdf_diffuse"
 
         # SceneObjects behave as pointers
-        assert scene.bsdfs["diffuse"]() is diffuse()
+        assert scene.materials["diffuse"]() is diffuse()
 
         # Updates to a referenced object propagate
         params = mi.traverse(scene.mi_scene)
         diffuse.scene_parameters().update({"reflectance.value": 1.0})
-        assert scene.bsdfs["diffuse"].scene_parameters()["reflectance.value"] == 1.0
+        assert scene.materials["diffuse"].scene_parameters()["reflectance.value"] == 1.0
         assert params["02_bsdf_diffuse.reflectance.value"] == 1.0
 
     def test_rebuild(self, mode_mono, mi_log_level_info, mi_log_print, capsys):
