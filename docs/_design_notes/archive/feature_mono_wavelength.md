@@ -1,5 +1,9 @@
 # Mono Variant Wavelength Support: Design Notes
 
+> **Superseded.** Condensed into [`../kernel_interface.md`](../kernel_interface.md),
+> §"Wavelength handling". This copy retains the full C++ excerpts and the key-files
+> reference. Kept for reference; not maintained.
+
 ## Context
 
 This document summarizes findings from an exploration of Mitsuba's codebase
