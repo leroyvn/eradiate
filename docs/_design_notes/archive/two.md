@@ -1,5 +1,10 @@
 # Eradiate v2: Design Notes And Update Plan
 
+> **Superseded.** Content redistributed across [`../architecture.md`](../architecture.md),
+> [`../configuration_layer.md`](../configuration_layer.md),
+> [`../kernel_interface.md`](../kernel_interface.md) and [`../status.md`](../status.md).
+> Kept for reference; not maintained.
+
 This document collects the list of evolutions foreseen for Eradiate v2. Some
 changes are extremely intrusive, while others can be implemented in Eradiate v1
 without significantly breaking the interface.

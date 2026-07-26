@@ -63,6 +63,7 @@ exclude_patterns = [
     "tutorials/README.md",
     "tutorials/_tutorial_template.ipynb",
     "_generate",
+    "_design_notes",  # Working design documents, not part of the published docs
 ]
 html_static_path = ["_static"]
 

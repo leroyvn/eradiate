@@ -1,5 +1,11 @@
 # Assessment of the `two` prototype
 
+> **Superseded.** Findings redistributed across
+> [`../architecture.md`](../architecture.md),
+> [`../configuration_layer.md`](../configuration_layer.md),
+> [`../kernel_interface.md`](../kernel_interface.md) and [`../status.md`](../status.md).
+> This copy retains the per-test narrative. Kept for reference; not maintained.
+
 *Status as of 2026-07-26, branch `two` (8 commits ahead of `main`, 4421 lines added,
 all additive — no v1 code modified).*
 
