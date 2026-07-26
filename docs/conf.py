@@ -38,7 +38,12 @@ html_theme = "shibuya"
 html_title = ""
 
 templates_path = ["_templates"]  # Path to templates, relative to this directory.
-exclude_patterns = ["_build", "tutorials/README.md", "_generate"]
+exclude_patterns = [
+    "_build",
+    "tutorials/README.md",
+    "_generate",
+    "_design_notes",  # Working design documents, not part of the published docs
+]
 html_static_path = ["_static"]
 
 extensions = [
