@@ -346,13 +346,6 @@ are indexed and disjoint — but commit ordering, the completion mask and the
 progress bar all assume sequential completion. Decide before, not after,
 somebody wraps the loop in a `ThreadPoolExecutor`.
 
-**Streaming aggregation as the default.** If raw data is dropped as soon as its
-bin is fully aggregated, peak memory becomes the size of the *final* result plus
-one bin's worth of raw. Section "Two population modes" of
-[`result_storage.md`](result_storage.md) develops this; whether it should be the
-default, or an option for large runs, depends on how often raw data is actually
-wanted after the fact.
-
 **Where the measure ↔ sensor mapping lives.** v1 resolves it in
 `Experiment.contexts` (`src/eradiate/experiments/_core.py:595`) against a live
 Mitsuba scene, which means the plan cannot be built before `init()`. For the

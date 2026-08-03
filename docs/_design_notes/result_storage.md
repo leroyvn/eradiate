@@ -17,6 +17,7 @@ From the redesign brief, with the answer each one gets here:
 | 5 | Raw Mitsuba bitmaps stay reachable for debugging | Reconstructed on demand from the store; two opt-in retention modes on top |
 | 6 | Caching must not slow down fast loops | Write-behind chunk buffer; per-iteration cost is a `memcpy` in all modes |
 | 7 | Result is a `DataTree`, not `dict[str, Dataset]` | Yes — with the version consequences spelled out below |
+| 8 | Reruns may differ for users; developers keep reproducibility | Seed is pure in loop state, `run_seed` fixed or fresh per run, always recorded |
 
 ## The store
 
@@ -153,55 +154,98 @@ silent. The store's root attrs carry a hash over:
   fields, which is the weaker link),
 - the mode id, spectral grids and CKD quadrature configuration,
 - the `RawLayout` (shapes, dtypes, variable names),
-- the Eradiate and kernel versions,
-- the root seed.
+- the Eradiate and kernel versions.
+
+The run seed is deliberately *not* part of the hash; it is stored as its own
+attribute and handled by the rules below.
 
 `RawStore.open` refuses a mismatch. `resume="force"` overrides it for the case
 where the user knows the difference is cosmetic; nothing else does.
 
-**Determinism across a resume — a required change.** Seeds are currently drawn
-from a sequential stream: `mi_render` calls `seed_state.next()` once per sensor
-per iteration (`src/eradiate/kernel/_render.py:453`). A run resumed at iteration
-`k` would draw different seeds than an uninterrupted one, so a resumed run is
-not reproducible and, worse, differs from the run it claims to continue. The
-seed must become a pure function of the iteration index:
+## Seeding
+
+**Proposed**, and a correctness prerequisite for caching rather than an
+optimization.
+
+Seeds are currently drawn from a sequential stream: `mi_render` calls
+`seed_state.next()` once per sensor per iteration
+(`src/eradiate/kernel/_render.py:453`). A run resumed at iteration `k` draws
+different seeds than an uninterrupted one, so a resumed run is neither
+reproducible nor a faithful continuation of the run it claims to continue. Two
+separate concerns hide in that single stream; the design separates them.
+
+**Within a run, the seed is a pure function of loop state.**
 
 ```python
-seed = counter_based(root_seed, iteration_index, sensor_index)
+seed = np.random.SeedSequence(
+    entropy=run_seed, spawn_key=(iteration_index, sensor_index)
+).generate_state(1)[0]
 ```
 
-with `root_seed` stored in the cache. This is a small change to `SeedState` use
-and it is a correctness prerequisite for caching, not an optimization.
+No stream position is involved, so iteration `i` gets the same seed whether it
+runs first, last, or after a resume. `SeedState` gains a `derive(*key)` method
+for this; `next()` stays for the callers that legitimately want a stream
+(`numpy_default_rng`). One welcome side effect: `SeedState.reset()` calls that
+exist only to rewind the stream between paired runs — for instance
+`tests/02_system/test_compare_canopy_atmosphere.py:113` — stop being necessary.
 
-**Single writer.** A lock file in the cache directory, holding pid and hostname,
+**Across runs, `run_seed` decides whether results repeat.** The mechanism
+already exists and does not need inventing: the `rng_seed` setting is either an
+integer (packaged default `42`, `src/eradiate/config/eradiate.toml:30`) or the
+string `"random"`, which seeds from OS entropy. What changes is that the
+*effective* run seed — the configured integer, or the entropy actually drawn —
+is **recorded**: in the store's root attrs, and in the provenance attrs of the
+result tree.
+
+That serves both audiences without a compromise between them:
+
+- a developer runs with a fixed `rng_seed` and gets identical results across
+  runs, resumes and machines (modulo kernel non-determinism), which is what the
+  regression suites already rely on;
+- a user running with `rng_seed = "random"` gets a different Monte Carlo
+  realisation on every run — which is what a Monte Carlo run should look like —
+  and can still replay any particular one exactly by passing the recorded
+  integer back.
+
+Whether the packaged default should flip from `42` to `"random"` is a separate
+call this design does not need to make. The regression suites pass their own
+`SeedState` explicitly (`ert_seed_state`,
+`src/eradiate/test_tools/fixtures/__init__.py:124`), so the default and the test
+contract are already decoupled. Recorded provenance is the prerequisite either
+way: flipping the default before results carry their seed would turn every
+surprising result into an unreproducible one.
+
+**Resumption always adopts the stored `run_seed`**, including under `"random"`.
+Regenerating entropy mid-run would splice two different streams into one result.
+If the user explicitly requests an integer seed differing from the stored one,
+the resume is refused rather than silently reinterpreted; under `"random"` the
+stored value is adopted without comment. This is why the seed sits outside the
+fingerprint hash: it is reused, not compared.
+
+## Concurrency
+
+**Proposed. Single writer.** A lock file in the cache directory, holding pid and hostname,
 refused politely if held. Concurrent writers to one cache are out of scope until
 the parallel-iteration question in [`spectral_loop.md`](spectral_loop.md) is
 settled.
 
-## Two population modes
+## The raw store is kept whole
 
-**Proposed.** The memory result depends on whether raw data is kept.
+**Decided.** The store holds every iteration for the lifetime of the run. Peak
+memory (or drive occupancy) is `plan.nbytes_raw`, and post-loop aggregation
+reads the store once.
 
-**Direct** (`raw="keep"`, the default today's behaviour maps onto). The raw store
-holds every iteration. Peak memory (or drive) is `plan.nbytes_raw`. Post-loop
-aggregation reads it once. This is what debugging, variance work and any
-re-aggregation with a different quadrature need.
+The alternative — releasing each CKD bin's raw slots as soon as the bin's last
+quadrature node lands, since the plan iterates bin-major — was considered and
+rejected. It would cut peak memory by roughly the quadrature size, but it costs
+the two things the rest of this design is built on: raw data available after the
+fact for debugging, and the ability to re-aggregate without re-running the
+solver. It also makes the completion mask per bin instead of per iteration,
+which complicates the one mechanism that has to stay simple. Not implemented,
+and not planned.
 
-**Streaming** (`raw="stream"`). Because the plan iterates bin-major, a CKD bin
-is complete when its last quadrature node lands. The driver can then aggregate
-that bin immediately into the final array and release the raw slots. Peak memory
-becomes *the size of the final result plus one bin's raw data* — for a
-16-point quadrature, a 16× reduction on the dominant term. Resume granularity
-becomes the bin rather than the iteration, and the completion mask is per bin.
-
-Streaming is exact, not approximate: it is the same weighted sum evaluated
-incrementally. What it costs is the ability to look at raw data afterwards, and
-the ability to re-run aggregation without re-running the solver. In mono mode
-the distinction vanishes — there is no aggregation, so the raw array *is* the
-result array.
-
-Which one should be the default is an open question (see below); the design
-supports both because they are the same code with a different release policy.
+Note that in mono mode the question is moot in any case: there is no
+aggregation, so the raw array *is* the result array.
 
 ## Raw bitmaps stay reachable
 
@@ -281,8 +325,7 @@ the solar angles.
 
 The `raw/` child is where the debugging story and the caching story meet: when a
 drive cache was used, it is opened lazily and costs nothing to carry around;
-when the run was in-memory with `raw="keep"`, it is the arrays themselves; with
-`raw="stream"` it is absent.
+for an in-memory run it is the store's arrays themselves.
 
 **Migration.** `results[measure_id]` keeps working — `DataTree.__getitem__`
 returns a node, and `.to_dataset()` gets the `Dataset` back. `run()`'s return
@@ -300,30 +343,36 @@ migration paragraph in the user guide, and probably one release where a
   slightly higher: `eradiate-disort` — which already returns a `DataTree` —
   declares `xarray>=2024.11` and `requires-python = ">=3.10,<3.14"`
   (`eradiate-disort/pyproject.toml:7-8`).
-- **That means dropping Python 3.9.** Eradiate currently declares
+- **That means dropping Python 3.9 — decided.** Eradiate currently declares
   `requires-python = ">=3.9,<3.14"` (`pyproject.toml:12`) and `xarray>=2023`
   (`pyproject.toml:39`). The lockfile shows what that costs: the `py39`
   environment resolves to **xarray 2024.7.0**, i.e. the last release before
   DataTree, while every other environment gets 2025.6.1 or 2026.2.0. There is no
   version of xarray that has `DataTree` and runs on 3.9. The `dev` environment
   is already py310 (`pyproject.toml:230`), and py39 exists only to prove a
-  production environment resolves (`pyproject.toml:236-238`), so the practical
-  cost of the drop is low.
-- **Proposed floors:** `requires-python = ">=3.10,<3.14"`, `xarray>=2024.11`.
+  production environment resolves (`pyproject.toml:236-238`). Python 3.9 is also
+  past end of life, so the drop costs nothing that is still supported anyway.
+- **Floors — decided:** `requires-python = ">=3.10,<3.14"`, `xarray>=2024.11`,
+  matching what `eradiate-disort` already ships. **The floor stops at 3.10**;
+  nothing in this design justifies 3.11, which is why the Zarr backend is
+  optional rather than required (next-but-one bullet).
   *Verify before committing:* whether DataTree coordinate inheritance semantics
-  (which changed after the initial release) require a higher floor for the
-  root-level shared coordinates described above; if so, raise to the first
-  release where they settled rather than working around them.
+  (which changed after the initial release) require a higher xarray floor for
+  the root-level shared coordinates described above; if so, raise the xarray
+  floor to the first release where they settled rather than working around them.
+  Raising the *Python* floor to get there is not on the table.
 - **NetCDF I/O for a `DataTree`** writes one netCDF group per node and needs a
   recent `netcdf4` or `h5netcdf`. *Verify* the exact minimum for
   `DataTree.to_netcdf` / `xr.open_datatree` with the `netcdf4` engine before
   pinning.
-- **Zarr is a new, optional dependency** — it appears nowhere in the current
-  lockfile. It belongs in an extra (`eradiate[cache]`), not in
-  `dependencies`. *Verify:* zarr-python 3.x requires Python ≥ 3.11, which is
-  above the proposed 3.10 floor. If that holds, the Zarr backend is gated on
-  3.11+ (with zarr 2.18 as an alternative on 3.10) — which is precisely why
-  `NetCDFStore` and not `ZarrStore` is the fallback that must always work.
+- **Zarr is a new, optional dependency — decided.** It appears nowhere in the
+  current lockfile, and it belongs in an extra (`eradiate[cache]`), never in
+  `dependencies`. *Verify:* zarr-python 3.x requires Python ≥ 3.11, above the
+  3.10 floor. If that holds, the Zarr backend is gated on 3.11+ (with zarr 2.18
+  as an alternative on 3.10) and Eradiate itself stays installable on 3.10
+  without it. This is exactly why `NetCDFStore`, on the already-required
+  `netcdf4`, is the backend that must always work: no cache feature may make a
+  Python version or a new dependency mandatory.
 - **Dask is not required.** It is needed only to make the `raw/` group lazy over
   a cached store, and only then. Keep it optional; do not let the storage design
   acquire a dask dependency by accident.
@@ -340,11 +389,15 @@ eradiate.run(
     cache_format="zarr",       # "zarr" | "netcdf"; default: zarr if available
     resume=True,               # False → refuse to reuse a populated cache
     checkpoint_interval=30.0,  # seconds
-    raw="keep",                # "keep" | "stream"
     raw_dtype="float32",
     debug_bitmaps=None,        # None | "keep" | "write:<dir>"
+    seed=None,                 # int | "random" | None → the rng_seed setting
 )
 ```
+
+`seed` is a per-run override of the `rng_seed` setting; the effective value is
+recorded in the results either way (see "Seeding"). On resume it is checked
+against the stored seed, not applied over it.
 
 `eradiate.plan(exp, cache=...)` returns the `LoopPlan` without running anything,
 so "how long will this take and is there room for it" is answerable before
@@ -373,10 +426,9 @@ Its own `requires-python` is already `>=3.10` and its xarray floor already
 
 ## Open questions
 
-**Does the cache hold raw or aggregated data?** Raw allows exact resumption and
-re-aggregation; aggregated is up to 16× smaller in CKD and enough for most
-resumed runs. The streaming mode makes this a real choice rather than a
-trade-off to agonize over, but the default has to be picked.
+**Should the packaged `rng_seed` default flip to `"random"`?** See "Seeding".
+The design works either way and does not depend on the answer; it only requires
+that the effective seed be recorded first.
 
 **Does `raw/` ship inside an exported NetCDF result?** Including it makes the
 result self-describing and possibly enormous; excluding it makes exported results
