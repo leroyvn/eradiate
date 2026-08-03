@@ -98,6 +98,12 @@ in one change.
 
 ## The spectral loop
 
+**Superseded** by [`spectral_loop.md`](spectral_loop.md) and
+[`result_storage.md`](result_storage.md), which develop the loop driver, the
+driver/backend contract, raw result storage and optional drive caching in full. The
+summary below is kept because it states the sample count allocation rule, which those
+notes carry over unchanged.
+
 **Proposed.** The loop iterates over a `SpectralGrid`, building a `KernelContext` per
 spectral index, and drives the update protocol described in
 [`kernel_interface.md`](kernel_interface.md).
@@ -121,7 +127,11 @@ a libRadtran-style solver, something else? Its requirements decide whether
 implementation is how abstractions end up wrong; resolve this before hardening the
 interface.
 
-**Who owns the spectral loop.** The prototype implies backend-side ownership
+**Who owns the spectral loop.** *Answered — see
+[`spectral_loop.md`](spectral_loop.md), "Who owns what".* The proposal is the shared
+driver: it owns iteration, sample count allocation, storage, checkpointing and progress;
+the backend owns only a layout declaration and a per-iteration `solve`. The original
+question follows. The prototype implies backend-side ownership
 (`MitsubaBackend._setup_spectral`). That duplicates the SPP-distribution logic above in
 every backend. The alternative is a shared driver that owns the loop and calls into the
 backend per spectral index. Decide before the second backend exists, not after.

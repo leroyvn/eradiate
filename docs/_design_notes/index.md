@@ -11,11 +11,19 @@ the Sphinx build.
 | [`architecture.md`](architecture.md) | Layer split, object model rules, spectral loop | Stable design |
 | [`configuration_layer.md`](configuration_layer.md) | Pydantic configuration layer, units, serde, data formats | Stable design |
 | [`kernel_interface.md`](kernel_interface.md) | Mitsuba interface, update protocol, wavelength handling | Stable design |
+| [`spectral_loop.md`](spectral_loop.md) | Loop driver, frame protocol, run plan, post-processing consequences | Proposed design |
+| [`result_storage.md`](result_storage.md) | Raw store, drive caching and resumption, `DataTree` output, version floors | Proposed design |
 | [`status.md`](status.md) | Prototype state and ordered roadmap | **Living** — expected to go stale |
 
 Read `architecture.md` first; it states the layer split every other file assumes.
-`status.md` is the only file that answers "what should I work on now"; the other three
+`status.md` is the only file that answers "what should I work on now"; the other files
 answer "what is this supposed to look like, and why".
+
+`spectral_loop.md` and `result_storage.md` were written together and describe one
+change; read them in that order. They supersede the "The spectral loop" section of
+`architecture.md` and answer its "Who owns the spectral loop" open question. Unlike the
+three stable-design files, they describe work that has not started — every section is
+marked *Proposed* or *Open* except the audit of the current implementation.
 
 ## Section markers
 

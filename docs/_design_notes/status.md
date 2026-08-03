@@ -92,6 +92,12 @@ Items 2 and 3 are independent of each other and both precede 5.
 
 ## Deferred, tracked elsewhere
 
+- **Spectral loop and result storage redesign** — see
+  [`spectral_loop.md`](spectral_loop.md) and [`result_storage.md`](result_storage.md).
+  Not started. It intersects roadmap item 5 (the vertical slice): the slice is the first
+  thing that would exercise the loop driver and the `DataTree` output, so decide whether
+  it is built on the new design or on a throwaway loop before starting it. Independent
+  of items 1–4.
 - **Documentation** — user manual reorganization, wider tutorial coverage, and porting
   the numerical methods document (ATBD) to Sphinx. Not blocked by anything above.
 - **Testing, regression and benchmarking framework** — see
