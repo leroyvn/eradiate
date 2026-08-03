@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+import functools
 import os
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 import attrs
+import colorcet as cc
 import matplotlib.pyplot as plt
-import mitsuba as mi
 import numpy as np
 import scipy.stats as spstats
 import xarray as xr
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
+from matplotlib.lines import Line2D
 from numpy.typing import ArrayLike
 
 from .report import ReportLogger, figure_to_html, report_logger
@@ -23,6 +28,144 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
 
 
+class RegressionTestFailure(Exception):
+    """
+    Raised by :meth:`.RegressionTest.run` when a test does not pass, i.e. when
+    the comparison against the reference fails or when no reference is
+    available. Distinct from the :class:`ValueError`\\ s the framework raises
+    for malformed data, so that a caller can tell a failed comparison from a
+    broken one.
+    """
+
+
+def sidak_family_p_value(p_min: float, n: int) -> float:
+    """
+    Aggregate ``n`` paired p-values into a single family-wise p-value using the
+    Šidák correction, i.e. the probability of observing a minimum p-value at
+    least as extreme as ``p_min`` among ``n`` independent comparisons.
+
+    Parameters
+    ----------
+    p_min : float
+        Smallest of the paired p-values.
+
+    n : int
+        Number of paired comparisons.
+
+    Returns
+    -------
+    float
+        Family-wise p-value, directly comparable with the test threshold: it
+        exceeds the threshold if and only if every paired p-value exceeds the
+        Šidák-corrected per-comparison level
+        ``1 - (1 - threshold) ** (1 / n)``.
+
+    Notes
+    -----
+    Computed as ``-expm1(n * log1p(-p_min))`` rather than
+    ``1 - (1 - p_min) ** n`` to remain accurate for small ``p_min``.
+    """
+    if p_min >= 1.0:  # log1p(-1) is -inf: the limit is 1, computed without warning
+        return 1.0
+
+    return float(-np.expm1(n * np.log1p(-p_min)))
+
+
+def vza_dim(ds: xr.Dataset) -> str:
+    """
+    Name of the dimension the plots use as their x axis.
+
+    ``vza`` is usually a non-dimension coordinate: a measure yields
+    ``vza(x_index, y_index)`` and the angular sweep lives on ``x_index``. Only
+    the datasets built by hand in the unit tests have a ``vza`` dimension.
+
+    Parameters
+    ----------
+    ds : Dataset
+        Dataset to inspect. Must have a ``vza`` coordinate.
+
+    Returns
+    -------
+    str
+        The single non-degenerate dimension of the ``vza`` coordinate, or its
+        first dimension if all of them are of length 1.
+    """
+    vza = ds["vza"]
+    sweep = [d for d in vza.dims if vza.sizes[d] > 1]
+    return str(sweep[0] if sweep else vza.dims[0])
+
+
+def hue_from_extra_dims(
+    da: xr.DataArray, x_dim: str
+) -> tuple[np.ndarray, np.ndarray | None, str | None]:
+    """
+    Flatten every dimension of ``da`` except `x_dim` into a single one, meant to
+    be mapped to colour by :func:`regression_test_plots`.
+
+    Parameters
+    ----------
+    da : DataArray
+        Data to flatten.
+
+    x_dim : str
+        Dimension held out, plotted along the x axis. See :func:`vza_dim`.
+
+    Returns
+    -------
+    values : ndarray
+        ``(n_x,)`` if `x_dim` is the only dimension left after squeezing,
+        ``(n_hue, n_x)`` otherwise.
+
+    hue : ndarray or None
+        Coordinate values of the flattened dimension, ``None`` if there is none.
+
+    hue_label : str or None
+        Name of the flattened dimension, ``None`` if there is none.
+    """
+    # Squeeze length-1 dimensions, but never `x_dim` (a single-angle test is
+    # degenerate, yet its chart must still have an x axis)
+    da = da.squeeze([d for d in da.dims if d != x_dim and da.sizes[d] == 1], drop=True)
+
+    extra = [str(d) for d in da.dims if d != x_dim]
+    if not extra:
+        return da.values, None, None
+
+    da = da.transpose(*extra, x_dim)
+    values = da.values.reshape(-1, da.sizes[x_dim])
+
+    if len(extra) == 1 and extra[0] in da.coords:
+        return values, np.asarray(da[extra[0]].values, dtype=float), extra[0]
+
+    # No coordinate, or several dimensions stacked: the hue is an ordinal index.
+    # Degraded, but no call site does this today.
+    return values, np.arange(values.shape[0], dtype=float), " x ".join(extra)
+
+
+def annotate_panel(ax: Axes, text: str) -> None:
+    """
+    Label a panel with an annotation placed at the top centre of its data area
+    (used to replace a title).
+
+    Parameters
+    ----------
+    ax : Axes
+        Axes to annotate.
+
+    text : str
+        Annotation text.
+    """
+
+    ax.annotate(
+        text,
+        xy=(0.5, 1.0),
+        xycoords="axes fraction",
+        xytext=(0.0, -6.0),
+        textcoords="offset points",
+        horizontalalignment="center",
+        verticalalignment="top",
+    )
+
+
 def regression_test_plots(
     ref: ArrayLike,
     result: ArrayLike,
@@ -32,6 +175,9 @@ def regression_test_plots(
     result_var: ArrayLike | None = None,
     xlabel: str | None = None,
     ylabel: str | None = None,
+    hue: ArrayLike | None = None,
+    hue_label: str | None = None,
+    diagnostic: Callable[[Axes], None] | None = None,
 ) -> tuple[Figure, list[list[Axes]]]:
     """
     Create regression test report plots. Plot errorbars if both ref_var and
@@ -40,10 +186,11 @@ def regression_test_plots(
     Parameters
     ----------
     ref : array-like
-        Variable values for the reference data
+        Variable values for the reference data. Shape ``(n_vza,)``, or
+        ``(n_hue, n_vza)`` if `hue` is set.
 
     result : array-like
-        Variable values for the simulation result
+        Variable values for the simulation result. Same shape as `ref`.
 
     vza : array-like
         VZA values for plotting
@@ -52,66 +199,121 @@ def regression_test_plots(
         A tuple of the form (metric name, value) to be added to the plots.
 
     ref_var : array-like, optional
-        Variable variance for the reference data.
+        Variable variance for the reference data. Ignored if `hue` is set.
 
     result_var : array-like, optional
-        Variable variance for the simulation result.
+        Variable variance for the simulation result. Ignored if `hue` is set.
 
     xlabel, ylabel : str or None
         Labels applied to the x and y axes of the plot.
 
+    hue : array-like, optional
+        Coordinate values of an extra dimension, mapped to colour: one line per
+        value on each data panel, reference dashed and result solid.
+
+    hue_label : str or None
+        Label of the `hue` colour bar.
+
+    diagnostic : callable, optional
+        Callback drawing a test-specific diagnostic chart on the fourth panel,
+        called as ``diagnostic(ax)``. If unset, that panel is left blank.
+
     Returns
     -------
     figure: Figure
-        Pyplot Figure containing the report charts
+        Matplotlib Figure containing the report charts
 
     axes: list
         2x2 array of Axes included in the report Figure
     """
+    ref = np.atleast_2d(ref)
+    result = np.atleast_2d(result)
+
+    if hue is None:
+        # Single slice, default colour cycle, solid lines: reference and result
+        # are told apart by colour, as they always have been
+        styles = [{}]
+        ref_style = {}
+    else:
+        # The extra dimension is an ordered physical coordinate, hence a
+        # sequential colormap. Reference and result share a colour and are told
+        # apart by linestyle, so they stay comparable slice by slice.
+        hue = np.asarray(hue, dtype=float)
+        norm = Normalize(vmin=hue.min(), vmax=hue.max())
+        cmap = cc.cm["isoluminant_cgo_70_c39"]
+        styles = [{"color": cmap(norm(value))} for value in hue]
+        ref_style = {"linestyle": "--"}
+        # N overlaid errorbar families are unreadable
+        ref_var = result_var = None
+
     fig, axes = plt.subplots(2, 2, figsize=(8, 6), layout="constrained")
 
-    ax = axes[0][0]
-    if ref_var is None:
-        ax.plot(vza, ref, label="reference")
-    else:
-        ax.errorbar(vza, ref, yerr=np.sqrt(ref_var), label="reference")
+    ax = axes[0, 0]
+    ax.set_ylabel(ylabel)
+    for i, style in enumerate(styles):
+        label = "reference" if i == 0 else None
+        if ref_var is None:
+            ax.plot(vza, ref[i], label=label, **style, **ref_style)
+        else:
+            ax.errorbar(vza, ref[i], yerr=np.sqrt(ref_var), label=label)
 
-    if result_var is None:
-        ax.plot(vza, result, label="result")
-    else:
-        ax.errorbar(vza, result, yerr=np.sqrt(result_var), label="result")
+    for i, style in enumerate(styles):
+        label = "result" if i == 0 else None
+        if result_var is None:
+            ax.plot(vza, result[i], label=label, **style)
+        else:
+            ax.errorbar(vza, result[i], yerr=np.sqrt(result_var), label=label)
 
-    ax.set_title("Reference and test result")
     handles, labels = ax.get_legend_handles_labels()
+    if hue is not None:
+        # Rewrite legend to use black line color when hue coordinate is present
+        handles = [
+            Line2D([], [], color="black", linestyle=handle.get_linestyle())
+            for handle in handles
+        ]
+    ax.legend(handles=handles, labels=labels)
 
-    ax = axes[1][0]
-    ax.plot(vza, result - ref)
-    ax.set_title("Absolute difference")
+    ax = axes[1, 0]
+    for i, style in enumerate(styles):
+        ax.plot(vza, result[i] - ref[i], **style)
+    annotate_panel(ax, "absolute difference")
 
-    ax = axes[1][1]
-    ax.plot(vza, (result - ref) / ref)
-    ax.set_title("Relative difference")
+    ax = axes[1, 1]
+    for i, style in enumerate(styles):
+        ax.plot(vza, (result[i] - ref[i]) / ref[i], **style)
+    annotate_panel(ax, "relative difference")
 
-    ax = axes[0][1]
-    ax.set_axis_off()
-    ax.legend(handles=handles, labels=labels, loc="upper center")
-
-    if metric[1] is None:
-        ax.text(
-            0.5,
-            0.5,
-            f'Metric "{metric[0]}" is not available',
-            horizontalalignment="center",
-        )
+    # The fourth panel hosts the diagnostic chart, if the test provides one
+    ax = axes[0, 1]
+    if diagnostic is None:
+        ax.set_axis_off()
     else:
-        ax.text(0.5, 0.5, f"{metric[0]}: {metric[1]:.4}", horizontalalignment="center")
+        diagnostic(ax)
+    ax.set_title(
+        f'Metric "{metric[0]}" is not available'
+        if metric[1] is None
+        else f"{metric[0]}: {metric[1]:.4}",
+    )
 
-    for i, j in [[0, 0], [1, 0], [1, 1]]:
+    # Colorbar on top of the data panel, in place of its title
+    if hue is not None:
+        cbar = fig.colorbar(
+            ScalarMappable(norm=norm, cmap=cmap),
+            ax=axes[0][0],
+            label=hue_label,
+            location="top",
+            pad=-0.05,
+        )
+        # The colour bar is continuous, the data is not: mark the sampled
+        # coordinates
+        cbar.ax.vlines(
+            hue, *cbar.ax.get_ylim(), colors="white", linestyles="--", linewidths=0.8
+        )
+
+    for i, j, _xlabel in [(0, 0, xlabel), (1, 0, xlabel), (1, 1, xlabel)]:
         ax = axes[i][j]
-        if xlabel is not None:
-            ax.set_xlabel(xlabel)
-        if ylabel is not None:
-            ax.set_ylabel(ylabel)
+        if _xlabel is not None:
+            ax.set_xlabel(_xlabel)
 
     return fig, axes
 
@@ -238,9 +440,22 @@ class RegressionTest(ABC):
 
     plot: bool = documented(
         attrs.field(kw_only=True, converter=bool),
-        doc="Enable pyplot charts",
+        doc="Activate result plotting",
         type="bool",
         init_type="bool",
+    )
+
+    update_references: bool = documented(
+        attrs.field(kw_only=True, default=False, converter=bool),
+        doc="If ``True``, a missing reference is bootstrapped: the current "
+        "result is archived as a reference candidate and the test fails. If "
+        "``False``, a missing reference is a setup error and raises a "
+        ":class:`ValueError`, so that a typo in the reference path cannot be "
+        "mistaken for a deliberate reference regeneration. The test suite wires "
+        "this to the ``--update-references`` command-line flag.",
+        type="bool",
+        init_type="bool",
+        default="False",
     )
 
     logger: ReportLogger = documented(
@@ -253,32 +468,16 @@ class RegressionTest(ABC):
         default=":data:`.report_logger`",
     )
 
+    #: Data produced by :meth:`_evaluate` and consumed by
+    #: :meth:`_plot_diagnostic`, which draws it on the comparison chart. Empty
+    #: when the test has no diagnostic, or when evaluation did not complete.
+    diagnostic_data: dict = attrs.field(factory=dict, init=False, repr=False, eq=False)
+
     def __attrs_pre_init__(self):
         if self.METRIC_NAME is None:
             raise TypeError(f"Unsupported test type {type(self).__name__}")
 
-    def __attrs_post_init__(self):
-        if self.plot:
-            if self.reference is not None and (
-                "w" in self.reference[self.variable].dims
-                and self.reference[self.variable].w.size > 1
-            ):
-                raise ValueError(
-                    "Regression charts are implemented for single a wavelength, "
-                    "but the reference dataset has a spectral dimension. "
-                    "Please disable the 'plot' option."
-                )
-            if (
-                "w" in self.value[self.variable].dims
-                and self.value[self.variable].w.size > 1
-            ):
-                raise ValueError(
-                    "Regression charts are implemented for single a wavelength, "
-                    "but the tested dataset has a spectral dimension. "
-                    "Please disable the 'plot' option."
-                )
-
-    def run(self, diagnostic=False) -> bool:
+    def run(self, raise_on_failure: bool = True) -> bool:
         """
         This method controls the execution steps of the regression test:
 
@@ -286,10 +485,27 @@ class RegressionTest(ABC):
         * catch errors during text evaluation
         * create the appropriate plots and data archives
 
+        Parameters
+        ----------
+        raise_on_failure : bool, default: True
+            If ``True``, raise a :class:`.RegressionTestFailure` carrying the
+            metric value and the threshold when the test does not pass. This is
+            what makes the numbers visible in a plain ``pytest`` failure report.
+            Set to ``False`` to inspect the verdict programmatically.
+
         Returns
         -------
         bool
             Result of the test criterion comparison.
+
+        Raises
+        ------
+        RegressionTestFailure
+            If the test does not pass and ``raise_on_failure`` is ``True``.
+
+        ValueError
+            If no reference could be resolved and ``update_references`` is
+            ``False``.
         """
 
         self.logger.info(f"Regression test {self.name} results:")
@@ -301,20 +517,42 @@ class RegressionTest(ABC):
         fname_reference = archive_dir / f"{fname}-ref{ext}"
         fname_result = archive_dir / f"{fname}-result{ext}"
 
+        # No reference resolved. Unless reference creation was explicitly
+        # requested, this is a broken setup — most likely a typo in the
+        # reference path — not a test verdict.
+        if self.reference is None and not self.update_references:
+            raise ValueError(
+                f"Regression test '{self.name}' resolved no reference data. If "
+                "the reference is genuinely missing and should be created, "
+                "re-run with the --update-references flag; otherwise check the "
+                "reference path."
+            )
+
         # if no valid reference is found, store the results as new ref and fail
         # the test
-        if not self.reference:
+        if self.reference is None:
             self.logger.info(
                 "No reference data found. Storing test results to "
-                f"{fname_reference}. This can be the new reference."
+                f"{fname_reference}. This can be the new reference.",
             )
             self._archive(self.value, fname_reference)
             self._plot(metric_value=None, noref=True)
+
+            if raise_on_failure:
+                # The candidate reference is archived above, so raising here
+                # loses nothing: it only keeps a bootstrap from reading as a
+                # pass now that the call sites no longer assert.
+                raise RegressionTestFailure(
+                    f"Regression test '{self.name}' has no reference data. "
+                    f"The current result was stored to {fname_reference} and "
+                    "can be promoted to the new reference."
+                )
+
             return False
 
         # else (we have a reference value), evaluate the test metric
         try:
-            passed, metric_value = self._evaluate(diagnostic)
+            passed, metric_value = self._evaluate()
             msg = "\n".join(
                 [
                     "Test passed" if passed else "Test did not pass",
@@ -327,7 +565,15 @@ class RegressionTest(ABC):
 
         except Exception as e:
             self.logger.info("An exception occurred during test evaluation!")
-            self._plot(noref=False, metric_value=None)
+            # The chart is drawn from the same data that just failed to
+            # evaluate, so it is likely to raise as well. Never let that replace
+            # the diagnostic exception.
+            try:
+                self._plot(noref=False, metric_value=None)
+            except Exception as plot_error:
+                self.logger.info(
+                    f"Could not plot the failed evaluation: {plot_error}",
+                )
             raise e
 
         # we got a metric: report the results in the archive directory
@@ -337,18 +583,24 @@ class RegressionTest(ABC):
         self._archive(self.reference, fname_reference)
         self._plot(noref=False, metric_value=metric_value)
 
+        if raise_on_failure and not passed:
+            raise RegressionTestFailure(
+                f"Regression test '{self.name}' did not pass: "
+                f"{self.METRIC_NAME} = {metric_value}, "
+                f"threshold = {self.threshold}, variable = '{self.variable}'"
+            )
+
         return passed
 
     @abstractmethod
-    def _evaluate(self, diagnostic_chart: bool = False) -> tuple[bool, float]:
+    def _evaluate(self) -> tuple[bool, float]:
         """
         Evaluate the test results and perform a comparison to the reference
         based on the criterion defined in the specialized class.
 
-        Parameters
-        ----------
-        diagnostic_chart : bool, optional
-            If ``True``, append a diagnostic chart to the test report.
+        Implementations that provide a diagnostic chart store the data it needs
+        in the ``diagnostic_data`` field; :meth:`_plot_ref` then draws it on the
+        comparison chart.
 
         Returns
         -------
@@ -369,10 +621,9 @@ class RegressionTest(ABC):
 
     def _plot(self, metric_value: float | None, noref: bool) -> None:
         """
-        Create a plot to visualize the results of the test.
-        If the ``reference only`` parameter is set, create only a simple plot
-        visualizing the new reference data. Otherwise, create the more complex
-        comparison plots for the regression test.
+        Plot test results. If the ``reference only`` parameter is set, create
+        only a simple plot visualizing the new reference data. Otherwise, create
+        the more complex comparison plots for the regression test.
 
         Parameters
         ----------
@@ -387,38 +638,57 @@ class RegressionTest(ABC):
         if not self.plot:
             return
 
-        fname = self.name
-        ext = ".png"
-
-        archive_dir = self.archive_dir
-        fname_plot = archive_dir / f"{fname}{ext}"
-        fname_plot.parent.mkdir(parents=True, exist_ok=True)
-
         if noref:
-            figure, _ = self._plot_noref()
+            fig, _ = self._plot_noref()
         else:
-            figure, _ = self._plot_ref(metric_value)
+            fig, _ = self._plot_ref(metric_value)
 
-        html_svg = figure_to_html(figure)
+        html_svg = figure_to_html(fig)
         self.logger.html(html_svg)
-        self.logger.info(f"Saving PNG report chart to {fname_plot}")
+        self._save_figure(fig, f"{self.name}.png")
+        plt.close(fig)
 
-        plt.savefig(fname_plot)
-        plt.close()
+    def _save_figure(self, fig: Figure, filename: str) -> None:
+        """
+        Save a report chart to the archive directory and announce its location
+        on the console.
+
+        Parameters
+        ----------
+        fig : Figure
+            Figure to save.
+
+        filename : str
+            Name of the PNG file, relative to the archive directory.
+
+        Notes
+        -----
+        The console message is suppressed when a report backend is active: the
+        plot is then embedded in the report itself, which makes the PNG copy a
+        secondary artefact not worth announcing.
+        """
+        fname_plot = self.archive_dir / filename
+        fname_plot.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(fname_plot, bbox_inches="tight")
+
+        if not self.logger.reporting:
+            print(f"Saved plot to {fname_plot}")
 
     def _plot_noref(self):
         """
-        Draw a simple plot when no reference data is available.
+        Plot when no reference data is available.
         """
 
         if not self.plot:
             return
 
-        vza = np.squeeze(self.value.vza.values)
-        val = np.squeeze(self.value[self.variable].values)
+        vza = np.squeeze(self.value["vza"].values)
+        val, _, _ = hue_from_extra_dims(self.value[self.variable], vza_dim(self.value))
 
         fig, ax = plt.subplots(1, 1, figsize=(8, 6))
-        ax.plot(vza, val)
+        # One line per slice of the extra dimensions, if any. The colour cycle
+        # is enough here: this plot has no reference to compare against.
+        ax.plot(vza, np.atleast_2d(val).T)
         ax.set_xlabel("VZA [deg]")
         ax.set_ylabel(self.variable)
         ax.set_title("Simulation result, can be used as new reference")
@@ -427,15 +697,19 @@ class RegressionTest(ABC):
 
     def _plot_ref(self, metric_value: float | None = None):
         """
-        Draw a comparison plot with reference and test data displayed together.
+        Plot with reference and test data displayed together.
         """
 
         if not self.plot:
             return
 
-        vza = np.squeeze(self.value.vza.values)
-        val = np.squeeze(self.value[self.variable].values)
-        ref = np.squeeze(self.reference[self.variable].values)
+        vza = np.squeeze(self.value["vza"].values)
+        val, hue, hue_label = hue_from_extra_dims(
+            self.value[self.variable], vza_dim(self.value)
+        )
+        ref, _, _ = hue_from_extra_dims(
+            self.reference[self.variable], vza_dim(self.reference)
+        )
 
         return regression_test_plots(
             ref,
@@ -444,19 +718,36 @@ class RegressionTest(ABC):
             (self.METRIC_NAME, metric_value),
             xlabel="VZA [deg]",
             ylabel=self.variable,
+            hue=hue,
+            hue_label=hue_label,
+            diagnostic=self._diagnostic_plotter(),
         )
 
-    def _plot_diagnostic(self, **diagnostic_info) -> None:
+    def _diagnostic_plotter(self) -> Callable[[Axes], None] | None:
         """
-        Create an additional plot to display more technical information about
-        the test metrics and decision process. The diagnostic plot can help the
-        user debug a failing test, or to assess the test power and significance.
-        This plot is output directly to the test report.
+        Bind :meth:`_plot_diagnostic` to the data collected by :meth:`_evaluate`,
+        ready to be drawn on a panel of the comparison chart. Returns ``None``
+        when there is no diagnostic to draw.
+        """
+        if not self.diagnostic_data:
+            return None
+        return functools.partial(self._plot_diagnostic, **self.diagnostic_data)
+
+    def _plot_diagnostic(self, ax: Axes, **diagnostic_info) -> None:
+        """
+        Draw more technical information about the test metrics and decision
+        process on a panel of the comparison chart. The diagnostic plot can help
+        the user debug a failing test, or to assess the test power and
+        significance.
 
         Parameters:
         -----------
+        ax : Axes
+            Axes to draw on.
+
         **diagnostic_info: dict
-            Variadic keyword arguments for the subclasses implementation
+            Variadic keyword arguments for the subclasses implementation, taken
+            from the ``diagnostic_data`` field.
         """
 
         raise NotImplementedError(
@@ -476,7 +767,7 @@ class RMSETest(RegressionTest):
 
     METRIC_NAME = "rmse"
 
-    def _evaluate(self, diagnostic_chart=False) -> tuple[bool, float]:
+    def _evaluate(self) -> tuple[bool, float]:
         value_np = self.value[self.variable].values
         ref_np = self.reference[self.variable].values
         if np.shape(value_np) != np.shape(ref_np):
@@ -488,332 +779,69 @@ class RMSETest(RegressionTest):
         result_flat = np.array(value_np).flatten()
         ref_flat = np.array(ref_np).flatten()
 
-        rmse = np.linalg.norm(result_flat - ref_flat) / np.sqrt(len(ref_flat))
+        rmse = float(np.linalg.norm(result_flat - ref_flat) / np.sqrt(len(ref_flat)))
         return rmse <= self.threshold, rmse
-
-
-@define
-class Chi2Test(RegressionTest):
-    """
-    This class implements a statistical test for the regression testing
-    campaign, based on Pearson's Chi-squared test.
-    https://en.wikipedia.org/wiki/Pearson%27s_chi-squared_test
-
-    It determines the probability for the reference and the test result
-    following the same distribution.
-
-    This test will pass if the computed p-value is strictly larger than the
-    given threshold.
-    """
-
-    # The algorithm is adapted from Mitsuba's testing framework.
-
-    METRIC_NAME = "X² p-value"
-
-    def _evaluate(self, diagnostic_chart=False) -> tuple[bool, float]:
-        ref_np = self.reference[self.variable].values
-
-        result_np = self.value[self.variable].values
-        histo_bins = np.linspace(ref_np.min(), ref_np.max(), 20)
-        histo_ref = np.histogram(ref_np, histo_bins)[0]
-        histo_res = np.histogram(result_np, histo_bins)[0]
-
-        # sorting both histograms following the ascending frequencies in
-        # the reference. Algorithm from:
-        # https://stackoverflow.com/questions/9764298/how-to-sort-two-lists-which-reference-each-other-in-the-exact-same-way
-        histo_ref_sorted, histo_res_sorted = zip(
-            *sorted(zip(histo_ref, histo_res), key=lambda x: x[0])
-        )
-
-        from mitsuba.math_py import rlgamma
-
-        chi2val, dof, pooled_in, pooled_out = mi.math.chi2(
-            histo_res_sorted, histo_ref_sorted, 5
-        )
-        p_value = 1.0 - rlgamma(dof / 2.0, chi2val / 2.0)
-
-        return p_value > self.threshold, p_value
-
-
-@define
-class AbstractStudentTTest(RegressionTest):
-    """
-    Abstract Student's T-Test
-    =========================
-
-    Implement diagnostic chart common to subclassing T-test implementations.
-    """
-
-    def _plot_diagnostic(self, dof=None, t_prim=None) -> None:
-        """
-        Diagnostic chart for an Independent Student's T-test
-
-        Parameters:
-        -----------
-        dof: int
-            Degrees of Freedom
-        t_prim: float
-            t' statistic issued from the test
-        """
-
-        if not self.plot:
-            return
-
-        fig, ax = plt.subplots()
-        ax.grid()
-        ax2 = ax.twinx()
-
-        start, end = spstats.t.ppf(0.0001, dof), spstats.t.ppf(0.9999, dof)
-
-        if (t_prim > start) and (t_prim < end):
-            fx = np.linspace(-np.abs(t_prim), np.abs(t_prim), 100)
-            fy = spstats.t(dof).pdf(fx)
-            ax.fill_between(np.zeros((100,)), fy)
-            ax.axvline(spstats.t.ppf(-self.threshold / 2.0, dof), color="red")
-            ax.axvline(spstats.t.ppf(self.threshold / 2.0, dof), color="red")
-        else:
-            ax.axvline(t_prim, label="T value")
-
-        ax.axvline(0.0, color="red", linestyle="--")
-        ax.set_title("T-statistic")
-
-        x = np.linspace(start, end, 100)
-        y = spstats.t(dof).pdf(x)
-
-        ax2.plot(x, y, label="target T distribution form", color="black")
-        ax2.legend(loc="upper right")
-        ax2.set_ylim([0.0, max(y) * 1.1])
-
-        chart = figure_to_html(fig)
-        plt.close(fig)
-
-        self.logger.html(chart)
-
-
-@define
-class IndependentStudentTTest(AbstractStudentTTest):
-    """
-    Independent Student's T-test
-    ============================
-
-    This implementation of a Student's T-test is following the assumption of
-    independance of the two groups that are tested. The bias of the mean values
-    of the two groups is assumed to be the result of chance under the null
-    hypothesis. It is a two-tailed test.
-
-    It is less sensitive to outliers than the paired Student's T-test.
-    """
-
-    METRIC_NAME = "T-test p-value"
-
-    def _evaluate(self, diagnostic_chart=False) -> tuple[bool, float]:
-        variable_var = self.variable + "_var"
-
-        if variable_var not in self.reference:
-            raise ValueError(
-                "The reference data for this T-test does not contain expected "
-                "appropriate variance values, could not find data variable "
-                f"'{variable_var}'"
-            )
-
-        if variable_var not in self.value:
-            raise ValueError(
-                "The tested data for this T-test does not contain expected "
-                "appropriate variance values, could not find data variable "
-                f"'{variable_var}'"
-            )
-
-        ref_np = self.reference[self.variable].values.ravel()
-        result_np = self.value[self.variable].values.ravel()
-
-        var_ref_np = self.reference[variable_var].values.ravel()
-        var_res_np = self.value[variable_var].values.ravel()
-
-        # Calculate mean values over observations and associated variances
-        R_res = np.mean(result_np)
-        R_ref = np.mean(ref_np)
-        var_R_res = np.sum(var_res_np) / var_res_np.size**2
-        var_R_ref = np.sum(var_ref_np) / var_ref_np.size**2
-        bias_mean = R_res - R_ref
-
-        # Calculate T-statistic and associated degree of freedom of its
-        # T-distribution using a pooled standard deviation
-
-        s_p = np.sqrt(
-            ((var_res_np.size - 1.0) * var_R_res + (var_ref_np.size - 1.0) * var_R_ref)
-            / (var_res_np.size + var_ref_np.size - 2)
-        )
-        t_prim = bias_mean / (
-            s_p * np.sqrt(1.0 / var_res_np.size + 1.0 / var_ref_np.size)
-        )
-
-        dof = (var_res_np.size + var_ref_np.size) - 2
-
-        assert dof > 0
-
-        # Calculate p-value of the two-tailed t-test using the T distribution
-        # survival function for the null hypothesis.
-        p_value = spstats.t.sf(np.abs(t_prim), dof) * 2
-
-        passed = p_value > self.threshold
-
-        if diagnostic_chart:
-            self._plot_diagnostic(dof=dof, t_prim=t_prim)
-
-        self.logger.info(f"bias    = {bias_mean}")
-        self.logger.info(f"s_p     = {s_p}")
-        self.logger.info(f"t'      = {t_prim}")
-        self.logger.info(f"dof     = {dof}")
-        self.logger.info(f"p-value = {p_value}")
-        self.logger.info(f"alpha   = {self.threshold}")
-
-        return passed, p_value
-
-
-@define
-class PairedStudentTTest(AbstractStudentTTest):
-    """
-    Paired Student's T-test
-    =======================
-
-    This implementation of a Student's T-test is following the assumption of
-    paired samples within two groups that are tested. The mean of the bias
-    between the paired values is assumed to be the result of chance under the
-    null hypothesis. It is a two-tailed test.
-
-    The paired test allow to introduce a covariance factor between the pairs.
-    By default, this covariance is equal to zero, thus assuming independence of
-    the two variables.
-
-    Contrary to the independent Student's T-test, this paired version of the
-    test requires an equal degree of freedom of the two groups.
-    """
-
-    METRIC_NAME = "paired T-test p-value"
-
-    cov: np.ndarray | float = documented(
-        attrs.field(kw_only=True, default=0.0),
-        doc="Covariance between observation, defaults to zero",
-        type="ndarray or float",
-        init_type="array-like or float",
-    )
-
-    def _evaluate(self, diagnostic_chart=False) -> tuple[bool, float]:
-        variable_var = self.variable + "_var"
-
-        if variable_var not in self.reference:
-            raise ValueError(
-                "The reference data for this T-test does not contain expected "
-                "appropriate variance values, could not find data variable "
-                f"'{variable_var}'"
-            )
-
-        if variable_var not in self.value:
-            raise ValueError(
-                "The tested data for this T-test does not contain expected "
-                "appropriate variance values, could not find data variable "
-                f"'{variable_var}'"
-            )
-
-        ref_np = self.reference[self.variable].values.ravel()
-        result_np = self.value[self.variable].values.ravel()
-
-        var_ref_np = self.reference[variable_var].values.ravel()
-        var_res_np = self.value[variable_var].values.ravel()
-
-        assert ref_np.shape == result_np.shape
-        assert ref_np.shape == var_ref_np.shape
-        assert ref_np.shape == var_res_np.shape
-
-        # Calculate paired mean value and associated variance
-        D_mean = np.mean(result_np - ref_np)
-        var_D = (var_res_np + var_ref_np) - 2 * self.cov
-        var_D_mean = np.sum(var_D) / var_D.size**2
-
-        # Calculate T-statistic and associated degree of freedom of its
-        # T-distribution
-        t_prim = D_mean / (var_D_mean / np.sqrt(var_D.size))
-        dof = var_D.size - 1
-
-        assert dof > 0
-
-        # Calculate p-value of the two-tailed t-test using the T distribution
-        # survival function for the null hypothesis.
-        p_value = spstats.t.sf(np.abs(t_prim), dof) * 2
-
-        passed = p_value > self.threshold
-
-        if diagnostic_chart:
-            self._plot_diagnostic(dof=dof, t_prim=t_prim)
-
-        self.logger.info(f"bias     = {D_mean}")
-        self.logger.info(f"var mean = {var_D_mean}")
-        self.logger.info(f"t'       = {t_prim}")
-        self.logger.info(f"dof      = {dof}")
-        self.logger.info(f"p-value  = {p_value}")
-        self.logger.info(f"alpha    = {self.threshold}")
-
-        return passed, p_value
 
 
 @define
 class ZTest(RegressionTest):
     """
-    Z-Test with Šidák correction factor
-    ===================================
+    Z-Test with Šidák correction factor.
 
     Implement a Z-test, testing the significance of paired differences between
-    a set of observations and a set of references. It considers the observations
-    variance.
+    a set of observations and a set of references. It considers the variance of
+    both the observations and the reference, which are both Monte Carlo
+    estimates: the standard error of their difference is
+    :math:`\\sqrt{\\sigma^2_\\mathrm{result} + \\sigma^2_\\mathrm{reference}}`.
+    The observation variance (``<variable>_var``) is mandatory; if the reference
+    does not carry one, the test falls back to the observation variance alone
+    and logs a warning. That fallback underestimates the standard error by up to
+    a factor of :math:`\\sqrt{2}`, making the test conservative.
 
-    Paired tests are aggregated into one p-value using a Šidák correction. The
-    test passes if the null hypothesis is accepted for at least 99.75% of the
-    paired Z-tests
+    Paired tests are aggregated into one p-value using a Šidák correction: the
+    test passes if the null hypothesis is accepted for *every* pair at the
+    corrected per-comparison level :math:`1 - (1 - \\alpha)^{1/n}`. The reported
+    metric is the equivalent family-wise p-value (see
+    :func:`sidak_family_p_value`), so that the test passes iff the metric
+    exceeds the threshold.
 
     This paired Z-test requires an equal degree of freedom of the two groups.
     """
 
-    METRIC_NAME = "Z-test p-value"
+    METRIC_NAME = "Z-test family p-value"
 
-    def _plot_diagnostic(self, z=None) -> None:
+    def _plot_diagnostic(self, ax: Axes, z=None) -> None:
         """
-        Diagnostic chart for a Z-test
+        Diagnostic plot for a Z-test
 
         Parameters:
         -----------
-        z: array-like
+        ax : Axes
+            Axes to draw on.
+
+        z : array-like
             Z-statistic for each pair of measurements
         """
 
-        if not self.plot:
-            return
-
-        fig, ax = plt.subplots()
         ax.grid()
         ax2 = ax.twinx()
 
         ax.hist(z, bins=50, label="Z values")
         ax.axvline(0.0, color="red", linestyle="--")
-        ax.set_title("Z-statistic")
-        ax.legend(loc="upper left")
+        ax.legend(loc="upper left", fontsize="small")
 
         x = np.linspace(-4.0, 4.0, 100)
         y = spstats.norm.pdf(x, 0.0, 1.0)
-        ax2.plot(x, y, label="target Z distribution form", color="black")
-        ax2.legend(loc="upper right")
+        ax2.plot(x, y, label="target", color="black")
+        ax2.legend(loc="upper right", fontsize="small")
         ax2.set_ylim([0.0, max(y) * 1.1])
 
-        chart = figure_to_html(fig)
-        plt.close(fig)
-
-        self.logger.html(chart)
-
-    def _evaluate(self, diagnostic_chart=False) -> tuple[bool, float]:
+    def _evaluate(self) -> tuple[bool, float]:
         variable_var = self.variable + "_var"
 
         if variable_var not in self.value:
             raise ValueError(
-                "The reference data for this Z-test does not contain expected "
+                "The result data for this Z-test does not contain expected "
                 "appropriate variance values, could not find data variable "
                 f"'{variable_var}'"
             )
@@ -826,8 +854,25 @@ class ZTest(RegressionTest):
         assert ref_np.shape == result_np.shape
         assert ref_np.shape == var_res_np.shape
 
+        # Both datasets are Monte Carlo estimates, so the variance of their
+        # difference is the sum of their variances. Some legacy references were
+        # archived without their variance: fall back to the result variance
+        # alone, which underestimates the standard error by up to sqrt(2) and
+        # therefore makes the test conservative (more likely to fail).
+        if variable_var in self.reference:
+            var_ref_np = self.reference[variable_var].values.ravel()
+            assert ref_np.shape == var_ref_np.shape
+        else:
+            self.logger.warning(
+                f"The reference data for this Z-test has no '{variable_var}' "
+                "data variable; falling back to the result variance alone. The "
+                "test is conservative in this configuration. Regenerate the "
+                "reference to compare both variances."
+            )
+            var_ref_np = 0.0
+
         # Calculate Z-statistic
-        z = (result_np - ref_np) / np.sqrt(var_res_np)
+        z = (result_np - ref_np) / np.sqrt(var_res_np + var_ref_np)
 
         # Calculate p-value of the two-tailed z-test null hypothesis
         p_values = spstats.norm.sf(np.abs(z)) * 2
@@ -835,29 +880,34 @@ class ZTest(RegressionTest):
         alpha_0 = 1.0 - (1.0 - self.threshold) ** (1.0 / result_np.size)
         accept_null = p_values > alpha_0
 
-        passed = np.count_nonzero(accept_null) >= int(0.9975 * result_np.size)
+        passed = bool(np.all(accept_null))
+        p_family = sidak_family_p_value(min(p_values), result_np.size)
 
-        if diagnostic_chart:
-            self._plot_diagnostic(z=z)
+        self.diagnostic_data = {"z": z}
 
         self.logger.info(f"min p-value = {min(p_values)}")
         self.logger.info(f"max p-value = {max(p_values)}")
         self.logger.info(
-            f"n passed    = {np.count_nonzero(accept_null)}/{int(0.9975 * result_np.size)}"
+            f"n accepted  = {np.count_nonzero(accept_null)}/{result_np.size}",
         )
         self.logger.info(f"alpha_1     = {self.threshold}")
         self.logger.info(f"alpha_0     = {alpha_0}")
 
-        return passed, min(p_values)
+        return passed, p_family
 
     def _plot_ref(self, metric_value: float | None = None):
         """
         Draw a comparison plot with reference and test data displayed together.
         """
-        vza = np.squeeze(self.value.vza.values)
-        result = np.squeeze(self.value[self.variable].values)
-        result_var = np.squeeze(self.value[f"{self.variable}_var"].values)
-        ref = np.squeeze(self.reference[self.variable].values)
+        vza = np.squeeze(self.value["vza"].values)
+        x_dim = vza_dim(self.value)
+        result, hue, hue_label = hue_from_extra_dims(self.value[self.variable], x_dim)
+        result_var, _, _ = hue_from_extra_dims(
+            self.value[f"{self.variable}_var"], x_dim
+        )
+        ref, _, _ = hue_from_extra_dims(
+            self.reference[self.variable], vza_dim(self.reference)
+        )
 
         return regression_test_plots(
             ref,
@@ -867,105 +917,7 @@ class ZTest(RegressionTest):
             result_var=result_var,
             xlabel="VZA [deg]",
             ylabel=self.variable,
+            hue=hue,
+            hue_label=hue_label,
+            diagnostic=self._diagnostic_plotter(),
         )
-
-
-@define
-class SidakTTest(RegressionTest):
-    """
-    T-Test with Šidák correction factor
-    ===================================
-
-    Implement a T-test, testing the significance of paired differences between
-    a set of observations and a set of references. It considers both the
-    observations and reference variance.
-
-    Paired tests are aggregated into one p-value using a Šidák correction. The
-    test passes if the null hypothesis is accepted for at least 99.75% of the
-    paired T-tests
-    """
-
-    METRIC_NAME = "Sidak T-test p-value"
-
-    def _plot_diagnostic(self, t_prim=None) -> None:
-        """
-        Diagnostic chart for the T-test
-
-        Parameters:
-        -----------
-        t_prim: array-like
-            T-statistic for each pair of measurements
-        """
-
-        if not self.plot:
-            return
-
-        fig, ax = plt.subplots()
-        ax.grid()
-        ax2 = ax.twinx()
-
-        start, end = spstats.norm.ppf(0.0001), spstats.norm.ppf(0.9999)
-
-        ax.hist(t_prim, bins=50, label="T values")
-        ax.axvline(0.0, color="red", linestyle="--")
-        ax.set_title("T-statistic")
-        ax.legend(loc="upper left")
-
-        x = np.linspace(start, end, 100)
-        y = spstats.norm.pdf(x)
-        ax2.plot(x, y, label="target T distribution form", color="black")
-        ax2.legend(loc="upper right")
-        ax2.set_ylim([0.0, max(y) * 1.1])
-
-        chart = figure_to_html(fig)
-        plt.close(fig)
-
-        self.logger.html(chart)
-
-    def _evaluate(self, diagnostic_chart=False) -> tuple[bool, float]:
-        variable_var = self.variable + "_var"
-
-        if variable_var not in self.reference:
-            raise ValueError(
-                "The reference data for this T-test does not contain expected "
-                "appropriate variance values, could not find data variable "
-                f"'{variable_var}'"
-            )
-
-        ref_np = self.reference[self.variable].values.ravel()
-        result_np = self.value[self.variable].values.ravel()
-
-        assert ref_np.shape == result_np.shape
-
-        var_ref_np = self.reference[variable_var].values.ravel()
-        var_res_np = self.value[variable_var].values.ravel()
-
-        assert var_ref_np.shape == var_res_np.shape
-
-        # Calculate T-statistic
-        t_prim = (result_np - ref_np) / np.sqrt(var_res_np + var_ref_np)
-
-        # Calculate p-value of the two-tailed t-test using the T distribution
-        # survival function for the null hypothesis that there is no difference
-        # between the two mean distributions. It is assumed that the sample size
-        # is large enough for the T distribution to converge to a normal one.
-        p_values = spstats.norm.sf(np.abs(t_prim)) * 2
-
-        # Calculate the Šidák correction
-        alpha_0 = 1.0 - (1.0 - self.threshold) ** (1.0 / result_np.size)
-        accept_null = p_values > alpha_0
-
-        passed = np.count_nonzero(accept_null) >= int(0.9975 * result_np.size)
-
-        if diagnostic_chart:
-            self._plot_diagnostic(t_prim=t_prim)
-
-        self.logger.info(f"min p-value = {min(p_values)}")
-        self.logger.info(f"max p-value = {max(p_values)}")
-        self.logger.info(
-            f"n passed    = {np.count_nonzero(accept_null)}/{int(0.9975 * result_np.size)}"
-        )
-        self.logger.info(f"alpha_1     = {self.threshold}")
-        self.logger.info(f"alpha_0     = {alpha_0}")
-
-        return passed, min(p_values)

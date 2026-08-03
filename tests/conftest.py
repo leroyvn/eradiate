@@ -28,6 +28,14 @@ def pytest_addoption(parser):
     parser.addoption(
         "--plot", action="store_true", default=False, help="Produce and save plots."
     )
+    parser.addoption(
+        "--update-references",
+        action="store_true",
+        default=False,
+        help="Allow regression tests with no reference data to archive their "
+        "result as a reference candidate. Without this flag, a missing "
+        "reference is an error.",
+    )
 
 
 # See: https://stackoverflow.com/a/55301318/3645374
@@ -44,6 +52,11 @@ def artefact_dir(pytestconfig):
 @pytest.fixture(scope="session")
 def plot_figures(pytestconfig):
     return pytestconfig.getoption("plot")
+
+
+@pytest.fixture(scope="session")
+def update_references(pytestconfig):
+    return pytestconfig.getoption("update_references")
 
 
 # ------------------------------------------------------------------------------

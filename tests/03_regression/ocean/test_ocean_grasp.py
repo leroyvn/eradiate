@@ -13,7 +13,7 @@ from eradiate.test_tools.test_cases.ocean import (
 
 @pytest.mark.regression
 def test_ocean_grasp_coastal_no_atm(
-    mode_mono_double, artefact_dir, session_timestamp, plot_figures
+    mode_mono_double, artefact_dir, session_timestamp, plot_figures, update_references
 ):
     """
     *Ocean GRASP Coastal no atm regression test*
@@ -35,8 +35,11 @@ def test_ocean_grasp_coastal_no_atm(
     wavelength = ocean_grasp_wavelength()
     for w in wavelength:
         test = RMSETest(
+            # The wavelength is part of the name so that each iteration gets
+            # its own artefacts and identifies itself upon failure
             name=(
-                f"{session_timestamp:%Y%m%d-%H%M%S}-ocean_grasp_REF_OC_NN00_I_S20_PPL"
+                f"{session_timestamp:%Y%m%d-%H%M%S}"
+                f"-ocean_grasp_REF_OC_NN00_I_S20_PPL-{w}"
             ),
             value=result.sel(w=w),
             reference=ref.sel(w=w),
@@ -44,14 +47,15 @@ def test_ocean_grasp_coastal_no_atm(
             archive_dir=artefact_dir,
             variable="brf",
             plot=plot_figures,
+            update_references=update_references,
         )
 
-    assert test.run(), f"{w = }"
+        test.run()
 
 
 @pytest.mark.regression
 def test_ocean_grasp_open_no_atm(
-    mode_mono_double, artefact_dir, session_timestamp, plot_figures
+    mode_mono_double, artefact_dir, session_timestamp, plot_figures, update_references
 ):
     """
     *Ocean GRASP Open no atm regression test*
@@ -73,21 +77,24 @@ def test_ocean_grasp_open_no_atm(
     wavelength = ocean_grasp_wavelength()
     for w in wavelength:
         test = RMSETest(
-            name=f"{session_timestamp:%Y%m%d-%H%M%S}-ocean_grasp_REF_OO_NN00_I_S20_PPL",
+            # The wavelength is part of the name so that each iteration gets
+            # its own artefacts and identifies itself upon failure
+            name=f"{session_timestamp:%Y%m%d-%H%M%S}-ocean_grasp_REF_OO_NN00_I_S20_PPL-{w}",
             value=result.sel(w=w),
             reference=ref.sel(w=w),
             threshold=1e-6,
             archive_dir=artefact_dir,
             variable="brf",
             plot=plot_figures,
+            update_references=update_references,
         )
 
-        assert test.run(), f"{w = }"
+        test.run()
 
 
 @pytest.mark.regression
 def test_ocean_grasp_open_atm(
-    mode_mono_double, artefact_dir, session_timestamp, plot_figures
+    mode_mono_double, artefact_dir, session_timestamp, plot_figures, update_references
 ):
     """
     *Ocean GRASP Open atm regression test*
@@ -114,6 +121,7 @@ def test_ocean_grasp_open_atm(
         archive_dir=artefact_dir,
         variable="radiance",
         plot=False,
+        update_references=update_references,
     )
 
-    assert test.run()
+    test.run()

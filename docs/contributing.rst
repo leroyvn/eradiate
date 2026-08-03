@@ -496,7 +496,7 @@ Within your test case, you then instantiate one of the subclasses:
 
     result = your_eradiate_simulation()
 
-    test = ttr.Chi2Test(
+    test = ttr.ZTest(
         value=result,
         reference="path/to/the/data-file/reference.nc",
         threshold=0.05,
@@ -514,11 +514,52 @@ results in the directory given as ``archive_filename``. It will store the new re
 and the reference in two files, adding *-result* and *-ref* suffixes to the provided
 filename.
 
-To handle the test result simply use an assertion:
+Simply call it: by default, :meth:`~.RegressionTest.run` raises a
+:class:`.RegressionTestFailure` when the test does not pass, with the metric
+value and the threshold in the message, so the numbers that decided the verdict
+appear in the pytest failure report.
 
 .. code:: python
 
-    assert test.run()
+    test.run()
+
+Pass ``raise_on_failure=False`` to get the boolean verdict instead of an
+exception.
+
+When no reference data can be resolved, :meth:`~.RegressionTest.run` raises a
+:class:`ValueError` and computes nothing: an unresolved reference is treated as
+a broken test setup — most commonly a typo in the reference path — rather than
+as a test verdict. Creating a reference is an explicit action, described below.
+
+Creating and updating references
+********************************
+
+References are resolved by the file resolver from the downloadable data store,
+not from the source tree. Regenerating one is therefore a three-step procedure:
+
+1. Run the test with the ``--update-references`` command-line flag. Every
+   regression test case forwards it to its ``update_references`` field:
+
+   .. code:: shell
+
+       pytest tests -m "regression" --update-references \
+           --artefact-dir <a directory of your choice>
+
+   With the flag, a test whose reference is missing archives its own result as
+   ``<name>-ref.nc`` in the artefact directory and *still fails* — the candidate
+   has not been vetted by anyone yet.
+
+2. Inspect the candidate. When the flag is combined with ``--plot``, a
+   visualisation of the candidate is written next to it.
+
+3. Promote it: add the vetted file to the data repository under
+   ``tests/regression_test_references/`` and open a pull request for the
+   maintainers to review. This step is deliberately manual — the framework never
+   writes into the data store.
+
+Updating an *existing* reference, i.e. when a deliberate change to Eradiate
+alters its behaviour, follows the same steps: the failing run archives the new
+result as ``<name>-result.nc``, which is the file to promote.
 
 Analysing the results
 *********************
@@ -533,10 +574,8 @@ In case this difference stems from a change made to Eradiate, which significantl
 reference needs to be updated. In this case, replace the existing reference file in the data repository and create a
 pull request for the maintainers to review and add.
 
-In case the test fails due to a missing or non found reference, for example when adding a new test case, the helper
-will not attempt to compute the metric at all. Instead it will output the simulation result as NetCDF under the given
-path with the *-ref* suffix alongside a simple visualisation of the result. The output can then be added to the data
-repository as mentioned above.
+In case the test fails due to a missing or non found reference, for example when adding a new test case, see
+`Creating and updating references`_ above: the helper only bootstraps a reference when explicitly asked to.
 
 Test report
 ^^^^^^^^^^^

@@ -41,28 +41,21 @@ def figure_to_html(fig: plt.Figure) -> str:
 
     str_i = StringIO()
     fig.savefig(str_i, format="svg", transparent=True, bbox_inches="tight")
-    fig.canvas.draw_idle()
     svg = str_i.getvalue()
 
+    # Drop the XML prolog and DOCTYPE: this is embedded in an HTML report. The
+    # root <svg> tag carries the figure's own size, so no wrapper is needed.
+    svg = svg[svg.index("<svg") :]
+    root_end = svg.index(">") + 1
+
     # Include some CSS in the SVG to render nicely in the test report's dark
-    # and light modes
-    return "\n".join(
-        [
-            "<svg",
-            'version="1.1"',
-            'baseProfile="full"',
-            'width="810" height="540" viewBox="0 0 810 540"',
-            'xmlns="http://www.w3.org/2000/svg">',
-            "<style>",
-            "    path {",
-            "        fill: var(--text-color);",
-            "        stroke: var(--text-color);",
-            "    }",
-            "</style>",
-            svg,
-            "</svg>",
-        ]
-    )
+    # and light modes. Scoped to paths carrying no inline style, i.e. the glyph
+    # definitions of text elements: everything Matplotlib colours itself (data
+    # lines, legend swatches, spines, ticks) has a style attribute and must keep
+    # its colour, or a colour-mapped chart would be flattened to a single hue.
+    style = "<style>path:not([style]) { fill: var(--text-color); }</style>"
+
+    return svg[:root_end] + style + svg[root_end:]
 
 
 class ReportLogger:
@@ -96,6 +89,14 @@ class ReportLogger:
 
             self._robot = robot_logger
 
+    @property
+    def reporting(self) -> bool:
+        """
+        ``True`` if a report backend is active, i.e. if HTML fragments are
+        recorded instead of discarded.
+        """
+        return self._robot is not None
+
     def info(self, msg: str) -> None:
         """
         Log an informational message to the test report and the console.
@@ -109,6 +110,20 @@ class ReportLogger:
             self._robot.info(msg, also_console=True)
         else:
             _logger.info(msg)
+
+    def warning(self, msg: str) -> None:
+        """
+        Log a warning message to the test report and the console.
+
+        Parameters
+        ----------
+        msg : str
+            Message to log.
+        """
+        if self._robot is not None:
+            self._robot.warn(msg)
+        else:
+            _logger.warning(msg)
 
     def html(self, fragment: str) -> None:
         """

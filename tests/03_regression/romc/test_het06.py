@@ -15,7 +15,12 @@ def exp():
 @append_doc(create_het06_brfpp, prepend=True)
 @pytest.mark.regression
 def test_het06_brfpp(
-    mode_mono_double, artefact_dir, session_timestamp, exp, plot_figures
+    mode_mono_double,
+    artefact_dir,
+    session_timestamp,
+    exp,
+    plot_figures,
+    update_references,
 ):
     """
     *Expected behaviour*
@@ -36,6 +41,7 @@ def test_het06_brfpp(
         archive_dir=artefact_dir,
         variable="radiance",
         plot=plot_figures,
+        update_references=update_references,
     )
 
-    assert test.run()
+    test.run()

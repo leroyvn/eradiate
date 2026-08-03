@@ -26,13 +26,10 @@
    :toctree: generated/autosummary/
 
    RegressionTest
+   RegressionTestFailure
    RMSETest
-   Chi2Test
-   AbstractStudentTTest
-   IndependentStudentTTest
-   PairedStudentTTest
    ZTest
-   SidakTTest
+   sidak_family_p_value
 
 ``eradiate.test_tools.report``
 ------------------------------

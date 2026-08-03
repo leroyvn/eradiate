@@ -3,7 +3,7 @@ import pytest
 
 import eradiate
 from eradiate import fresolver
-from eradiate.test_tools.regression import SidakTTest
+from eradiate.test_tools.regression import ZTest
 from eradiate.test_tools.report import report_logger
 from eradiate.test_tools.test_cases import rami4atm
 
@@ -40,12 +40,12 @@ def test_rami4atm_hom00_bla_a00s_m04_z30a000_brfpp(mode_ckd_double, artefact_dir
 @pytest.mark.filterwarnings(
     "ignore:User-specified a background spectral grid is overridden by atmosphere spectral grid"
 )
-def test_rami4atm(mode_ckd_double, case, artefact_dir):
+def test_rami4atm(mode_ckd_double, case, artefact_dir, plot_figures, update_references):
     specification = rami4atm.registry[case]
     ctor = specification.get("constructor")
     postprocess = specification.get("postprocess", lambda ls, _: ls[0])
     variables = specification.get("variables", ["radiance"])
-    test_ctor = specification.get("test", SidakTTest)
+    test_ctor = specification.get("test", ZTest)
     threshold = specification.get("threshold")
 
     srf_id, exps = ctor(spp=1000)
@@ -71,9 +71,8 @@ def test_rami4atm(mode_ckd_double, case, artefact_dir):
             threshold=threshold,
             archive_dir=artefact_dir,
             variable=variable,
-            plot=False,
+            plot=plot_figures,
+            update_references=update_references,
         )
 
-        passed = test.run(diagnostic=True)
-
-        assert passed
+        test.run()

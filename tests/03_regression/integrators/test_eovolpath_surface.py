@@ -15,6 +15,7 @@ def test_eovolpath_surface(
     artefact_dir,
     session_timestamp,
     plot_figures,
+    update_references,
 ):
     """
     *Expected behaviour*
@@ -47,6 +48,7 @@ def test_eovolpath_surface(
         archive_dir=artefact_dir,
         variable="radiance",
         plot=plot_figures,
+        update_references=update_references,
     )
 
-    assert test.run()
+    test.run()

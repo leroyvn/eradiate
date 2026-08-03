@@ -21,9 +21,13 @@ def test_figure_to_html():
 
     assert html.startswith("<svg")
     assert html.rstrip().endswith("</svg>")
-    assert "var(--text-color)" in html
-    # Attributes of the wrapping <svg> tag must be separated
-    assert 'viewBox="0 0 810 540"\nxmlns="http://www.w3.org/2000/svg">' in html
+    # The XML prolog and DOCTYPE must be stripped: this is embedded in HTML
+    assert "<?xml" not in html
+    assert "<!DOCTYPE" not in html
+    # The style is injected right after the root tag, and must leave the colours
+    # Matplotlib sets itself alone
+    assert "<style>path:not([style]) { fill: var(--text-color); }</style>" in html
+    assert html.index("<style>") < html.index("<metadata>")
 
 
 class TestReportLogger:
