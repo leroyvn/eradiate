@@ -18,7 +18,7 @@ from eradiate.test_tools.test_cases import rami4atm
 
 CASE = "hom00_bla_sd2s_m03_z30a000_brfpp"
 
-#: Sample count, matching the production regression test (test_rami4atm_benchmark)
+#: Sample count, matching the production regression test (test_rami4atm)
 SPP = 1000
 
 #: Family-wise significance level. The type I error rate of the framework is
@@ -39,7 +39,7 @@ def _render_pair():
     Two independent renders of the same scene. Cached: both tests below compare
     the same pair, and a render costs ~5 s.
     """
-    _, (exp,) = rami4atm.registry[CASE]["constructor"](spp=SPP)
+    (exp,) = rami4atm.CASES[CASE].make_experiments(spp=SPP)
     return eradiate.run(exp), eradiate.run(exp)
 
 
