@@ -32,7 +32,9 @@ class RegressionTestFailure(Exception):
     """
     Raised by :meth:`.RegressionTest.run` when a test does not pass, i.e. when
     the comparison against the reference fails or when no reference is
-    available. Distinct from the :class:`ValueError`\\ s the framework raises
+    available.
+    
+    Distinct from the :class:`ValueError`\\ s the framework raises
     for malformed data, so that a caller can tell a failed comparison from a
     broken one.
     """
@@ -41,7 +43,7 @@ class RegressionTestFailure(Exception):
 def sidak_family_p_value(p_min: float, n: int) -> float:
     """
     Aggregate ``n`` paired p-values into a single family-wise p-value using the
-    Šidák correction, i.e. the probability of observing a minimum p-value at
+    Šidák correction, *i.e.* the probability of observing a minimum p-value at
     least as extreme as ``p_min`` among ``n`` independent comparisons.
 
     Parameters
@@ -122,8 +124,8 @@ def hue_from_extra_dims(
     hue_label : str or None
         Name of the flattened dimension, ``None`` if there is none.
     """
-    # Squeeze length-1 dimensions, but never `x_dim` (a single-angle test is
-    # degenerate, yet its chart must still have an x axis)
+    # Squeeze length-1 dimensions, except `x_dim`
+    # which always has to be preserved so it can be plotted
     da = da.squeeze([d for d in da.dims if d != x_dim and da.sizes[d] == 1], drop=True)
 
     extra = [str(d) for d in da.dims if d != x_dim]
@@ -136,15 +138,15 @@ def hue_from_extra_dims(
     if len(extra) == 1 and extra[0] in da.coords:
         return values, np.asarray(da[extra[0]].values, dtype=float), extra[0]
 
-    # No coordinate, or several dimensions stacked: the hue is an ordinal index.
-    # Degraded, but no call site does this today.
+    # No coordinate, or several dimensions stacked: the hue is an ordinal index
+    # (fallback) 
     return values, np.arange(values.shape[0], dtype=float), " x ".join(extra)
 
 
 def annotate_panel(ax: Axes, text: str) -> None:
     """
     Label a panel with an annotation placed at the top centre of its data area
-    (used to replace a title).
+    (used to replace a title, saving vertical space).
 
     Parameters
     ----------
@@ -224,18 +226,18 @@ def regression_test_plots(
         Matplotlib Figure containing the report charts
 
     axes: list
-        2x2 array of Axes included in the report Figure
+        2×2 array of Axes included in the report Figure
     """
     ref = np.atleast_2d(ref)
     result = np.atleast_2d(result)
 
     if hue is None:
         # Single slice, default colour cycle, solid lines: reference and result
-        # are told apart by colour, as they always have been
+        # are told apart by colour
         styles = [{}]
         ref_style = {}
     else:
-        # The extra dimension is an ordered physical coordinate, hence a
+        # Extra dimension is an ordered physical coordinate, hence a
         # sequential colormap. Reference and result share a colour and are told
         # apart by linestyle, so they stay comparable slice by slice.
         hue = np.asarray(hue, dtype=float)
@@ -304,8 +306,7 @@ def regression_test_plots(
             location="top",
             pad=-0.05,
         )
-        # The colour bar is continuous, the data is not: mark the sampled
-        # coordinates
+        # Colorbar is continuous, data is not: mark sampled coordinates
         cbar.ax.vlines(
             hue, *cbar.ax.get_ylim(), colors="white", linestyles="--", linewidths=0.8
         )
@@ -325,9 +326,7 @@ def reference_converter(value: PathLike | xr.Dataset | None) -> xr.Dataset | Non
     Parameters
     ----------
     value : path-like or Dataset or None
-        Path to the reference dataset file or dataset identifier or Dataset or
-        None.
-
+    
     Returns
     -------
     xr.Dataset or None
@@ -479,18 +478,20 @@ class RegressionTest(ABC):
 
     def run(self, raise_on_failure: bool = True) -> bool:
         """
+        Run the test.
+        
         This method controls the execution steps of the regression test:
 
-        * handle missing reference data
-        * catch errors during text evaluation
-        * create the appropriate plots and data archives
+        * handle missing reference data; 
+        * catch errors during test evaluation;
+        * create the appropriate plots and data archives.
 
         Parameters
         ----------
         raise_on_failure : bool, default: True
             If ``True``, raise a :class:`.RegressionTestFailure` carrying the
-            metric value and the threshold when the test does not pass. This is
-            what makes the numbers visible in a plain ``pytest`` failure report.
+            metric value and the threshold when the test does not pass. This
+            makes the numbers visible in a plain ``pytest`` failure report.
             Set to ``False`` to inspect the verdict programmatically.
 
         Returns
@@ -518,8 +519,8 @@ class RegressionTest(ABC):
         fname_result = archive_dir / f"{fname}-result{ext}"
 
         # No reference resolved. Unless reference creation was explicitly
-        # requested, this is a broken setup — most likely a typo in the
-        # reference path — not a test verdict.
+        # requested, this is a broken setup (most likely a typo in the
+        # reference path) not a test verdict.
         if self.reference is None and not self.update_references:
             raise ValueError(
                 f"Regression test '{self.name}' resolved no reference data. If "
@@ -528,7 +529,7 @@ class RegressionTest(ABC):
                 "reference path."
             )
 
-        # if no valid reference is found, store the results as new ref and fail
+        # If no valid reference is found, store the results as new ref and fail
         # the test
         if self.reference is None:
             self.logger.info(
@@ -565,9 +566,8 @@ class RegressionTest(ABC):
 
         except Exception as e:
             self.logger.info("An exception occurred during test evaluation!")
-            # The chart is drawn from the same data that just failed to
-            # evaluate, so it is likely to raise as well. Never let that replace
-            # the diagnostic exception.
+            # Never let a plotting error replace
+            # the diagnostic exception
             try:
                 self._plot(noref=False, metric_value=None)
             except Exception as plot_error:
@@ -576,7 +576,7 @@ class RegressionTest(ABC):
                 )
             raise e
 
-        # we got a metric: report the results in the archive directory
+        # We got a metric: report the results in the archive directory
         self.logger.info(f"Saving current output dataset to {fname_result}")
         self._archive(self.value, fname_result)
         self.logger.info(f"Saving reference dataset locally to {fname_reference}")
@@ -595,11 +595,11 @@ class RegressionTest(ABC):
     @abstractmethod
     def _evaluate(self) -> tuple[bool, float]:
         """
-        Evaluate the test results and perform a comparison to the reference
+        Evaluate the test results and compare them to the reference
         based on the criterion defined in the specialized class.
 
         Implementations that provide a diagnostic chart store the data it needs
-        in the ``diagnostic_data`` field; :meth:`_plot_ref` then draws it on the
+        in the ``diagnostic_data`` field; :meth:`_plot_ref` then plots it on the
         comparison chart.
 
         Returns
@@ -614,7 +614,7 @@ class RegressionTest(ABC):
 
     def _archive(self, dataset: xr.Dataset, fname_output: PathLike) -> None:
         """
-        Create an archive file for test result and reference storage
+        Create an archive file for test result and reference storage.
         """
         os.makedirs(os.path.dirname(fname_output), exist_ok=True)
         dataset.to_netcdf(fname_output)
@@ -634,6 +634,7 @@ class RegressionTest(ABC):
             If ``True``, create only a simple visualization of the computed
             data.
         """
+        # TODO: check this docstring
 
         if not self.plot:
             return
@@ -650,7 +651,7 @@ class RegressionTest(ABC):
 
     def _save_figure(self, fig: Figure, filename: str) -> None:
         """
-        Save a report chart to the archive directory and announce its location
+        Save a Matplotlib Figure to the archive directory and announce its location
         on the console.
 
         Parameters
@@ -678,6 +679,7 @@ class RegressionTest(ABC):
         """
         Plot when no reference data is available.
         """
+        # TODO: Why different plotting logic compared to with ref case? In particular, why use different line colouring?
 
         if not self.plot:
             return
@@ -729,6 +731,7 @@ class RegressionTest(ABC):
         ready to be drawn on a panel of the comparison chart. Returns ``None``
         when there is no diagnostic to draw.
         """
+        # TODO: Move below actual plotting function
         if not self.diagnostic_data:
             return None
         return functools.partial(self._plot_diagnostic, **self.diagnostic_data)
@@ -745,7 +748,7 @@ class RegressionTest(ABC):
         ax : Axes
             Axes to draw on.
 
-        **diagnostic_info: dict
+        **diagnostic_info : dict
             Variadic keyword arguments for the subclasses implementation, taken
             from the ``diagnostic_data`` field.
         """
@@ -758,11 +761,9 @@ class RegressionTest(ABC):
 @define
 class RMSETest(RegressionTest):
     """
-    This class implements a simple test based on the root mean squared
-    error (RMSE) of a result array with respect to the reference data.
+    Root mean square error test.
 
-    The test will pass if the computed root mean squared deviation between
-    the result and reference is smaller or equal to the given threshold.
+    The test passes iff the computed root mean squared error (RMSE) of the result data again the reference is lower or equal to the given threshold.
     """
 
     METRIC_NAME = "rmse"
@@ -807,12 +808,13 @@ class ZTest(RegressionTest):
 
     This paired Z-test requires an equal degree of freedom of the two groups.
     """
+    # TODO: Review docstring
 
     METRIC_NAME = "Z-test family p-value"
 
     def _plot_diagnostic(self, ax: Axes, z=None) -> None:
         """
-        Diagnostic plot for a Z-test
+        Diagnostic plot for a Z-test.
 
         Parameters:
         -----------
@@ -859,6 +861,7 @@ class ZTest(RegressionTest):
         # archived without their variance: fall back to the result variance
         # alone, which underestimates the standard error by up to sqrt(2) and
         # therefore makes the test conservative (more likely to fail).
+        # TODO: Revisit that comment (missing ref variance might be intentional)
         if variable_var in self.reference:
             var_ref_np = self.reference[variable_var].values.ravel()
             assert ref_np.shape == var_ref_np.shape
