@@ -103,6 +103,48 @@ def vza_dim(ds: xr.Dataset) -> str:
     return str(sweep[0] if sweep else vza.dims[0])
 
 
+def plot_x_axis(ds: xr.Dataset, variable: str) -> tuple[str, np.ndarray, str]:
+    """
+    Dimension of `variable` held out as the x axis of the comparison charts,
+    together with the values and the label to plot it with.
+
+    Parameters
+    ----------
+    ds : Dataset
+        Dataset holding `variable`.
+
+    variable : str
+        Name of the plotted variable.
+
+    Returns
+    -------
+    x_dim : str
+        Dimension to hold out, to be passed to :func:`hue_from_extra_dims`.
+
+    values : ndarray
+        Values of the x axis.
+
+    label : str
+        Label of the x axis.
+
+    Notes
+    -----
+    Variables sampled along the viewing direction are plotted against VZA.
+    Hemispherical quantities (*e.g.* ``bhr``) have no VZA dimension: they are
+    plotted against their own longest dimension, which usually leaves a single
+    point.
+    """
+    da = ds[variable]
+
+    x_dim = vza_dim(ds)
+    if x_dim in da.dims:
+        return x_dim, np.atleast_1d(np.squeeze(ds["vza"].values)), "VZA [deg]"
+
+    x_dim = str(max(da.dims, key=lambda d: da.sizes[d]))
+    values = da[x_dim].values if x_dim in da.coords else np.arange(da.sizes[x_dim])
+    return x_dim, np.atleast_1d(values), x_dim
+
+
 def hue_from_extra_dims(
     da: xr.DataArray, x_dim: str
 ) -> tuple[np.ndarray, np.ndarray | None, str | None]:
@@ -253,6 +295,10 @@ def regression_test_plots(
         ref_style = {"linestyle": "--"}
         # N overlaid errorbar families are unreadable
         ref_var = result_var = None
+
+    # A hemispherical quantity reduces to a single point, which no line renders
+    if np.size(vza) == 1:
+        styles = [{"marker": "o", **style} for style in styles]
 
     fig, axes = plt.subplots(2, 2, figsize=(8, 6), layout="constrained")
 
@@ -543,18 +589,16 @@ class RegressionTest(ABC):
         axes : ndarray
             2×2 array of Axes.
         """
-        vza = np.squeeze(result["vza"].values)
-        val, hue, hue_label = hue_from_extra_dims(
-            result[self.variable], vza_dim(result)
-        )
-        ref, _, _ = hue_from_extra_dims(reference[self.variable], vza_dim(reference))
+        x_dim, x, xlabel = plot_x_axis(result, self.variable)
+        val, hue, hue_label = hue_from_extra_dims(result[self.variable], x_dim)
+        ref, _, _ = hue_from_extra_dims(reference[self.variable], x_dim)
 
         return regression_test_plots(
             ref,
             val,
-            vza,
+            x,
             (self.METRIC_NAME, None if outcome is None else outcome.metric_value),
-            xlabel="VZA [deg]",
+            xlabel=xlabel,
             ylabel=self.variable,
             hue=hue,
             hue_label=hue_label,
@@ -577,14 +621,14 @@ class RegressionTest(ABC):
 
         axes : Axes
         """
-        vza = np.squeeze(result["vza"].values)
-        val, _, _ = hue_from_extra_dims(result[self.variable], vza_dim(result))
+        x_dim, x, xlabel = plot_x_axis(result, self.variable)
+        val, _, _ = hue_from_extra_dims(result[self.variable], x_dim)
 
         fig, ax = plt.subplots(1, 1, figsize=(8, 6))
         # One line per slice of the extra dimensions, if any. The colour cycle
         # is enough here: this plot has no reference to compare against.
-        ax.plot(vza, np.atleast_2d(val).T)
-        ax.set_xlabel("VZA [deg]")
+        ax.plot(x, np.atleast_2d(val).T, marker="o" if x.size == 1 else None)
+        ax.set_xlabel(xlabel)
         ax.set_ylabel(self.variable)
         ax.set_title("Simulation result, can be used as new reference")
 
@@ -789,19 +833,18 @@ class ZTest(RegressionTest):
         Draw a comparison plot with reference and test data displayed together,
         with the result's Monte Carlo variance shown as error bars.
         """
-        vza = np.squeeze(result["vza"].values)
-        x_dim = vza_dim(result)
+        x_dim, x, xlabel = plot_x_axis(result, self.variable)
         value, hue, hue_label = hue_from_extra_dims(result[self.variable], x_dim)
         result_var, _, _ = hue_from_extra_dims(result[f"{self.variable}_var"], x_dim)
-        ref, _, _ = hue_from_extra_dims(reference[self.variable], vza_dim(reference))
+        ref, _, _ = hue_from_extra_dims(reference[self.variable], x_dim)
 
         return regression_test_plots(
             ref,
             value,
-            vza,
+            x,
             (self.METRIC_NAME, None if outcome is None else outcome.metric_value),
             result_var=result_var,
-            xlabel="VZA [deg]",
+            xlabel=xlabel,
             ylabel=self.variable,
             hue=hue,
             hue_label=hue_label,
