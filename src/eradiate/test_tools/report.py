@@ -67,27 +67,41 @@ class ReportLogger:
     use_robot : bool, optional
         If ``True``, forward messages to the Robot Framework logger; if
         ``False``, fall back to standard :mod:`logging`. If unset, the Robot
-        Framework backend is selected iff the :mod:`robot` package is
-        importable.
+        Framework backend is selected iff a Robot run is currently active.
 
     Notes
     -----
-    The Robot Framework logger is safe to call outside of a Robot run (messages
-    are then simply not recorded), so backend selection only depends on package
-    availability, not on whether report generation is active.
+    Backend selection depends on an *active* Robot run, not merely on the
+    :mod:`robot` package being importable: outside of a run,
+    :mod:`robot.api.logger` forwards everything to a standard library logger,
+    which means HTML fragments (SVG charts, xarray reprs) end up dumped in
+    pytest's captured-log output. Because a run may start after this object is
+    constructed, the backend is resolved at call time.
     """
 
     def __init__(self, use_robot: bool | None = None):
-        if use_robot is None:
-            use_robot = importlib.util.find_spec("robot") is not None
+        self._use_robot = use_robot
 
-        # Any object with a robot.api.logger-compatible info() method works
-        self._robot: Any = None
+    @property
+    def _robot(self) -> Any:
+        """
+        The Robot Framework logger if it must be used, ``None`` otherwise.
+        """
+        if self._use_robot is False:
+            return None
 
-        if use_robot:
-            from robot.api import logger as robot_logger
+        if self._use_robot is None:
+            if importlib.util.find_spec("robot") is None:
+                return None
 
-            self._robot = robot_logger
+            from robot.running.context import EXECUTION_CONTEXTS
+
+            if EXECUTION_CONTEXTS.current is None:
+                return None
+
+        from robot.api import logger as robot_logger
+
+        return robot_logger
 
     @property
     def reporting(self) -> bool:
