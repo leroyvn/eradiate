@@ -474,8 +474,8 @@ class Case:
     Definition of a RAMI4ATM benchmarking case.
 
     A case bundles everything needed to run a scenario and to decide whether
-    its results are acceptable, so that a consumer — the regression test suite,
-    the performance benchmarks — needs no knowledge of the scenario itself.
+    its results are acceptable, so that a consumer (*e.g.* regression test suite
+    or the performance benchmarks) needs no knowledge of the scenario itself.
     """
 
     id: str = documented(

@@ -6,7 +6,7 @@ from eradiate.test_tools.report import report_logger
 from eradiate.test_tools.test_cases import rami4atm
 
 #: Sample count shared by every case of the suite
-SPP = 1000
+SPP = 1_000
 
 
 @pytest.mark.regression
@@ -42,7 +42,7 @@ def test_rami4atm_hom00_bla_a00s_m04_z30a000_brfpp(mode_ckd_double):
 @pytest.mark.slow
 @pytest.mark.parametrize("case_id", rami4atm.CASES)
 @pytest.mark.filterwarnings(
-    "ignore:User-specified a background spectral grid is overridden by atmosphere spectral grid"
+    "ignore:User-specified background spectral grid is overridden by atmosphere spectral grid"
 )
 def test_rami4atm(mode_ckd_double, case_id, dataset_regression):
     """
