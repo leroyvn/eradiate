@@ -88,8 +88,9 @@ class DatasetRegressionFixture:
     result against a stored reference dataset.
 
     Reference lookup, regeneration (``--force-regen``, ``--regen-all``) and
-    artefact naming are delegated to :mod:`pytest_regressions`; the verdict
-    itself comes from one or several :class:`.RegressionTest` instances.
+    artefact naming are delegated to
+    `pytest-regressions <https://github.com/ESSS/pytest-regressions>`__; the
+    verdict itself comes from one or several :class:`.RegressionTest` instances.
     """
 
     def __init__(

@@ -453,20 +453,22 @@ The test specification can hold any valid restructured text. A quick rundown on 
 Regression tests
 ^^^^^^^^^^^^^^^^
 
-Eradiate's regression tests are designed to allow the monitoring of results over
-time. Each test compares a simulation result against a stored reference dataset
-and, on demand, produces an image containing plots and metrics comparing the
-current version of Eradiate to the reference results.
+Regression tests compare the output of some component (typically, a simulation
+pipeline) with a provided reference. Their purpose is to detect deviations from
+prior behaviour established as correct when the reference was defined. These
+tests can, on-demand, produce plots showing the test data (current and
+reference) and metrics.
 
-Responsibilities are split in two:
+Responsibilities are split between:
 
-* :mod:`eradiate.test_tools.regression` provides the *statistical criteria* and
-  the comparison charts. Its classes are pure comparators: they hold a
-  criterion, not the data it is applied to.
-* The ``dataset_regression`` pytest fixture manages *reference data*: it locates
-  references, regenerates them on demand and archives artefacts. It is built on
-  `pytest-regressions <https://pytest-regressions.readthedocs.io>`__, so the
-  usual ``--force-regen`` and ``--regen-all`` flags apply.
+* :mod:`eradiate.test_tools.regression`: provides statistical testing
+  infrastructure (criteria and result plotting). These components are pure
+  comparators that hold only comparison criteria, not the data they are applied
+  to;
+* the :func:`.dataset_regression` pytest fixture manages reference data: it
+  locates references, regenerates them on demand and archives artefacts. It is
+  built on `pytest-regressions <https://pytest-regressions.readthedocs.io>`__
+  and leverages its ``--force-regen`` and ``--regen-all`` CLI flags.
 
 To run only the regression tests, invoke pytest like this:
 
@@ -478,10 +480,10 @@ The ``--artefact-dir`` option defines the output directory in which archived
 results and plots are placed. If the directory does not exist, it will be
 created. It defaults to ``$ERADIATE_SOURCE_DIR/test_artefacts/``.
 
-Adding new regression tests
-***************************
+Writing regression tests
+************************
 
-A regression test requests the ``dataset_regression`` fixture, runs its
+A regression test requests the :func:`.dataset_regression` fixture, runs its
 simulation, then hands the result over together with the criterion it must
 satisfy:
 
@@ -503,13 +505,13 @@ satisfy:
 its ``.nc`` extension; it may contain forward slashes to address a
 subdirectory. The threshold may depend on the scenario and on the chosen metric.
 
-:meth:`~.DatasetRegressionFixture.check` raises a
+The :meth:`~.DatasetRegressionFixture.check` method raises a
 :class:`.RegressionTestFailure` when the comparison fails, with the metric value
 and the threshold in the message, so the numbers that decided the verdict appear
-in the pytest failure report. A :class:`ValueError` means something else: the
+in the pytest failure report. In contrast, a :class:`ValueError` means that the
 data is malformed, *e.g.* the result and the reference have different shapes.
 
-Several criteria may share a single reference dataset — this is how a case
+Several criteria may share a single reference dataset. This is how a case
 comparing more than one data variable is expressed:
 
 .. code:: python
@@ -520,7 +522,7 @@ comparing more than one data variable is expressed:
         basename="my_case_ref",
     )
 
-When a dataset aggregates several independent measurements, *e.g.* one per
+When a dataset groups several independent measurements, *e.g.* one per
 wavelength, pass ``dim`` so that the criterion is applied to each slice
 separately. The test then passes only if every slice passes, and reports the
 worst one; this is stricter than comparing the flattened arrays in one go, where
@@ -535,8 +537,8 @@ good slices dilute a bad one:
     )
 
 A test that needs to know whether a reference exists before deciding what to
-simulate — for instance to render a high-sample-count reference with a different
-integrator — can ask for it:
+simulate (*e.g.* to render a high-sample-count reference with a different
+integrator) can ask for it:
 
 .. code:: python
 
@@ -547,12 +549,10 @@ Creating and updating references
 ********************************
 
 References are read through the file resolver, which normally serves them from
-the ``eradiate-data`` submodule under ``resources/data``. They are *never*
-written back to where they were read from: the file resolver may serve them from
-the asset manager's installation directory, whose entries are symbolic links
-into its unpack cache, and writing through one would corrupt that cache.
+the ``eradiate-data`` Git submodule under ``resources/data``. They are *not*
+automatically written back to where they were read from.
 
-Regenerating a reference is therefore a three-step procedure:
+Regenerating a reference is a three-step procedure:
 
 1. Run the test with the ``--force-regen`` command-line flag:
 
@@ -566,11 +566,11 @@ Regenerating a reference is therefore a three-step procedure:
    and *still fails* — the candidate has not been vetted by anyone yet. Use
    ``--reference-dir`` to write somewhere else.
 
-   Without this flag, a missing reference is a setup error and nothing is
-   written: a typo in ``basename`` must not be mistaken for a deliberate
-   reference regeneration.
+   Without the ``--force-regen`` flag, a missing reference is a setup error and
+   nothing is written: a typo in ``basename`` must not be mistaken for a
+   deliberate reference regeneration.
 
-2. Inspect the candidate. ``--plot`` writes a visualisation to the artefact
+2. Inspect the candidate. ``--plot`` writes a visualization to the artefact
    directory, and ``git -C resources/data diff`` shows exactly which references
    changed.
 
@@ -589,10 +589,8 @@ When a test fails due to a significant difference between the reference and the
 result, the archived output helps the analysis. The result is stored as
 ``<basename>.obtained.nc`` in the artefact directory and can be loaded in Python
 scripts for detailed analysis. With ``--plot``, the test also adds an overview
-plot made up of four parts: a direct visualisation of the result and reference
-data on the same axes, the absolute and relative differences between result and
-reference in their own axes, and a test-specific diagnostic panel annotated with
-the numerical value of the chosen metric.
+plot that shows the results, reference, the difference between the two and the
+test metrics.
 
 If the difference stems from a deliberate change to Eradiate's behaviour, the
 reference needs to be updated — see `Creating and updating references`_ above.

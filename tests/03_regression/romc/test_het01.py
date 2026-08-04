@@ -14,11 +14,7 @@ def exp():
 
 @append_doc(create_het01_brfpp, prepend=True)
 @pytest.mark.regression
-def test_het01_brfpp(
-    mode_mono_double,
-    exp,
-    dataset_regression,
-):
+def test_het01_brfpp(mode_mono_double, exp, dataset_regression):
     """
     *Expected behaviour*
 

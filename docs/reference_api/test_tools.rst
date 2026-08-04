@@ -18,9 +18,16 @@
 ``eradiate.test_tools.fixtures``
 --------------------------------
 
-.. automodule:: eradiate.test_tools.fixtures._regression
+.. automodule:: eradiate.test_tools.fixtures
 
 .. currentmodule:: eradiate.test_tools.fixtures
+
+.. autosummary::
+   :toctree: generated/autosummary/
+
+   dataset_regression
+
+.. rubric:: Implementation details
 
 .. autosummary::
    :toctree: generated/autosummary/

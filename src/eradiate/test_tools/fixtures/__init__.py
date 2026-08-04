@@ -17,8 +17,8 @@ from ._regression import (  # noqa: F401
 )
 from ..util import check_plugin
 from ... import fresolver
-from ... import unit_registry as ureg
 from ...data.convert import make_aer_core_v2
+from ...units import unit_registry as ureg
 
 
 @pytest.fixture
