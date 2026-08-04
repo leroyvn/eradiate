@@ -26,10 +26,25 @@ SPP = 1000
 #: flaky.
 THRESHOLD = 1e-4
 
-#: Relative radiance bias the framework must detect. At ``SPP`` the per-pixel
-#: relative standard deviation is ~2 %, and the decision keys on the most
-#: extreme of n = 1216 comparisons, so the detection floor at ``THRESHOLD`` sits
-#: around 6 %. Measured family p-values: 0.03 → 0.05, 0.05 → 4e-4, 0.10 → 3e-11.
+#: Variable under test, matching the production regression test. It is the
+#: band-integrated radiance, so a comparison pairs one value per viewing angle:
+#: n = 76 here, against the n = 1216 of the per-bin ``radiance`` this used to
+#: key on (76 viewing angles × 16 CKD bins).
+VARIABLE = "radiance_srf"
+
+#: Relative radiance bias the framework must detect. The decision keys on the
+#: most extreme of n = 76 comparisons, so at ``THRESHOLD`` the Šidák-corrected
+#: per-comparison level is ~1.3e-6, i.e. a rejection past ~4.85 sigma; the
+#: detection floor is that many standard errors of the paired difference,
+#: √2 × the per-pixel standard error. Band integration averages the CKD bins,
+#: so that standard error is several times smaller than the ~2 % the per-bin
+#: radiance carried at this sample count, and this bias sits well clear of the
+#: floor.
+#:
+#: TODO: the measured family p-values quoted here previously (0.03 → 0.05,
+#: 0.05 → 4e-4, 0.10 → 3e-11) were obtained on the per-bin radiance and no
+#: longer apply. Re-measure them, and the per-pixel standard error above, by
+#: running this module.
 BIAS = 0.1
 
 
@@ -44,7 +59,7 @@ def _render_pair():
 
 
 def _evaluate(value, reference):
-    return ZTest(THRESHOLD, variable="radiance").evaluate(value, reference)
+    return ZTest(THRESHOLD, variable=VARIABLE).evaluate(value, reference)
 
 
 @pytest.mark.slow
@@ -77,7 +92,7 @@ def test_type_II_error(mode_ckd_double):
     """
     result, reference = _render_pair()
     biased = reference.copy()
-    biased["radiance"] = reference.radiance * (1.0 + BIAS)
+    biased[VARIABLE] = reference[VARIABLE] * (1.0 + BIAS)
 
     outcome = _evaluate(result, biased)
     assert not outcome.passed, (

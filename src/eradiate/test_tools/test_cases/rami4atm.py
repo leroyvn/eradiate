@@ -521,11 +521,16 @@ def _toa_case(case_id: str, threshold: float = 0.005) -> Case:
     """
     Build a standard top-of-atmosphere case, compared against its reference
     with a Z-test.
+
+    The tested variable is the band-integrated radiance: that is the quantity
+    the scenario is meant to hold invariant. Comparing the per-bin ``radiance``
+    instead makes the verdict depend on how the CKD quadrature distributes the
+    signal across bins, which is an implementation detail.
     """
     return Case(
         id=case_id,
         make_experiments=functools.partial(_toa_experiments, case_id),
-        tests=[ZTest(threshold, variable="radiance")],
+        tests=[ZTest(threshold, variable="radiance_srf")],
     )
 
 
