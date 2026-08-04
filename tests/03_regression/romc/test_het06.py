@@ -16,32 +16,22 @@ def exp():
 @pytest.mark.regression
 def test_het06_brfpp(
     mode_mono_double,
-    artefact_dir,
-    session_timestamp,
     exp,
-    plot_figures,
-    update_references,
+    dataset_regression,
 ):
     """
     *Expected behaviour*
 
     Simulation results are compared to a reference obtained with a prior
-    version and validated with ROMC. Comparison is done with a chi-squared test
-    with a threshold of 0.05.
+    version and validated with ROMC. Comparison is done with a Z-test with a
+    threshold of 0.05.
     """
     result = eradiate.run(exp)
 
     report_logger.html(result._repr_html_())
 
-    test = ZTest(
-        name=f"{session_timestamp:%Y%m%d-%H%M%S}-het06.nc",
-        value=result,
-        reference="tests/regression_test_references/het06_brfpp_ref.nc",
-        threshold=0.05,
-        archive_dir=artefact_dir,
-        variable="radiance",
-        plot=plot_figures,
-        update_references=update_references,
+    dataset_regression.check(
+        result,
+        ZTest(0.05, variable="radiance"),
+        basename="het06_brfpp_ref",
     )
-
-    test.run()

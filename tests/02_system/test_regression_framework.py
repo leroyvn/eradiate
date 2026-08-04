@@ -43,21 +43,12 @@ def _render_pair():
     return eradiate.run(exp), eradiate.run(exp)
 
 
-def _evaluate(value, reference, tmp_path):
-    test = ZTest(
-        name="ztest",
-        value=value,
-        reference=reference,
-        variable="radiance",
-        threshold=THRESHOLD,
-        archive_dir=tmp_path,
-        plot=False,
-    )
-    return test._evaluate()
+def _evaluate(value, reference):
+    return ZTest(THRESHOLD, variable="radiance").evaluate(value, reference)
 
 
 @pytest.mark.slow
-def test_type_I_error(mode_ckd_double, tmp_path):
+def test_type_I_error(mode_ckd_double):
     """
     Type I error
     ============
@@ -68,12 +59,14 @@ def test_type_I_error(mode_ckd_double, tmp_path):
     threshold it advertises.
     """
     result, reference = _render_pair()
-    passed, p_value = _evaluate(result, reference, tmp_path)
-    assert passed, f"family p-value {p_value} <= threshold {THRESHOLD}"
+    outcome = _evaluate(result, reference)
+    assert outcome.passed, (
+        f"family p-value {outcome.metric_value} <= threshold {THRESHOLD}"
+    )
 
 
 @pytest.mark.slow
-def test_type_II_error(mode_ckd_double, tmp_path):
+def test_type_II_error(mode_ckd_double):
     """
     Type II error
     =============
@@ -86,5 +79,7 @@ def test_type_II_error(mode_ckd_double, tmp_path):
     biased = reference.copy()
     biased["radiance"] = reference.radiance * (1.0 + BIAS)
 
-    passed, p_value = _evaluate(result, biased, tmp_path)
-    assert not passed, f"family p-value {p_value} > threshold {THRESHOLD}"
+    outcome = _evaluate(result, biased)
+    assert not outcome.passed, (
+        f"family p-value {outcome.metric_value} > threshold {THRESHOLD}"
+    )

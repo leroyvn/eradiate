@@ -11,7 +11,7 @@ cases = [c for c in rami4atm.registry if c != "hom00_bla_a00s_m04_z30a000_brfpp"
 
 
 @pytest.mark.regression
-def test_rami4atm_hom00_bla_a00s_m04_z30a000_brfpp(mode_ckd_double, artefact_dir):
+def test_rami4atm_hom00_bla_a00s_m04_z30a000_brfpp(mode_ckd_double):
     r"""
     *RAMI4ATM HOM00_BLA_S00S_M04*
 
@@ -40,7 +40,7 @@ def test_rami4atm_hom00_bla_a00s_m04_z30a000_brfpp(mode_ckd_double, artefact_dir
 @pytest.mark.filterwarnings(
     "ignore:User-specified a background spectral grid is overridden by atmosphere spectral grid"
 )
-def test_rami4atm(mode_ckd_double, case, artefact_dir, plot_figures, update_references):
+def test_rami4atm(mode_ckd_double, case, dataset_regression):
     specification = rami4atm.registry[case]
     ctor = specification.get("constructor")
     postprocess = specification.get("postprocess", lambda ls, _: ls[0])
@@ -56,23 +56,9 @@ def test_rami4atm(mode_ckd_double, case, artefact_dir, plot_figures, update_refe
     result = postprocess(raw_results, srf)
     report_logger.html(result._repr_html_())
 
-    reference = fresolver.load_dataset(
-        f"tests/regression_test_references/rami4atm/{case}-ref.nc"
+    # All tested variables share a single reference dataset
+    dataset_regression.check(
+        result,
+        [test_ctor(threshold, variable=variable) for variable in variables],
+        basename=f"rami4atm/{case}-ref",
     )
-    report_logger.html(reference._repr_html_())
-
-    for variable in variables:
-        report_logger.info(f"Testing {variable}")
-
-        test = test_ctor(
-            name=case,
-            value=result,
-            reference=reference,
-            threshold=threshold,
-            archive_dir=artefact_dir,
-            variable=variable,
-            plot=plot_figures,
-            update_references=update_references,
-        )
-
-        test.run()

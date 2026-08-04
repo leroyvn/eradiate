@@ -9,6 +9,12 @@ import joseki
 import numpy as np
 import pytest
 
+from ._regression import (  # noqa: F401
+    DatasetRegressionFixture,
+    dataset_regression,
+    reference_dir,
+    reference_update_dir,
+)
 from ..util import check_plugin
 from ... import fresolver
 from ... import unit_registry as ureg

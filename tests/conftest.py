@@ -29,12 +29,12 @@ def pytest_addoption(parser):
         "--plot", action="store_true", default=False, help="Produce and save plots."
     )
     parser.addoption(
-        "--update-references",
-        action="store_true",
-        default=False,
-        help="Allow regression tests with no reference data to archive their "
-        "result as a reference candidate. Without this flag, a missing "
-        "reference is an error.",
+        "--reference-dir",
+        action="store",
+        default=None,
+        help="Directory regression test references are read from and written "
+        "to. Defaults to the file resolver's location for reads, and to the "
+        "eradiate-data submodule for writes.",
     )
 
 
@@ -52,11 +52,6 @@ def artefact_dir(pytestconfig):
 @pytest.fixture(scope="session")
 def plot_figures(pytestconfig):
     return pytestconfig.getoption("plot")
-
-
-@pytest.fixture(scope="session")
-def update_references(pytestconfig):
-    return pytestconfig.getoption("update_references")
 
 
 # ------------------------------------------------------------------------------
