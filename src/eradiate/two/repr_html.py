@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from html import escape
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any
 
 import attrs
 import pint
@@ -153,7 +153,7 @@ def to_html(obj: Any, indent: int = 0, collapsible: bool = True):
         return _format_quantity(obj)
 
     # Check if object has its own HTML representation
-    if hasattr(obj, "_repr_html_") and callable(getattr(obj, "_repr_html_")):
+    if hasattr(obj, "_repr_html_") and callable(obj._repr_html_):
         return obj._repr_html_()
 
     # Handle non-attrs objects with type dispatch

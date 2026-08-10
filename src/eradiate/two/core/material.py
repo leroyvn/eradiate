@@ -8,7 +8,7 @@ from ._factory import Registry
 from .object import Object
 from .spectrum import BaseSpectrum
 
-material_registry: Registry["BaseMaterial"] = Registry("material")
+material_registry: Registry[BaseMaterial] = Registry("material")
 
 
 class BaseMaterial(Object):

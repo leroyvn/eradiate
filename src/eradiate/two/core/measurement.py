@@ -5,7 +5,7 @@ from pydantic import model_validator
 from ._factory import Registry
 from .object import Object
 
-measurement_registry: Registry["BaseMeasurement"] = Registry("measurement")
+measurement_registry: Registry[BaseMeasurement] = Registry("measurement")
 
 
 class BaseMeasurement(Object):

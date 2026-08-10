@@ -12,8 +12,8 @@ from ._factory import Registry
 from .object import Object
 from ...units import to_quantity
 
-atmosphere_registry: Registry["Atmosphere"] = Registry("atmosphere")
-atmosphere_component_registry: Registry["AtmosphereComponent"] = Registry(
+atmosphere_registry: Registry[Atmosphere] = Registry("atmosphere")
+atmosphere_component_registry: Registry[AtmosphereComponent] = Registry(
     "atmosphere_component"
 )
 

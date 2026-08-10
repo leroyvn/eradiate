@@ -26,7 +26,7 @@ from ...units import PhysicalQuantity
 from ...units import unit_context_config as ucc
 from ...units import unit_registry as ureg
 
-spectrum_registry: Registry["BaseSpectrum"] = Registry("spectrum")
+spectrum_registry: Registry[BaseSpectrum] = Registry("spectrum")
 
 
 class BaseSpectrum(Object):
