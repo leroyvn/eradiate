@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Callable, Generic, TypeVar, cast
 
 import attrs
 import mitsuba as mi
@@ -9,14 +9,14 @@ from typing_extensions import TypeAlias
 from ..repr_html import to_html_with_styles
 from ...contexts import KernelContext
 
-T = TypeVar("T")
+T = TypeVar("T", bound=mi.Object)
 Updater: TypeAlias = Callable[[KernelContext], Any]
 
 
 @attrs.define(eq=False, init=False)
 class SceneObject(Generic[T]):
     """
-    This class encapsulates a kernel object, colocated it with its scene
+    This class encapsulates a kernel object, collocated it with its scene
     parameters and a set of callables that can be used to update them based on
     a context object. This class provides a higher level of automation
     compared to using Mitsuba's scene update system by coordinating scene
@@ -46,17 +46,17 @@ class SceneObject(Generic[T]):
     )
 
     def __init__(
-        self, object: mi.Object | dict, updaters: dict[str, Updater] | None = None
-    ):
+        self, object: T | dict, updaters: dict[str, Updater] | None = None
+    ) -> None:
         if isinstance(object, dict):
-            object = mi.load_dict(object)
+            object = cast(T, mi.load_dict(object))
 
         if updaters is None:
             updaters = {}
 
         self.__attrs_init__(object, updaters)
 
-    def _repr_html_(self):
+    def _repr_html_(self) -> str:
         return to_html_with_styles(self)
 
     @property
@@ -151,19 +151,3 @@ class SceneObject(Generic[T]):
             self.updaters[param] = f
 
         return wrap if maybe_func is None else wrap(maybe_func)
-
-    def check_parameters(self, drop: bool = False):
-        """
-        Check if all registered updaters are mapped to a parameter that exists.
-        """
-        scene_parameters = set(self.scene_parameters().keys())
-        updater_keys = set(self.updaters.keys())
-        missing = updater_keys - scene_parameters
-
-        if missing:
-            raise RuntimeError(
-                f"Some updaters are associated with parameters that do not exist: {missing}"
-            )
-
-        if drop:
-            scene_parameters.keep(updater_keys)

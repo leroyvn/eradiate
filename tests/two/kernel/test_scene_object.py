@@ -22,7 +22,7 @@ class TestSceneObject:
         for mi_obj in [mi.load_dict(d), d]:
             obj = SceneObject(mi_obj)
             assert obj.scene_parameters is not None
-            assert repr(obj) == "SceneObject(_mi_object=<mi.Shape object [Sphere]>)"
+            assert repr(obj) == "SceneObject(_object=<mi.Shape object [Sphere]>)"
 
     def test_register_updater(self, mode_mono):
         obj = SceneObject({"type": "uniform", "value": 0.5})

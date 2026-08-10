@@ -29,7 +29,7 @@ from ...frame import AzimuthConvention, angles_to_direction
 from ...units import unit_context_config as ucc
 from ...units import unit_registry as ureg
 
-illumination_registry: Registry["BaseIllumination"] = Registry("illumination")
+illumination_registry: Registry[BaseIllumination] = Registry("illumination")
 
 
 class BaseIllumination(Object):
