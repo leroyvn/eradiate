@@ -7,7 +7,7 @@ from ._factory import Registry
 from .material import BaseMaterial
 from .object import Object
 
-surface_registry: Registry["BaseSurface"] = Registry("surface")
+surface_registry: Registry[BaseSurface] = Registry("surface")
 
 
 class BaseSurface(Object):
