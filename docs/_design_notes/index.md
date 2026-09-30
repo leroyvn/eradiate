@@ -11,15 +11,16 @@ the Sphinx build.
 | [`architecture.md`](architecture.md) | Layer split, object model rules, spectral loop | Stable design |
 | [`configuration_layer.md`](configuration_layer.md) | Pydantic configuration layer, units, serde, data formats | Stable design |
 | [`kernel_interface.md`](kernel_interface.md) | Mitsuba interface, update protocol, wavelength handling | Stable design |
+| [`atmosphere.md`](atmosphere.md) | Atmosphere components, particle data formats, spatial grid | Mostly proposed |
 | [`status.md`](status.md) | Prototype state and ordered roadmap | **Living** — expected to go stale |
 
 Read `architecture.md` first; it states the layer split every other file assumes.
-`status.md` is the only file that answers "what should I work on now"; the other three
+`status.md` is the only file that answers "what should I work on now"; the others
 answer "what is this supposed to look like, and why".
 
 ## Section markers
 
-Every section of the three design files carries one of:
+Every section of the design files carries one of:
 
 - **Settled** — decided, and the prototype backs it. Change it only with a reason
   recorded here.
@@ -53,6 +54,10 @@ maintained.
 - [`two_assessment.md`](archive/two_assessment.md) — audit of the `two` prototype
   (2026-07-26), with the per-test narrative that led to the rules in
   `kernel_interface.md`.
+- [`atmosphere_proposal/`](archive/atmosphere_proposal/) — the atmosphere component
+  proposal written for v1 on `partfield_review` (2026-09-30), with the diagnosis of the
+  v1 particle classes, the decision log (`TASKS.md`), dict examples and a runnable
+  sketch of the state-driven evaluation. Retargeted to v2 in `atmosphere.md`.
 - [`feature_mono_wavelength.md`](archive/feature_mono_wavelength.md) — feasibility study
   for wavelength support in Mitsuba's mono variants, with full C++ excerpts and a
   key-files reference.
