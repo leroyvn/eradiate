@@ -96,25 +96,30 @@ results.
 This constrains fields backed by large datasets — `AtmosphericProfile` wraps an xarray
 `Dataset`, `MolecularAtmosphere` holds an `AbsorptionDatabase`. These serialise as
 **references** (identifier, path, or dataset keyword), never as embedded data. The
-loader stays on the class; the serialised form stays small.
+loader stays on the class; the serialised form stays small. User-supplied arrays follow
+the same rule: an in-memory dataset is accepted as a convenience, but the configuration
+then refuses to serialise (see [`atmosphere.md`](atmosphere.md)).
 
 Corollary: the identifier space for datasets has to be stable, which is part of why the
 data formats below need settling.
 
 ## Data formats
 
-**Open.** Three format changes are wanted, none specified yet:
+**Open** for the molecular inputs, **Proposed** for particles. Three format changes are
+wanted:
 
-- **Aerosol / particle single-scattering properties** — new format derived from
-  libRadtran's. Consumer: `ParticleLayer.particle_properties`.
-- **Absorption database** — new format. Consumer: `MolecularAtmosphere.absorption_database`
-  (currently `axsdb.AbsorptionDatabase`).
-- **Atmospheric profile** — new format. Consumer: `AtmosphericProfile`, today a thin
-  wrapper over a Joseki dataset.
+- **Aerosol / particle single-scattering properties** — derived from libRadtran's.
+  Proposed: `aer_core_v2` for state-free tables and `prt_v1` for tables with state
+  dimensions, plus `ppr_v1` for particle profiles. Specified on `partfield_review`;
+  see [`atmosphere.md`](atmosphere.md). Consumers: the particle components'
+  `properties` and `profile` fields.
+- **Absorption database** — new format, not specified. Consumer:
+  `MolecularComponent.properties` (currently `axsdb.AbsorptionDatabase`).
+- **Atmospheric profile** — new format, not specified. Consumer: `AtmosphericProfile`
+  (`MolecularComponent.profile`), today a thin wrapper over a Joseki dataset.
 
 Each needs its own specification before the corresponding configuration classes can be
-finished. `ParticleLayer` currently references `ParticleProperties` and
-`ParticleDistribution`, neither of which exists.
+finished.
 
 ## Open questions
 

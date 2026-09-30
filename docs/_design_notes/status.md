@@ -92,6 +92,10 @@ Items 2 and 3 are independent of each other and both precede 5.
 
 ## Deferred, tracked elsewhere
 
+- **Atmosphere components** — see [`atmosphere.md`](atmosphere.md) (added
+  2026-10-01). Replaces the `MolecularAtmosphere` / `ParticleLayer` sketch. Starts
+  after item 2 (scalar fields need `QuantityField`); the spatial grid also needs a home
+  in `core/experiment.py`, so item 1 comes first. Not yet ordered against items 3–6.
 - **Documentation** — user manual reorganization, wider tutorial coverage, and porting
   the numerical methods document (ATBD) to Sphinx. Not blocked by anything above.
 - **Testing, regression and benchmarking framework** — see
