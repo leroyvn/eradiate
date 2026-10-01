@@ -99,7 +99,7 @@ Supporting classes:
 | Class | Role | Current name |
 |---|---|---|
 | `ParticleProperties` | Single-scattering table indexed by (w, *state_dims); `state_dims` may be empty | same name; `has_size_distribution`/`reff`/`veff` replaced by `state_dims`/`state_coords` |
-| `ParticleProfile` | Profile dataset, dense or sparse, arbitrary variables | same name, generalised |
+| `ParticleProfile` | Profile dataset, dense or sparse, arbitrary variables; resampling method chosen per variable (§10.1) | same name, generalised |
 | `ParticlePhaseFunction` | Phase function indexed by w only (spatially uniform) | unchanged |
 | `GriddedParticlePhaseFunction` | Phase function looked up per voxel from state variables (1 or 2 state dimensions) | `ParticleFieldPhaseFunction` |
 | `VerticalDensity` + `UniformDensity`, `ExponentialDensity`, `GaussianDensity`, `ArrayDensity`, `InterpolatorDensity` | 1D vertical shapes for `particle_aot` | `ParticleDistribution` + subclasses (the 3D array support is removed) |
@@ -107,6 +107,13 @@ Supporting classes:
 I kept `ParticleProperties` and `ParticleProfile` as names. Their problems
 were the hardcoded dimension and variable names, not the class names, and
 the field names `properties`/`profile` now match them.
+
+These supporting classes are internal to the particle components.
+`MolecularComponent` does not use them: it glues a thermophysical profile
+from joseki (later Skytherm) to an AxsDB absorption database. Format
+validation and resampling of the thermophysical profile stay with those
+libraries. The two kinds share the field names `profile`/`properties`, not
+their types.
 
 ### 4.1 Responsibilities
 
@@ -129,7 +136,7 @@ the field names `properties`/`profile` now match them.
 
 | Component | Fields |
 |---|---|
-| `molecular` | `profile` (thermoprops, 1D or 3D), `properties` (absorption database), `rayleigh_depolarization`, `has_absorption`, `has_scattering`, `error_handler_config` |
+| `molecular` | `profile` (joseki/Skytherm thermoprops dataset, 1D or 3D), `properties` (AxsDB `AbsorptionDatabase`), `rayleigh_depolarization`, `has_absorption`, `has_scattering`, `error_handler_config` |
 | `particle_aot` | `bottom`, `top`, `density`, `aot_ref`, `w_ref` (all scalar), `properties` (state-free table) |
 | `particle_extinction` | `sigma_t`, `albedo` (DataArray, dim `w` required, spatial dims ⊆ (x, y, z)), `w_out_of_bounds` (`"raise"` or `"extrapolate"`, default `"raise"`), `phase` (phase function spec, or state-free table from which only the phase is used) |
 | `particle_state` | `profile`, `properties` (table with state dims), `amount` (optional), `state_variables` (optional mapping) |
@@ -236,7 +243,48 @@ they are amended in place (specs in `docs/data/formats/aer.rst` and
 `docs/data/formats/profile.rst`) rather than versioned. Existing branch files
 are regenerated if needed.
 
-## 8. Deprecation aliases
+## 8. Spatial grid
+
+The grid classes introduced on this branch are renamed after the coordinate
+system they describe:
+
+| Branch name | New name |
+|---|---|
+| `GridCoords` | `SpatialGrid` |
+| `PlaneParallelGridCoords` | `CartesianGrid` |
+| `SphericalShellGridCoords` | `SphericalGrid` |
+
+The names were never released, so no alias is provided. `ZGrid` (main) was
+already documented as an internal change and gets no alias either. The
+v1.3.x release notes are updated with the new names.
+
+Members follow one axis-suffixed scheme on `SpatialGrid`, for x, y and z
+alike. The vertical axis currently uses its own names; they become aliases.
+Domain-specific names on the subclasses are aliases too. Aliases are
+permanent, documented and emit no warning: `levels`/`layers` read naturally
+in atmospheric code, and `ZGrid` users on main find the names they know.
+
+| Generic (`SpatialGrid`) | z alias (`SpatialGrid`) | `CartesianGrid` alias | `SphericalGrid` alias |
+|---|---|---|---|
+| `edges_{x,y,z}` | `levels` | — | `azimuths`, `colatitudes` |
+| `cells_{x,y,z}` (centres) | `layers` | `centers_x`, `centers_y` | `sectors`, `bands` |
+| `n_edges_{x,y,z}` | `n_levels` | — | — |
+| `n_cells_{x,y,z}` | `n_layers` | — | — |
+| `cell_size_{x,y,z}` | `layer_height` | `cell_width`, `cell_length` | `sector_width`, `band_width` |
+| `extent_{x,y,z}` | `total_height` | `total_width`, `total_length` | — |
+
+Changes to the generic API: `edges_{x,y}`, `cell_size_{x,y}` and
+`extent_{x,y}` move up from the subclasses to `SpatialGrid`. In
+`SphericalGrid`, the x and y quantities are angles, so a generic caller
+must not assume length units for them.
+
+Constructor arguments are keyword-only: `edges_x`, `edges_y`, and either
+`edges_z` or its alias `levels`. Passing both, or neither, raises an error.
+The current positional order (`levels`, `edges_x`, `edges_y`) is dropped
+without transition, since the constructors were never released.
+Factories whose names read well (`make_onedim_from_levels`) are kept.
+
+## 9. Deprecation aliases
 
 Only names released on main get an alias. Names introduced on this branch
 (`ParticleEnsemble`, `ParticleField`, `ParticleFieldPhaseFunction` and their
@@ -252,13 +300,16 @@ type ids) are replaced without alias.
 | `ParticleDistribution` + subclasses | `VerticalDensity` + subclasses |
 | `atmosphere={"type": "molecular", ...}` | wrapped automatically (§5) |
 
-## 9. Open questions
+## 10. Open questions
 
 1. **Resampling accuracy.** `ParticleProfile` resamples z by nearest-neighbour
    lookup. This does not conserve the column optical thickness when the profile
-   and render layers differ. Conservative (overlap-weighted) averaging of σ_t
-   would preserve τ. This is an accuracy vs cost choice to make before `ppr_v1`
-   is finalised.
+   and render layers differ. The generalised `ParticleProfile` picks a
+   resampling method per variable: overlap-weighted (conservative) averaging
+   for the amount variable, so that τ is preserved; amount-weighted averaging
+   for state variables, since a plain volume average of reff gives the wrong
+   optics. Still to decide before `ppr_v1` is finalised: whether conservative
+   resampling is the default or opt-in (accuracy vs cost).
 2. **State out of table range** (e.g. reff beyond the tabulated range):
    clamp, raise, or treat the voxel as empty. The current branch behaviour
    should be checked and documented.
