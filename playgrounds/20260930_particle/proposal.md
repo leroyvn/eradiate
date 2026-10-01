@@ -131,7 +131,7 @@ the field names `properties`/`profile` now match them.
 |---|---|
 | `molecular` | `profile` (thermoprops, 1D or 3D), `properties` (absorption database), `rayleigh_depolarization`, `has_absorption`, `has_scattering`, `error_handler_config` |
 | `particle_aot` | `bottom`, `top`, `density`, `aot_ref`, `w_ref` (all scalar), `properties` (state-free table) |
-| `particle_extinction` | `sigma_t`, `albedo` (DataArray, dim `w` required, spatial dims ⊆ (x, y, z)), `phase` (phase function spec, or state-free table from which only the phase is used) |
+| `particle_extinction` | `sigma_t`, `albedo` (DataArray, dim `w` required, spatial dims ⊆ (x, y, z)), `w_out_of_bounds` (`"raise"` or `"extrapolate"`, default `"raise"`), `phase` (phase function spec, or state-free table from which only the phase is used) |
 | `particle_state` | `profile`, `properties` (table with state dims), `amount` (optional), `state_variables` (optional mapping) |
 | `particle_psd` | same fields as `particle_state`; `amount`/`state_variables` fixed by the preset |
 
@@ -229,7 +229,7 @@ documentation for their parametrization. They contain no evaluation code.
 | `aer_core_v2` | Unchanged. It is the state-free case. |
 | `prt_v1` (amended) | Any dimension beyond those of `aer_core_v2` is a state dimension and must have a coordinate with units. `ext` is extinction per unit amount (1/length per mass or number concentration). |
 | `ppr_v1` (amended) | Required: `x_levels`/`y_levels`/`z_levels`, plus either a sparse layout (`index` dimension with `i_x`/`i_y`/`i_z`) or a dense layout (dimensions `x`, `y`, `z`). Other variables are free but must have units. |
-| extinction input | `xr.DataArray` with a `units` attribute. Dim `w` is required, so spectral dependence is never implicit; spatial dims ⊆ (x, y, z), missing ones are broadcast. `w` is interpolated linearly; spatial coordinates are cell centres. |
+| extinction input | `xr.DataArray` with a `units` attribute. Dim `w` is required, so spectral dependence is never implicit; spatial dims ⊆ (x, y, z), missing ones are broadcast. `w` is interpolated linearly and may have size 1. Outside the `w` range, `w_out_of_bounds` applies: `"raise"` raises, `"extrapolate"` holds the edge value. A size-1 `w` with `"extrapolate"` declares spectrally constant data. Spatial coordinates are cell centres. |
 
 `prt_v1` and `ppr_v1` were introduced on this branch and never released, so
 they are amended in place (specs in `docs/data/formats/aer.rst` and

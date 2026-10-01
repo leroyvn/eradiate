@@ -87,6 +87,7 @@ class ParticleExtinctionComponent(ParticleComponent):  # [particle_extinction]
     sigma_t: xr.DataArray  # dims: w (required) + subset of (x, y, z)
     albedo: xr.DataArray  # dims: w (required) + subset of (x, y, z)
     phase_spec: Any  # "phase" in the dict: PhaseFunction spec or state-free table
+    w_out_of_bounds: str = "raise"  # or "extrapolate": hold edge value
 
 
 @attrs.define
