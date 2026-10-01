@@ -84,8 +84,8 @@ class ParticleAOTComponent(ParticleComponent):  # [particle_aot]
 
 @attrs.define
 class ParticleExtinctionComponent(ParticleComponent):  # [particle_extinction]
-    sigma_t: xr.DataArray  # dims ⊆ (w, x, y, z)
-    albedo: xr.DataArray  # dims ⊆ (w, x, y, z)
+    sigma_t: xr.DataArray  # dims: w (required) + subset of (x, y, z)
+    albedo: xr.DataArray  # dims: w (required) + subset of (x, y, z)
     phase_spec: Any  # "phase" in the dict: PhaseFunction spec or state-free table
 
 

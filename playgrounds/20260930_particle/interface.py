@@ -33,7 +33,8 @@ aerosols = {
 }
 
 # Extinction-driven: sigma_t and albedo fully user-supplied.
-# Dims ⊆ (w, x, y, z), missing dims are broadcast; coords are cell centres.
+# Dim w required; spatial dims ⊆ (x, y, z), missing ones are broadcast;
+# coords are cell centres.
 x = np.linspace(-4.5, 4.5, 10)
 y = np.linspace(-4.5, 4.5, 10)
 z = np.linspace(0.25, 2.75, 6)
@@ -49,10 +50,13 @@ sigma_t = xr.DataArray(
     },
     attrs={"units": "km^-1"},
 )
-albedo = xr.DataArray(  # spectrally and horizontally constant: z only
-    np.full(len(z), 0.9),
-    dims=("z",),
-    coords={"z": ("z", z, {"units": "km"})},
+albedo = xr.DataArray(  # horizontally constant: (w, z)
+    np.full((len(w), len(z)), 0.9),
+    dims=("w", "z"),
+    coords={
+        "w": ("w", w, {"units": "nm"}),
+        "z": ("z", z, {"units": "km"}),
+    },
     attrs={"units": "dimensionless"},
 )
 smoke = {

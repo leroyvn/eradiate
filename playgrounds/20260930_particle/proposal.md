@@ -119,6 +119,9 @@ the field names `properties`/`profile` now match them.
 - **`AtmosphereComponent`** implements `eval_sigma_t(si, grid)`,
   `eval_sigma_s(si, grid)`, `eval_albedo(si, grid)`, `phase(geometry)`,
   `eval_mfp(ctx, grid)` and `bottom`/`top`. It stores no geometry.
+  `bottom`/`top` are fields only for `particle_aot`; gridded components
+  (`molecular`, `particle_extinction`, `particle_state`) derive them from the
+  z extent of their data.
 - **`ParticleComponent`** holds the absorption/scattering switches and the
   polarized-phase flag, which are shared by the three particle kinds.
 
@@ -128,7 +131,7 @@ the field names `properties`/`profile` now match them.
 |---|---|
 | `molecular` | `profile` (thermoprops, 1D or 3D), `properties` (absorption database), `rayleigh_depolarization`, `has_absorption`, `has_scattering`, `error_handler_config` |
 | `particle_aot` | `bottom`, `top`, `density`, `aot_ref`, `w_ref` (all scalar), `properties` (state-free table) |
-| `particle_extinction` | `sigma_t`, `albedo` (DataArray, dims ⊆ (w, x, y, z)), `phase` (phase function spec, or state-free table from which only the phase is used) |
+| `particle_extinction` | `sigma_t`, `albedo` (DataArray, dim `w` required, spatial dims ⊆ (x, y, z)), `phase` (phase function spec, or state-free table from which only the phase is used) |
 | `particle_state` | `profile`, `properties` (table with state dims), `amount` (optional), `state_variables` (optional mapping) |
 | `particle_psd` | same fields as `particle_state`; `amount`/`state_variables` fixed by the preset |
 
@@ -168,7 +171,7 @@ atmosphere = {
         },
         "smoke": {
             "type": "particle_extinction",
-            "sigma_t": sigma_t,             # xr.DataArray, dims ⊆ (w, x, y, z), units attr
+            "sigma_t": sigma_t,             # xr.DataArray, dim w required, units attr
             "albedo": albedo,               # xr.DataArray, same rules
             "phase": {"type": "hg", "g": 0.7},
         },
@@ -200,11 +203,11 @@ See `interface.py` for complete examples.
 2. **Binding.** `state_variables: dict[str, str]` maps each table dimension
    to a profile variable. By default the names are the same.
 3. **Amount.** `amount` names the profile variable that scales `ext`. If it
-   is unset, the component picks the unique profile variable for which
-   `amount × ext` has units of inverse length. Mass or number
-   concentration is therefore selected from the units, not from the
-   variable name. If zero or several variables match, the component raises
-   an error.
+   is unset, the component picks, among profile variables not bound to a
+   state dimension, the unique one for which `amount × ext` has units of
+   inverse length. Mass or number concentration is therefore selected from
+   the units, not from the variable name. If zero or several variables
+   match, the component raises an error.
 4. **Evaluation.** The profile is resampled onto the render grid. Then `ext`
    and `ssa` are interpolated in (w, state) per voxel, and
    `σ_t = amount · ext` and `ϖ = ssa`.
@@ -226,7 +229,7 @@ documentation for their parametrization. They contain no evaluation code.
 | `aer_core_v2` | Unchanged. It is the state-free case. |
 | `prt_v1` (amended) | Any dimension beyond those of `aer_core_v2` is a state dimension and must have a coordinate with units. `ext` is extinction per unit amount (1/length per mass or number concentration). |
 | `ppr_v1` (amended) | Required: `x_levels`/`y_levels`/`z_levels`, plus either a sparse layout (`index` dimension with `i_x`/`i_y`/`i_z`) or a dense layout (dimensions `x`, `y`, `z`). Other variables are free but must have units. |
-| extinction input | `xr.DataArray` with a `units` attribute. Dims ⊆ (w, x, y, z); missing dims are broadcast. `w` is interpolated linearly; spatial coordinates are cell centres. |
+| extinction input | `xr.DataArray` with a `units` attribute. Dim `w` is required, so spectral dependence is never implicit; spatial dims ⊆ (x, y, z), missing ones are broadcast. `w` is interpolated linearly; spatial coordinates are cell centres. |
 
 `prt_v1` and `ppr_v1` were introduced on this branch and never released, so
 they are amended in place (specs in `docs/data/formats/aer.rst` and
@@ -251,11 +254,11 @@ type ids) are replaced without alias.
 
 ## 9. Open questions
 
-1. **Resampling accuracy.** `ParticleProfile` resamples z by
-   nearest-neighbour lookup. This does not conserve the column optical
-   thickness when the profile and render layers differ. Conservative
-   (overlap-weighted) averaging of σ_t would preserve τ. This is an accuracy
-   vs cost choice to make before `ppr_v1` is finalised.
+1. **Resampling accuracy.** `ParticleProfile` resamples z by nearest-neighbour
+   lookup. This does not conserve the column optical thickness when the profile
+   and render layers differ. Conservative (overlap-weighted) averaging of σ_t
+   would preserve τ. This is an accuracy vs cost choice to make before `ppr_v1`
+   is finalised.
 2. **State out of table range** (e.g. reff beyond the tabulated range):
    clamp, raise, or treat the voxel as empty. The current branch behaviour
    should be checked and documented.
