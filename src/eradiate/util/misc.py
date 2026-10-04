@@ -23,7 +23,7 @@ import pint
 import xarray as xr
 from numpy.typing import ArrayLike
 
-from eradiate.typing import PathLike
+from ..typing import PathLike
 
 
 class cache_by_id:
