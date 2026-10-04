@@ -351,7 +351,7 @@ Initialization from dictionaries
     constructor. It should implement behaviour similar to what
     :meth:`.Factory.convert` does, *i.e.*:
 
-    * interpret units using :func:`pinttr.interpret_units`;
+    * interpret units using :func:`pinttrs.interpret_units`;
     * [optional] if relevant, allow for class method constructor selection using
       the ``"construct"`` parameter.
 

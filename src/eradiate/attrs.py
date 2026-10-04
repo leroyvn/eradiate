@@ -315,7 +315,7 @@ def documented(
 
     See Also
     --------
-    :func:`attrs.field`, :func:`pinttr.field`, :func:`parse_docs`
+    :func:`attrs.field`, :func:`pinttrs.field`, :func:`parse_docs`
     """
     _attrib = cast(
         Any, attrib
