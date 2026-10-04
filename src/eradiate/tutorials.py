@@ -177,10 +177,8 @@ def plot_sigma_t(
 
     from eradiate.units import to_quantity
 
-    if si is None:  # If none is found, fall back to the default (550 nm)
-        si = SpectralIndex.new()
-    else:  # Otherwise, apply conversion protocol
-        si = SpectralIndex.convert(si)
+    # If none is found, fall back to the default (550 nm)
+    si = SpectralIndex.new() if si is None else SpectralIndex.convert(si)
 
     label_iter = iter([None for _ in atmospheres]) if labels is None else iter(labels)
 

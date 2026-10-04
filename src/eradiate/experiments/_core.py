@@ -706,13 +706,10 @@ class EarthObservationExperiment(Experiment, ABC):
             return mi.Bitmap(img_np, mi.Bitmap.PixelFormat.Y)
 
         # Map bitmap names to result names
-        mapping = {}
         if self.integrator.stokes:
             stokes = ["nested.S0", "nested.S1", "nested.S2", "nested.S3"]
             iquv = ["I", "Q", "U", "V"]
-
-            for s, i in zip(stokes, iquv):
-                mapping[s] = i
+            mapping = dict(zip(stokes, iquv))
 
         else:
             mapping = {"<root>": "bitmap"}

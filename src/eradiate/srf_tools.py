@@ -25,7 +25,7 @@ from .units import unit_registry as ureg
 from .util.deprecation import deprecated
 from .util.misc import get_utcnow
 
-_trapezoid = np.trapezoid if int(np.__version__.split(".")[0]) >= 2 else np.trapz
+_trapezoid = np.trapezoid if int(np.__version__.split(".")[0]) >= 2 else np.trapz  # noqa: NPY201
 
 convert_no_id = converters.passthrough_type(xr.Dataset)(converters.resolve_path)
 convert = converters.passthrough_type(xr.Dataset)(

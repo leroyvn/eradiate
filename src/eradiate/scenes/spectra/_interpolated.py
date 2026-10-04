@@ -17,7 +17,7 @@ from ...units import unit_context_config as ucc
 from ...units import unit_context_kernel as uck
 from ...units import unit_registry as ureg
 
-_trapezoid = np.trapezoid if int(np.__version__.split(".")[0]) >= 2 else np.trapz
+_trapezoid = np.trapezoid if int(np.__version__.split(".")[0]) >= 2 else np.trapz  # noqa: NPY201
 
 
 @define(eq=False, slots=False, init=False)

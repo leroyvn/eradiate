@@ -16,7 +16,7 @@ from collections import OrderedDict
 from collections.abc import Mapping, Sequence
 from numbers import Number
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -168,7 +168,7 @@ class Singleton(type):
        del Singleton
     """
 
-    _instances = {}
+    _instances: ClassVar[dict] = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
@@ -213,11 +213,9 @@ def deduplicate_sorted(value: Sequence, cmp: Callable | None = None) -> list:
         cmp = lambda x, y: x == y  # noqa: E731
 
     result = [value[0]]
-
-    for i in range(1, len(value)):
-        if not cmp(value[i], value[i - 1]):
-            result.append(value[i])
-
+    result.extend(
+        value[i] for i in range(1, len(value)) if not cmp(value[i], value[i - 1])
+    )
     return result
 
 

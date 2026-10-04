@@ -200,8 +200,7 @@ class AbstractTree(Tree):
 
                 result[f"{self.bsdf_id}.{obj_key}.{key}"] = param
 
-        for key, param in self.leaf_cloud._params_bsdfs.items():
-            result[key] = param
+        result.update(self.leaf_cloud._params_bsdfs)
 
         return result
 

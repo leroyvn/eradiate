@@ -125,11 +125,13 @@ class AtmosphereExperiment(EarthObservationExperiment):
             # comply with the atmosphere's vertical extent.
             if isinstance(self.atmosphere, MolecularAtmosphere):
                 check_geometry_atmosphere(self.geometry, self.atmosphere)
-            if isinstance(self.atmosphere, HeterogeneousAtmosphere):
-                if self.atmosphere.molecular_atmosphere is not None:
-                    check_geometry_atmosphere(
-                        self.geometry, self.atmosphere.molecular_atmosphere
-                    )
+            if (
+                isinstance(self.atmosphere, HeterogeneousAtmosphere)
+                and self.atmosphere.molecular_atmosphere is not None
+            ):
+                check_geometry_atmosphere(
+                    self.geometry, self.atmosphere.molecular_atmosphere
+                )
 
             # Override atmosphere geometry with experiment geometry
             self.atmosphere.geometry = self.geometry

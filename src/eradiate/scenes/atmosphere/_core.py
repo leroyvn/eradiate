@@ -719,14 +719,13 @@ class AbstractHeterogeneousAtmosphere(Atmosphere, ABC):
                 },
             }
 
-            if medium == "eoheterogeneous":
-                if self.extremum_resolution != (1, 1, 1):
-                    extremum = {
-                        "type": "extremum_grid",
-                        "volume": {"type": "ref", "id": sigma_t_id},
-                        "resolution": self.extremum_resolution,
-                        "to_world": to_world,
-                    }
+            if medium == "eoheterogeneous" and self.extremum_resolution != (1, 1, 1):
+                extremum = {
+                    "type": "extremum_grid",
+                    "volume": {"type": "ref", "id": sigma_t_id},
+                    "resolution": self.extremum_resolution,
+                    "to_world": to_world,
+                }
 
         elif isinstance(self.geometry, SphericalShellGeometry):
             volume_rmin = self.geometry.atmosphere_volume_rmin
