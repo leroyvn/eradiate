@@ -19,9 +19,9 @@ from pathlib import Path
 from typing import Any, Callable, ClassVar
 
 import numpy as np
-import numpy.typing as npt
 import pint
 import xarray as xr
+from numpy.typing import ArrayLike
 
 from eradiate.typing import PathLike
 
@@ -559,8 +559,8 @@ def summary_repr_vector(a: np.ndarray, edgeitems: int = 4):
 
 
 def find_runs(
-    x: npt.ArrayLike,
-) -> tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]:
+    x: ArrayLike,
+) -> tuple[ArrayLike, ArrayLike, ArrayLike]:
     """
     Find runs of consecutive items in an array.
 

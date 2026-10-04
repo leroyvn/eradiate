@@ -7,10 +7,10 @@ from functools import singledispatchmethod
 from typing import Literal
 
 import numpy as np
-import numpy.typing as npt
 import pint
 import pinttrs
 from axsdb import AbsorptionDatabase, CKDAbsorptionDatabase, MonoAbsorptionDatabase
+from numpy.typing import ArrayLike
 from pinttrs.util import ensure_units
 
 from .ckd_quad import CKDQuadConfig, CKDQuadPolicy
@@ -381,9 +381,9 @@ class CKDSpectralGrid(SpectralGrid):
 
     def __init__(
         self,
-        wmins: npt.ArrayLike,
-        wmaxs: npt.ArrayLike,
-        wcenters: npt.ArrayLike | None = None,
+        wmins: ArrayLike,
+        wmaxs: ArrayLike,
+        wcenters: ArrayLike | None = None,
         fix_bounds: Literal["keep_min", "keep_max", "raise", "ignore"] = "keep_min",
         epsilon: float = 1e-6,
     ):
@@ -521,7 +521,7 @@ class CKDSpectralGrid(SpectralGrid):
         return CKDSpectralGrid(wmins_m * w_u, wmaxs_m * w_u, wcenters_m * w_u)
 
     @classmethod
-    def from_nodes(cls, wnodes: npt.ArrayLike) -> CKDSpectralGrid:
+    def from_nodes(cls, wnodes: ArrayLike) -> CKDSpectralGrid:
         wmins = wnodes[:-1]
         wmaxs = wnodes[1:]
         return cls(wmins=wmins, wmaxs=wmaxs)
