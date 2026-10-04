@@ -150,14 +150,14 @@ to any other action. Then, each declared attribute can be documented using the
 
 .. code:: python
 
-   import attr
+   import attrs
    from typing import Optional
    from eradiate.util.attrs import parse_docs, documented
 
    @parse_docs  # Must be applied **after** attr.s
-   @attr.s
+   @attrs.define
    class MyClass:
-       field: Optional[float] = documented(
+       field: float | None = documented(
            attr.ib(default=None),
            doc="A documented attribute",
            type="float, optional",
@@ -170,12 +170,12 @@ when a converter is systematically applied to field values upon initialization:
 
 .. code:: python
 
-   import attr
+   import attrs
    import numpy as np
    from eradiate.util.attrs import parse_docs, documented
 
    @parse_docs  # Must be applied **after** attr.s
-   @attr.s
+   @attrs.define
    class MyClass:
        field: np.ndarray = documented(
            attr.ib(converter=np.array),
@@ -192,11 +192,11 @@ be reused. For such cases, we provide the :func:`.get_doc` function:
 
 .. code:: python
 
-   import attr
+   import attrs
    from eradiate.util.attrs parse_docs, documented, import get_doc
 
    @parse_docs
-   @attr.s
+   @attrs.define
    class MyChildClass(MyClass):
        field = documented(
            attr.ib(default=1.0),
