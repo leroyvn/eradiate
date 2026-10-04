@@ -195,7 +195,6 @@ class Measure(NodeSceneElement, ABC):
         """
         tuple: Getter for film resolution as a (int, int) pair.
         """
-        pass
 
     # --------------------------------------------------------------------------
     #                             Flag-style queries

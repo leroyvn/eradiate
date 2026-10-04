@@ -122,13 +122,9 @@ class ShapeNode(Shape, NodeSceneElement, ABC):
     nodes.
     """
 
-    pass
-
 
 @attrs.define(eq=False, slots=False)
 class ShapeInstance(Shape, InstanceSceneElement, ABC):
     """
     Interface for shapes which have to be expanded as Mitsuba objects.
     """
-
-    pass

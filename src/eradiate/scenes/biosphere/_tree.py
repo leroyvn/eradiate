@@ -28,8 +28,6 @@ class Tree(CanopyElement, ABC):
     Abstract base class for tree-like canopy elements.
     """
 
-    pass
-
 
 def _leaf_cloud_converter(value):
     """

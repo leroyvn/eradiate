@@ -283,7 +283,6 @@ class RadProfile(ABC):
         """
         Bounds of the z profile.
         """
-        pass
 
     @property
     @abstractmethod
@@ -291,7 +290,6 @@ class RadProfile(ABC):
         """
         Default altitude grid used for profile evaluation.
         """
-        pass
 
     @singledispatchmethod
     def eval_albedo(

@@ -21,3 +21,4 @@ select = [
 ignore = ["E501", "F821"]
 isort = { relative-imports-order = "closest-to-furthest" }
 per-file-ignores = { "*.ipynb" = ["E402"] }
+allowed-confusables = ["×"]
