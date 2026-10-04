@@ -1096,7 +1096,7 @@ class Pipeline:
                     lines = []
                     current_line = []
                     for word in words:
-                        if len(" ".join(current_line + [word])) > 30:
+                        if len(" ".join([*current_line, word])) > 30:
                             lines.append(" ".join(current_line))
                             current_line = [word]
                         else:

@@ -182,10 +182,7 @@ def plot_sigma_t(
     else:  # Otherwise, apply conversion protocol
         si = SpectralIndex.convert(si)
 
-    if labels is None:
-        label_iter = iter([None for _ in atmospheres])
-    else:
-        label_iter = iter(labels)
+    label_iter = iter([None for _ in atmospheres]) if labels is None else iter(labels)
 
     fig, ax = plt.subplots(1, 1)
 

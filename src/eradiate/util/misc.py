@@ -4,6 +4,7 @@ A collection of tools which don't really fit anywhere else.
 
 from __future__ import annotations
 
+import contextlib
 import datetime
 import functools
 import inspect
@@ -324,7 +325,7 @@ def is_vector3(value: Any):
             or (isinstance(value, Sequence) and not isinstance(value, str))
         )
         and len(value) == 3
-        and all(map(lambda x: isinstance(x, Number), value))
+        and all(isinstance(x, Number) for x in value)
     )
 
 
@@ -341,10 +342,8 @@ def natsort_alphanum_key(x):
     .. [2] `Natural sorting on Stack Overflow <https://stackoverflow.com/a/11150413/3645374>`__.
     """
     return tuple(
-        map(
-            lambda text: int(text) if text.isdigit() else text.lower(),
-            re.split("([0-9]+)", x),
-        )
+        int(text) if text.isdigit() else text.lower()
+        for text in re.split("([0-9]+)", x)
     )
 
 
@@ -507,10 +506,8 @@ def summary_repr(value):
 def _(ds: xr.Dataset):
     extra_info = {}
 
-    try:
+    with contextlib.suppress(KeyError):
         extra_info["source"] = repr(ds.encoding["source"])
-    except KeyError:
-        pass
 
     desc = ", ".join([f"{key}={value}" for key, value in extra_info.items()])
 
@@ -524,17 +521,13 @@ def _(ds: xr.Dataset):
 def _(da: xr.DataArray):
     extra_info = {}
 
-    try:
+    with contextlib.suppress(AttributeError):
         extra_info["name"] = repr(da.name)
-    except AttributeError:
-        pass
 
     extra_info["dims"] = repr(list(da.dims))
 
-    try:
+    with contextlib.suppress(KeyError):
         extra_info["source"] = repr(da.encoding["source"])
-    except KeyError:
-        pass
 
     desc = ", ".join([f"{key}={value}" for key, value in extra_info.items()])
 

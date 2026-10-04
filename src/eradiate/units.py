@@ -57,9 +57,7 @@ def _load_definitions(ureg: pint.UnitRegistry, definitions: list[str]) -> None:
     # a very simple wrapper around Pint's usual unit definition logic.
 
     for definition in definitions:
-        _unit_name, _unit_definition = list(
-            map(lambda x: x.strip(), definition.split("="))
-        )[0:2]
+        _unit_name, _unit_definition = [x.strip() for x in definition.split("=")][0:2]
 
         if _unit_name in ureg:
             if 1.0 * ureg(_unit_definition) == 1.0 * ureg(_unit_name):

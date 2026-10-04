@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 from pathlib import Path
 from typing import Any
@@ -38,14 +39,10 @@ def _update_material(
         and (canopy_name == "ground" or elem["id"] in spectral_data[canopy_name])
     ):
         assert isinstance(spectral_data, dict)
-        try:
+        with contextlib.suppress(KeyError):
             del elem_copy["reflectance"]
-        except KeyError:
-            pass
-        try:
+        with contextlib.suppress(KeyError):
             del elem_copy["transmittance"]
-        except KeyError:
-            pass
         if canopy_name == "ground":
             return {**elem_copy, **spectral_data[canopy_name]}
         else:

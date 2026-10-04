@@ -215,18 +215,17 @@ class CanopyAtmosphereExperiment(EarthObservationExperiment):
         """
         Ensures that the integrator is compatible with the atmosphere and geometry.
         """
-        if isinstance(self.atmosphere, AbstractHeterogeneousAtmosphere):
-            if (
-                self.atmosphere.extremum_resolution != (1, 1, 1)
-                and not self.integrator.extremum_compatible
-            ):
-                warnings.warn(
-                    UserWarning(
-                        "Extremum structures are not compatible with "
-                        f"{type(self.integrator).__name__} and will be ignored."
-                    ),
-                    stacklevel=2,
-                )
+        if isinstance(self.atmosphere, AbstractHeterogeneousAtmosphere) and (
+            self.atmosphere.extremum_resolution != (1, 1, 1)
+            and not self.integrator.extremum_compatible
+        ):
+            warnings.warn(
+                UserWarning(
+                    "Extremum structures are not compatible with "
+                    f"{type(self.integrator).__name__} and will be ignored."
+                ),
+                stacklevel=2,
+            )
 
         piecewise_compatible, pw_msg = check_piecewise_compatible(
             self.geometry, self.atmosphere
