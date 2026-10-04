@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
-import typing as t
 import warnings
 from abc import ABC, abstractmethod
+from typing import Any
 
 import attrs
 import numpy as np
@@ -35,7 +35,7 @@ class SpectralResponseFunction(ABC):
     """
 
     @staticmethod
-    def convert(value) -> t.Any:
+    def convert(value) -> Any:
         """
         Converter for the ``Measure.srf`` field.
 

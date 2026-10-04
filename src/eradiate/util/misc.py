@@ -11,10 +11,11 @@ import operator
 import os
 import re
 import sys
-import typing as t
 from collections import OrderedDict
+from collections.abc import Mapping, Sequence
 from numbers import Number
 from pathlib import Path
+from typing import Any, Callable
 
 import numpy as np
 import numpy.typing as npt
@@ -180,7 +181,7 @@ def camel_to_snake(name):
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", name).lower()
 
 
-def deduplicate(value: t.Sequence, preserve_order: bool = True) -> list:
+def deduplicate(value: Sequence, preserve_order: bool = True) -> list:
     """
     Remove duplicates from a sequence.
 
@@ -206,7 +207,7 @@ def deduplicate(value: t.Sequence, preserve_order: bool = True) -> list:
         return list(set(value))
 
 
-def deduplicate_sorted(value: t.Sequence, cmp: t.Callable | None = None) -> list:
+def deduplicate_sorted(value: Sequence, cmp: Callable | None = None) -> list:
     if cmp is None:
         cmp = lambda x, y: x == y  # noqa: E731
 
@@ -219,7 +220,7 @@ def deduplicate_sorted(value: t.Sequence, cmp: t.Callable | None = None) -> list
     return result
 
 
-def flatten(d: t.Mapping, sep: str = ".", name: str = "") -> dict:
+def flatten(d: Mapping, sep: str = ".", name: str = "") -> dict:
     """
     Flatten a nested dictionary.
 
@@ -255,7 +256,7 @@ def flatten(d: t.Mapping, sep: str = ".", name: str = "") -> dict:
     return result
 
 
-def fullname(obj: t.Any) -> str:
+def fullname(obj: Any) -> str:
     """
     Get the fully qualified name of `obj`. Aliases will be dereferenced.
     """
@@ -268,7 +269,7 @@ def fullname(obj: t.Any) -> str:
     return f"{cls.__module__}.{obj.__qualname__}"
 
 
-def get_class_that_defined_method(meth: t.Any) -> type:
+def get_class_that_defined_method(meth: Any) -> type:
     """
     Get the class which defined a method, if relevant. Otherwise, return
     ``None``.
@@ -299,7 +300,7 @@ def get_class_that_defined_method(meth: t.Any) -> type:
     return getattr(meth, "__objclass__", None)  # handle special descriptor objects
 
 
-def is_vector3(value: t.Any):
+def is_vector3(value: Any):
     """
     Check if value can be interpreted as a 3-vector.
 
@@ -320,7 +321,7 @@ def is_vector3(value: t.Any):
     return (
         (
             isinstance(value, np.ndarray)
-            or (isinstance(value, t.Sequence) and not isinstance(value, str))
+            or (isinstance(value, Sequence) and not isinstance(value, str))
         )
         and len(value) == 3
         and all(map(lambda x: isinstance(x, Number), value))
@@ -364,7 +365,7 @@ def natsorted(l):  # noqa
     return sorted(l, key=natsort_alphanum_key)
 
 
-def nest(d: t.Mapping, sep: str = ".") -> dict:
+def nest(d: Mapping, sep: str = ".") -> dict:
     """
     Turn a flat dictionary into a nested dictionary.
 
@@ -393,7 +394,7 @@ def nest(d: t.Mapping, sep: str = ".") -> dict:
     return result
 
 
-def onedict_value(d: t.Mapping) -> t.Any:
+def onedict_value(d: Mapping) -> Any:
     """
     Get the value of a single-entry dictionary.
 
@@ -450,7 +451,7 @@ def round_to_multiple(number, multiple, direction="nearest"):
         return multiple * round(number / multiple)
 
 
-def set_nested(d: t.Mapping, path: str, value: t.Any, sep: str = ".") -> None:
+def set_nested(d: Mapping, path: str, value: Any, sep: str = ".") -> None:
     """
     Set values in a nested dictionary using a flat path.
 

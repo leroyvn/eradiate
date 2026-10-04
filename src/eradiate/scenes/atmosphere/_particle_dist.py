@@ -11,8 +11,8 @@ Particle distributions are not normalized. The parent caller is responsible
 for normalizing returned values.
 """
 
-import typing as t
 from abc import ABC, abstractmethod
+from typing import Callable
 
 import attrs
 import numpy as np
@@ -335,7 +335,7 @@ class InterpolatorParticleDistribution(ParticleDistribution):
     encapsulated callable [``interpolator``].
     """
 
-    interpolator: t.Callable[[np.typing.ArrayLike], np.ndarray] = documented(
+    interpolator: Callable[[np.typing.ArrayLike], np.ndarray] = documented(
         attrs.field(validator=attrs.validators.is_callable, kw_only=True),
         type="callable",
         doc="A callable with signature "
