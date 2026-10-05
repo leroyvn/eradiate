@@ -1,4 +1,4 @@
-.. _sec-developer_guide-dev_install:
+.. _sec-developer_guide-install:
 
 Development installation
 ========================
@@ -11,140 +11,142 @@ variants.
 
 .. warning::
 
-   Windows support is currently experimental. Please report issues on our
-   `issue tracker <https://github.com/eradiate/eradiate/issues>`__.
+    Windows support is currently experimental. Please report issues on our
+    `issue tracker <https://github.com/eradiate/eradiate/issues>`__.
 
 Prerequisites
 -------------
 
-The development installation requires that the `Pixi <https://pixi.sh/>`__ package
-manager is installed on the host machine. This tool replaces Conda and a lot of
-in-house tools that were previously maintained by the development team.
+The development installation requires that the `Pixi <https://pixi.sh/>`__
+package manager is installed on the host machine. This tool replaces Conda and
+many in-house tools that were previously maintained by the development team.
 
 Next, make sure that your machine meets the requirements listed below:
 
 .. csv-table::
-   :header: Requirement, Tested version
-   :widths: 10, 10
+    :header: Requirement, Tested version
+    :widths: 10, 10
 
-   git,                     2.18+
-   cmake,                   3.22+
-   ninja,                   1.10+
-   clang (macOS and Linux), 11+
-   MSVC (Windows),          2022
+    git,                     2.18+
+    cmake,                   3.22+
+    ninja,                   1.10+
+    clang (macOS and Linux), 11+
+    MSVC (Windows),          2022
 
 .. dropdown:: Tested configuration
-   :color: info
-   :icon: info
+    :color: info
+    :icon: info
 
-   .. tab-set::
-      .. tab-item:: Linux
-         :sync: linux
+    .. tab-set::
+        .. tab-item:: Linux
+            :sync: linux
 
-         Operating system: Ubuntu Linux 24.04.3.
+            Operating system: Ubuntu Linux 24.04.5 LTS.
 
-         .. csv-table::
-            :header: Requirement, Tested version
-            :widths: 10, 10
+            .. csv-table::
+                :header: Requirement, Tested version
+                :stub-columns: 1
 
-            git,       2.43.0
-            cmake,     3.31.0
-            ninja,     1.11.1
-            clang,     15.0.7
-            libc++,    15
-            libc++abi, 15
-            python,    3.9.20
+                git,       2.43.0
+                cmake,     3.31.6
+                ninja,     1.11.1
+                clang,     17.0.6
+                libc++,    17
+                libc++abi, 17
+                python,    3.10.19
 
-      .. tab-item:: macOS
-         :sync: macos
+        .. tab-item:: macOS
+            :sync: macos
 
-         Operating system: macOS Monterey 12.0.1.
+            Operating system: macOS Tahoe 26.6.2.
 
-         .. csv-table::
-            :header: Requirement, Tested version
-            :widths: 10, 20
-            :stub-columns: 1
+            .. csv-table::
+                :header: Requirement, Tested version
+                :stub-columns: 1
 
-            git,    2.32.0 (Apple Git-132)
-            cmake,  3.22.1
-            ninja,  1.10.2
-            clang,  Apple clang version 13.0.0 (clang-1300.0.29.30)
-            python, 3.9.20
+                git,    2.54.0 (Apple Git-157)
+                cmake,  4.4.4
+                ninja,  1.13.2
+                clang,  Apple clang version 21.0.0 (clang-2100.3.34.2)
+                python, 3.10.19
 
-      .. tab-item:: Windows
-         :sync: windows
+        .. tab-item:: Windows
+            :sync: windows
 
-         Operating system: Windows 11.
+            Operating system: Windows 11.
 
-         .. csv-table::
-            :header: Requirement, Tested version
-            :widths: 10, 20
-            :stub-columns: 1
+            .. csv-table::
+                :header: Requirement, Tested version
+                :stub-columns: 1
 
-            git,    2.43.0.windows.1
-            cmake,  3.22.1
-            ninja,  1.10.2
-            MSVC,   2022
-            python, 3.9.18
+                git,    2.43.0.windows.1
+                cmake,  3.22.1
+                ninja,  1.10.2
+                MSVC,   2022
+                python, 3.9.18
 
 .. tab-set::
 
-   .. tab-item:: Linux
-      :sync: linux
+    .. tab-item:: Linux
+        :sync: linux
 
-      All prerequisites except for conda can be installed through the usual
-      Linux package managers. For example, using the APT package manager, which
-      is used in most Debian-based distributions, like Ubuntu:
+        All prerequisites can be installed through the usual Linux package
+        managers. For example, using the APT package manager, which is used in
+        most Debian-based distributions, like Ubuntu:
 
-      .. code:: shell
+        .. code:: shell
 
-         # Install build tools, compiler and libc++
-         sudo apt install -y git cmake ninja-build clang-15 libc++-15-dev libc++abi-15-dev
+            # Install build tools, compiler and libc++
+            sudo apt install -y git cmake ninja-build clang-17 libc++-17-dev libc++abi-17-dev
 
-         # Install libraries for image I/O
-         sudo apt install -y libpng-dev zlib1g-dev libjpeg-dev
+            # Install libraries for image I/O
+            sudo apt install -y libpng-dev zlib1g-dev libjpeg-dev
 
-      If your Linux distribution does not include APT, please consult your
-      package manager's repositories for the respective packages.
+        If your Linux distribution does not include APT, please consult your
+        package manager's repositories for the respective packages.
 
-      If your CMake copy is not recent enough, there are
-      `many ways <https://cliutils.gitlab.io/modern-cmake/chapters/intro/installing.html>`__
-      to install an updated version, notably through pipx and Conda. Pick your
-      favourite!
+        If your CMake copy is not recent enough, there are
+        `many ways <https://cliutils.gitlab.io/modern-cmake/installing/>`__
+        to install an updated version, notably through pipx and Conda. Pick your
+        favourite!
 
-      .. note:: We currently recommend compiling the C++ code with Clang based on
-         `upstream advice from the Mitsuba development team <https://mitsuba.readthedocs.io/en/latest/src/developer_guide/compiling.html#linux>`__.
-         While these instructions use Clang 15, other versions should work as
-         well.
+        .. note:: We currently recommend compiling the C++ code with Clang based on
+            `upstream advice from the Mitsuba development team <https://mitsuba.readthedocs.io/en/v3.7.1/src/developer_guide/compiling.html#linux>`__.
+            While these instructions use Clang 17, other versions should work as
+            well.
 
-   .. tab-item:: macOS
-      :sync: macos
+    .. tab-item:: macOS
+        :sync: macos
 
-      On macOS, you will need to install XCode, CMake, and
-      `Ninja <https://ninja-build.org/>`__. XCode can be installed from the App
-      Store. Make sure that your copy of the XCode is up-to-date. CMake and
-      Ninja can be installed with the `Homebrew package manager <https://brew.sh/>`__:
+        On macOS, you will need to install XCode, CMake, and
+        `Ninja <https://ninja-build.org/>`__.
 
-      .. code:: shell
+        XCode can be installed from the App Store. As a lightweight alternative,
+        its `Command Line Tools <https://developer.apple.com/documentation/xcode/installing-the-command-line-tools#Install-the-Command-Line-Tools-package-in-Terminal>`__
+        also provide the required tools.
 
-         brew install cmake ninja
+        CMake and Ninja can be installed with the `Homebrew package manager <https://brew.sh/>`__:
 
-      Additionally, running the Xcode command line tools once might be
-      necessary:
+        .. code:: shell
 
-      .. code:: shell
+            brew install cmake ninja
 
-         xcode-select --install
+        Additionally, running the XCode command line tools once might be
+        necessary:
 
-   .. tab-item:: Windows
-      :sync: windows
+        .. code:: shell
 
-      On Windows, you will need to install the MSVC compiler, *e.g* through
-      `Visual Studio Community <https://visualstudio.microsoft.com/>`__. In
-      addition, you will need to install `CMake <https://cmake.org/>`__.
-      The build procedure is tested in a Powershell developer session.
+            xcode-select --install
 
-.. _sec-developer_guide-dev_install-cloning:
+    .. tab-item:: Windows
+        :sync: windows
+
+        On Windows, you will need to install the MSVC compiler, *e.g* through
+        `Visual Studio Community <https://visualstudio.microsoft.com/>`__. In
+        addition, you will need to install `CMake <https://cmake.org/>`__.
+        The build procedure is tested in a Powershell developer session.
+
+.. _sec-developer_guide-install-cloning:
 
 Cloning the repository
 ----------------------
@@ -161,22 +163,10 @@ Cloning the repository
 To get the code, clone the repository including its submodules with the
 following command:
 
-.. tab-set::
 
-   .. tab-item:: Latest main branch
+.. code:: shell
 
-      .. code:: shell
-
-         git clone --recursive https://github.com/eradiate/eradiate
-
-   .. tab-item:: Specific branch or tag
-
-      .. code:: shell
-
-         git clone --recursive --branch <ref> https://github.com/eradiate/eradiate
-
-      where ``<ref>`` is a Git branch or tag. For the latest stable version, use
-      ``stable``.
+    git clone --recursive --progress https://github.com/eradiate/eradiate
 
 This will clone the Eradiate repository, as well as all its dependencies.
 This recursive cloning procedure can take up to a few minutes depending on
@@ -189,7 +179,7 @@ your Internet connection.
    with **repo** permissions and to use it instead of your password. You might
    also have to make sure that `Git will remember your token <https://git-scm.com/book/en/v2/Git-Tools-Credential-Storage>`__.
 
-.. _sec-developer_guide-dev_install-setup_conda:
+.. _sec-developer_guide-install-setup_pixi:
 
 Setting up the Python environment
 ---------------------------------
@@ -210,7 +200,7 @@ shell, either by spawning a Pixi shell
    pixi shell
 
 or by activating the shell hook (discouraged by the Pixi documentation but
-useful in specific cases)
+useful in some cases)
 
 .. code:: shell
 
@@ -240,7 +230,7 @@ setup.
    See the `Pixi CLI documentation <https://pixi.sh/latest/reference/cli/#shell>`__
    for details.
 
-.. _sec-developer_guide-dev_install-compiling:
+.. _sec-developer_guide-install-compiling:
 
 Compiling the radiometric kernel
 --------------------------------
@@ -248,7 +238,7 @@ Compiling the radiometric kernel
 .. important::
 
    It is strongly recommended to activate the Pixi environment to compile the
-   kernel. See :ref:`sec-developer_guide-dev_install-setup_conda` for details.
+   kernel. See :ref:`sec-developer_guide-install-setup_pixi` for details.
 
 We recommend using the using the dedicated Pixi task to build the kernel:
 
@@ -317,7 +307,7 @@ not proceed before fixing it.
 
 .. note::
 
-   You will probably see a warning saying
+   You will might see a warning saying
 
        *Created a default 'mitsuba.conf' configuration file.  You will
        probably want to edit this file to specify the desired configurations
@@ -328,7 +318,7 @@ not proceed before fixing it.
 The compilation process can last for up to around half an hour on old machines.
 It completes within a few minutes on modern workstations.
 
-.. _sec-developer_guide-dev_install-verify_installation:
+.. _sec-developer_guide-install-verify_installation:
 
 Verifying the installation
 --------------------------

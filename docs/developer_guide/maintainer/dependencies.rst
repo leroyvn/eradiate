@@ -1,7 +1,51 @@
-.. _sec-dependencies:
+.. _sec-developer_guide-dependencies:
 
 Dependencies
 ============
+
+How dependencies are managed, and the list of Eradiate's dependencies.
+
+Managing dependencies
+---------------------
+
+.. _Pixi: https://pixi.sh/
+.. _Pixi Basic usage: https://pixi.sh/latest/basic_usage/
+.. _Pixi Python development: https://pixi.sh/latest/tutorials/python/
+
+Eradiate is managed using the `Pixi`_ project manager. It notably allows
+us to maintain a Conda-based setup with most dependencies sourced from PyPI,
+with layered requirements. Be sure to read the relevant entries in the Pixi
+documentation:
+
+* `Pixi Basic usage`_
+* `Pixi Python development`_
+
+We use the following requirement groups, which manifest as `features` in the
+Pixi model:
+
+* ``kernel`` (extra): Only contains the Eradiate kernel package. This is
+  needed to allow developers to install all dependencies except the kernel.
+* ``recommended`` (extra): Optional packages used by specific subcomponents of
+  Eradiate.
+* ``docs`` (dependency group): Packages needed to compile the documentation.
+* ``test`` (dependency group): Packages needed to run the test suite.
+* ``dev`` (dependency group): Development tools.
+
+The Pixi environments built from these features are listed in
+:ref:`sec-developer_guide-workflow`.
+
+When adding new requirements, be sure to:
+
+* Prioritize PyPI packages, using the ``--pypi`` option.
+* Register the new requirement to the appropriate group.
+* Check in the lock file after it is updated.
+
+.. note::
+
+   Our Read The Docs build uses stock Python virtual environments and installs
+   dependencies with Pip. A specific requirement file is generated for that
+   purpose, using the ``docs-lock`` Pixi task. This task is automatically
+   executed upon committing, so the file is always up-to-date.
 
 Required dependencies
 ---------------------

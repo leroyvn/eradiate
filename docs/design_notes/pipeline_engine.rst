@@ -1,7 +1,12 @@
+.. _sec-design_notes-pipeline_engine:
 .. _sec-developer_guide-design_pipeline_engine:
 
-Design note: Pipeline engine
-============================
+Pipeline engine
+===============
+
+:Status: Implemented
+:Last updated: 2026-03
+:Code: ``src/eradiate/pipelines/engine.py``
 
 Motivation
 ----------
@@ -52,7 +57,7 @@ core types:
     This class manages a ``networkx.DiGraph`` and a node registry. Its internal
     state is:
 
-    - **_graph**: A :class:`networkx.DiGraph` instance that holds the DAG
+    - **_graph**: A ``networkx.DiGraph`` instance that holds the DAG
       structure (includes both computation nodes and virtual input
       placeholders).
     - **_nodes**: A ``dict[str, Node]`` that maps names to ``Node`` objects.
@@ -143,7 +148,7 @@ Generalized pre/post hooks
 
 Visualization integrated into pipeline
     Export methods (``write_dot``, ``write_png``, ``write_svg``, ``visualize``)
-    live directly on :class:`~eradiate.pipelines.engine.Pipeline``. This keeps
+    live directly on :class:`~eradiate.pipelines.engine.Pipeline`. This keeps
     the API cohesive and supports Jupyter auto-display via ``_repr_svg_()``.
     Visualization uses `pydot <https://github.com/pydot/pydot>`_ (optional
     dependency).

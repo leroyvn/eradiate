@@ -1,4 +1,4 @@
-.. _sec-developer_guides-lazy_loading:
+.. _sec-developer_guide-lazy_imports:
 
 Lazy module imports
 ===================
