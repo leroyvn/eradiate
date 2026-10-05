@@ -31,6 +31,8 @@ This document must be deleted once the work on this branch is completed.
 - [x] Enforce Python 3.10+ typing annotations.
 - [x] Move all compatibility shims to a `compat` module.
 - [ ] Delete the `dev` environment.
+- [ ] Replace Pint quantity products with the `Quantity` constructor.
+- [ ] Remove as much as possible Pint string parsing.
 
 **Refactoring**
 
@@ -49,5 +51,5 @@ This document must be deleted once the work on this branch is completed.
 **Documentation**
 
 - [ ] Rewrite user manual.
-- [ ] Update developer guide (concise dev guide, more consistent dev notes).
+- [ ] Update developer guide (concise dev guide, more consistent dev notes, good practices guide).
 - [ ] Add AI instructions (including AGENTS.md).
