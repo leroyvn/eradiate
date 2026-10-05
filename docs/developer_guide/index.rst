@@ -16,3 +16,4 @@ Hereafter is a collection of detailed guides for developers.
    design_atmosphere
    design_pipeline_engine
    benchmark
+   guidelines
