@@ -23,16 +23,15 @@ This document must be deleted once the work on this branch is completed.
 
 - [x] Make linter more aggressive.
 - [x] Make a full linter pass.
-- [ ] Add ty type checking to prek.
 - [x] Remove all absolute imports at module top level from the codebase.
 - [x] Remove aliases to the `typing` module (*e.g.* `import typing as t`).
 - [x] Remove aliases to the `numpy.typing` module (`import numpy.typing as npt`).
 - [x] Switch to attrs modern API.
 - [x] Enforce Python 3.10+ typing annotations.
 - [x] Move all compatibility shims to a `compat` module.
+- [x] Pint hygiene: apply relevant Pint usage guidelines.
 - [ ] Delete the `dev` environment.
-- [ ] Replace Pint quantity products with the `Quantity` constructor.
-- [ ] Remove as much as possible Pint string parsing.
+- [ ] Add ty type checking to prek.
 
 **Refactoring**
 
