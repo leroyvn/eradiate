@@ -50,7 +50,9 @@ class BlendPhaseFunction(PhaseFunction):
 
     weights: np.ndarray | list[Callable[[KernelContext], np.ndarray]] = documented(
         attrs.field(
-            converter=lambda x: x if callable(x[0]) else np.array(x, dtype=np.float64),
+            converter=lambda x: (
+                x if callable(x[0]) else np.asarray(x, dtype=np.float64)
+            ),
             kw_only=True,
         ),
         type="ndarray or list of callables",
@@ -123,7 +125,7 @@ class BlendPhaseFunction(PhaseFunction):
         if isinstance(self.weights, list):
             weights = np.array([w(si) for w in self.weights], dtype=np.float64)
         else:  # if isinstance(self.weights, np.ndarray):
-            weights = np.array(self.weights, dtype=np.float64)
+            weights = np.asarray(self.weights, dtype=np.float64)
 
         if weights.ndim < 2:
             weights = weights.reshape((-1, 1))
