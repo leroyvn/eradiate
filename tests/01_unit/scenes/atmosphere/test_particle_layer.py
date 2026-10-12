@@ -9,7 +9,7 @@ from eradiate.radprops import ParticleProperties, ZGrid
 from eradiate.scenes.atmosphere import ParticleLayer, UniformParticleDistribution
 from eradiate.scenes.core import traverse
 from eradiate.spectral.index import SpectralIndex
-from eradiate.test_tools.types import check_scene_element
+from eradiate.testing.types import check_scene_element
 from eradiate.units import to_quantity
 
 # ------------------------------------------------------------------------------

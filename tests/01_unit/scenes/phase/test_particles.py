@@ -9,7 +9,7 @@ from eradiate.data.convert import make_aer_core_v2
 from eradiate.radprops import ParticleProperties
 from eradiate.scenes.phase import ParticlePhaseFunction
 from eradiate.spectral import SpectralIndex
-from eradiate.test_tools.types import check_scene_element
+from eradiate.testing.types import check_scene_element
 from eradiate.units import unit_registry as ureg
 
 DS_ID_TO_FNAME = {
