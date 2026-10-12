@@ -37,7 +37,7 @@ This document must be deleted once the work on this branch is completed.
 - [x] Pint hygiene: apply relevant Pint usage guidelines.
 - [x] Hunt unnecessary Numpy array copies (using `np.array()` instead of `np.asarray()`).
 - [x] Review raised exceptions for their type, and fix it if inappropriate.
-- [ ] Rename `test_tools` to `testing`; keep a compatibility alias with deprecation warning.
+- [x] Rename `test_tools` to `testing`; keep a compatibility alias with deprecation warning.
 - [ ] Rewrite post-processing pipeline tests (make them cleaner, nicer to follow and debug).
 - [ ] Refactor the features of the `srf_tools` module into the `SRF` classes.
 - [ ] Issue a deprecation warning for DEM classes (decision: delete them?).
