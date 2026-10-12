@@ -14,7 +14,7 @@ This document must be deleted once the work on this branch is completed.
 
 **Tooling**
 
-- [ ] Make the codebase REUSE compliant.
+- [x] Make the codebase REUSE compliant.
 - [ ] Make the codebase Repo Review compliant.
 - [ ] Align tooling with other Eradiate subprojects (*e.g.* eradiate-disort).
 - [ ] Enforce linting, formatting, type checking with prek in CI.
