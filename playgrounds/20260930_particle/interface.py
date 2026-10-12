@@ -60,10 +60,17 @@ albedo = xr.DataArray(  # horizontally constant: (w, z)
     attrs={"units": "dimensionless"},
 )
 smoke = {
-    "type": "particle_extinction",
+    "type": "extinction",
     "sigma_t": sigma_t,
     "albedo": albedo,
     "phase": {"type": "hg", "g": 0.7},  # or a dataset / keyword: phase only
+}
+
+# Extinction-driven, pure absorber (e.g. gas plume): albedo defaults to 0,
+# phase unused
+plume = {
+    "type": "extinction",
+    "sigma_t": sigma_t,  # absorption coefficient
 }
 
 # State-driven, generic core: state dims read from `properties`,

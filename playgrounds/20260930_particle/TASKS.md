@@ -2,7 +2,7 @@
 
 Decisions from user (2026-09-30):
 
-- `particle_extinction`: sigma_t and albedo fully user-supplied (spectral
+- `extinction` (was `particle_extinction`): sigma_t and albedo fully user-supplied (spectral
   dependence included); properties supply the phase function only
 - Container: nested `components` dict under `{"type": "heterogeneous", ...}`
 - State-driven family (`particle_state`): arbitrary state variables over a
@@ -13,8 +13,11 @@ Decisions from user (2026-09-30):
   replaced without alias (2026-10-01)
 - Keep the `Component` class suffix; the dict interface is the concise entry
   point (2026-10-01)
-- No per-column AOT; if needed later, add a
-  `ParticleExtinctionComponent.from_aot()` helper (2026-10-01)
+- No per-column AOT; if needed later, add an
+  `ExtinctionComponent.from_aot()` helper (2026-10-01)
+- `has_absorption`/`has_scattering` on every component (molecular included),
+  in `AtmosphereComponent`; `ParticleComponent` removed; extinction
+  component generalised to non-particle constituents (gas plume) (2026-10-12)
 
 Tasks:
 

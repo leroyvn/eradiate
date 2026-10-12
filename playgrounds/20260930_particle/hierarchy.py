@@ -41,8 +41,13 @@ class HeterogeneousAtmosphere:  # [heterogeneous], derives from Atmosphere
     # validation        = component input shapes checked against self.geometry
 
 
+@attrs.define
 class AtmosphereComponent(ABC):
     """No id, no geometry: evaluated on the grid the container passes."""
+
+    # at least one must be True
+    has_absorption: bool = attrs.field(default=True, kw_only=True)
+    has_scattering: bool = attrs.field(default=True, kw_only=True)
 
     @abstractmethod
     def eval_sigma_t(self, si, grid) -> pint.Quantity: ...
@@ -61,43 +66,39 @@ class MolecularComponent(AtmosphereComponent):  # [molecular]
     profile: xr.Dataset  # thermoprops, 1D or 3D
     properties: Any  # AbsorptionDatabase
     rayleigh_depolarization: Any = "bates"
-    has_absorption: bool = True
-    has_scattering: bool = True
 
 
 @attrs.define
-class ParticleComponent(AtmosphereComponent, ABC):
-    has_absorption: bool = attrs.field(default=True, kw_only=True)
-    has_scattering: bool = attrs.field(default=True, kw_only=True)
-    force_polarized_phase: bool = attrs.field(default=False, kw_only=True)
-
-
-@attrs.define
-class ParticleAOTComponent(ParticleComponent):  # [particle_aot]
+class ParticleAOTComponent(AtmosphereComponent):  # [particle_aot]
     properties: Any  # ParticleProperties, state_dims == ()
     bottom: pint.Quantity = 0.0 * ureg.km  # scalar
     top: pint.Quantity = 1.0 * ureg.km  # scalar
     density: Any = "uniform"  # VerticalDensity, 1D
     aot_ref: pint.Quantity = 0.2 * ureg.dimensionless  # scalar
     w_ref: pint.Quantity = 550.0 * ureg.nm  # scalar
+    force_polarized_phase: bool = attrs.field(default=False, kw_only=True)
 
 
 @attrs.define
-class ParticleExtinctionComponent(ParticleComponent):  # [particle_extinction]
+class ExtinctionComponent(AtmosphereComponent):  # [extinction]
+    """Not particle-specific: also covers e.g. an absorbing gas plume."""
+
     sigma_t: xr.DataArray  # dims: w (required) + subset of (x, y, z)
-    albedo: xr.DataArray  # dims: w (required) + subset of (x, y, z)
-    phase_spec: Any  # "phase" in the dict: PhaseFunction spec or state-free table
+    albedo: xr.DataArray | None = None  # same dims; None: pure absorber
+    phase_spec: Any = None  # "phase" in the dict; required if albedo is set
     w_out_of_bounds: str = "raise"  # or "extrapolate": hold edge value
+    force_polarized_phase: bool = attrs.field(default=False, kw_only=True)
 
 
 @attrs.define
-class ParticleStateComponent(ParticleComponent):  # [particle_state]
+class ParticleStateComponent(AtmosphereComponent):  # [particle_state]
     profile: Any  # ParticleProfile (ppr_v1)
     properties: Any  # ParticleProperties (prt_v1), any state_dims
     amount: str | None = None  # default: unique unit match (see select_amount)
     state_variables: dict[str, str] = attrs.field(
         factory=dict
     )  # table dim -> profile var
+    force_polarized_phase: bool = attrs.field(default=False, kw_only=True)
 
 
 @attrs.define

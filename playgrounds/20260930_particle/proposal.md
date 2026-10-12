@@ -26,7 +26,7 @@ Problems in the current branch, most structural first:
    [`bottom`, `top`] by a 1D vertical distribution. The second is a per-column
    variant with `(n_x, n_y)` values for `tau_ref`/`bottom`/`top` and a 3D
    `ArrayParticleDistribution`. The second is gridded extinction, but it is
-   written as a normalised shape times a column optical thickness.
+   written as a normalized shape times a column optical thickness.
 4. **`ParticleProperties` switches type on dataset shape.**
    `has_size_distribution` tests for `reff`/`veff` dimensions.
    `ParticleEnsemble` requires `False` and `ParticleField` requires `True`,
@@ -54,11 +54,13 @@ Every component can be described as a **profile** plus a set of
 | molecular | p, T, x_i (thermoprops) | absorption database + Rayleigh |
 | particle, state-driven | amount, reff, veff (or rh, ...) | single-scattering table indexed by (w, state) |
 | particle, AOT-driven | none: user gives τ(w_ref) and a vertical shape | table indexed by w (spectral shape of ext, ssa, phase) |
-| particle, extinction-driven | none: user gives σ_t(w, x, y, z), ϖ(w, x, y, z) | phase only |
+| extinction-driven (particles, gas plume, ...) | none: user gives σ_t(w, x, y, z), ϖ(w, x, y, z) | phase only |
 
 The draft's `profile`/`properties` pair therefore becomes the general
 vocabulary. The AOT and extinction components are the cases where the user
-supplies some or all of the optics directly.
+supplies some or all of the optics directly. The extinction component makes
+no assumption on the nature of the constituent: σ_t and ϖ can describe a
+particle field as well as an absorbing gas plume.
 
 ## 3. Nomenclature
 
@@ -69,14 +71,14 @@ supplies some or all of the optics directly.
 | `properties` | Lookup table mapping (w, state variables) to optical properties. |
 | state variable | Profile variable used as an index into `properties` (reff, veff, rh, ...). Identified by name, not hardcoded. |
 | amount variable | Profile variable that scales the per-unit-amount extinction: mass or number concentration. |
-| `density` | Normalised vertical shape of the particle number in a `particle_aot` component. Replaces "distribution" (see §1.7). |
+| `density` | Normalized vertical shape of the particle number in a `particle_aot` component. Replaces "distribution" (see §1.7). |
 
 Type ids name the **input data**, not the spatial extent: `molecular`,
-`particle_aot`, `particle_extinction`, `particle_state`. `particle_state`
-names the path from position to optics: space → state variables → table.
-Class names mirror type ids: type id `particle_aot` gives class `ParticleAOTComponent`.
-The `Component` suffix is kept even though it makes names long: the dict
-interface is the concise entry point.
+`extinction`, `particle_aot`, `particle_state`. `particle_state` names the path
+from position to optics: space → state variables → table. Class names mirror
+type ids: type id `particle_aot` gives class `ParticleAOTComponent`. The
+`Component` suffix is kept even though it makes names long: the dict interface
+is the concise entry point.
 
 ## 4. Class hierarchy
 
@@ -85,13 +87,12 @@ Atmosphere (ABC)                                  [unchanged]
 ├── HomogeneousAtmosphere          "homogeneous"   [unchanged]
 └── HeterogeneousAtmosphere        "heterogeneous" container, holds components: dict[str, AtmosphereComponent]
 
-AtmosphereComponent (ABC)          no id, no geometry; evaluated on a grid passed by the container
+AtmosphereComponent (ABC)          no id, no geometry; has_absorption, has_scattering
 ├── MolecularComponent             "molecular"
-└── ParticleComponent (ABC)        has_absorption, has_scattering, force_polarized_phase
-    ├── ParticleAOTComponent            "particle_aot"
-    ├── ParticleExtinctionComponent     "particle_extinction"
-    └── ParticleStateComponent          "particle_state"         name-agnostic core
-        └── ParticlePSDComponent        "particle_psd"           preset: state (reff, veff)
+├── ExtinctionComponent            "extinction"
+├── ParticleAOTComponent           "particle_aot"
+└── ParticleStateComponent         "particle_state"         name-agnostic core
+    └── ParticlePSDComponent       "particle_psd"           preset: state (reff, veff)
 ```
 
 Supporting classes:
@@ -127,31 +128,47 @@ their types.
   `eval_sigma_s(si, grid)`, `eval_albedo(si, grid)`, `phase(geometry)`,
   `eval_mfp(ctx, grid)` and `bottom`/`top`. It stores no geometry.
   `bottom`/`top` are fields only for `particle_aot`; gridded components
-  (`molecular`, `particle_extinction`, `particle_state`) derive them from the
-  z extent of their data.
-- **`ParticleComponent`** holds the absorption/scattering switches and the
-  polarized-phase flag, which are shared by the three particle kinds.
+  (`molecular`, `extinction`, `particle_state`) derive them from the
+  z extent of their data. It also holds the `has_absorption` and
+  `has_scattering` switches (default `True`, at least one must be `True`),
+  which apply to every component kind: disabling absorption sets
+  σ_t = σ_s, disabling scattering sets σ_t = σ_a and ϖ = 0.
+
+There is no intermediate `ParticleComponent` class. Once the switches move
+to the base class, the only field the particle kinds share is
+`force_polarized_phase`, which is declared on each component that builds a
+`ParticlePhaseFunction` from a table. A common parent for a single flag
+would add a level without behaviour.
 
 ### 4.2 Component fields
 
+All components also take `has_absorption` and `has_scattering` (§4.1).
+
 | Component | Fields |
 |---|---|
-| `molecular` | `profile` (joseki/Skytherm thermoprops dataset, 1D or 3D), `properties` (AxsDB `AbsorptionDatabase`), `rayleigh_depolarization`, `has_absorption`, `has_scattering`, `error_handler_config` |
-| `particle_aot` | `bottom`, `top`, `density`, `aot_ref`, `w_ref` (all scalar), `properties` (state-free table) |
-| `particle_extinction` | `sigma_t`, `albedo` (DataArray, dim `w` required, spatial dims ⊆ (x, y, z)), `w_out_of_bounds` (`"raise"` or `"extrapolate"`, default `"raise"`), `phase` (phase function spec, or state-free table from which only the phase is used) |
-| `particle_state` | `profile`, `properties` (table with state dims), `amount` (optional), `state_variables` (optional mapping) |
+| `molecular` | `profile` (joseki/Skytherm thermoprops dataset, 1D or 3D), `properties` (AxsDB `AbsorptionDatabase`), `rayleigh_depolarization`, `error_handler_config` |
+| `particle_aot` | `bottom`, `top`, `density`, `aot_ref`, `w_ref` (all scalar), `properties` (state-free table), `force_polarized_phase` |
+| `extinction` | `sigma_t`, `albedo` (DataArray, dim `w` required, spatial dims ⊆ (x, y, z); `albedo` optional), `w_out_of_bounds` (`"raise"` or `"extrapolate"`, default `"raise"`), `phase` (phase function spec, or state-free table from which only the phase is used; optional), `force_polarized_phase` |
+| `particle_state` | `profile`, `properties` (table with state dims), `amount` (optional), `state_variables` (optional mapping), `force_polarized_phase` |
 | `particle_psd` | same fields as `particle_state`; `amount`/`state_variables` fixed by the preset |
 
-`particle_extinction` takes `phase` rather than `properties` because only the
+`extinction` takes `phase` rather than `properties` because only the
 phase function is used. A table's `ext`/`ssa` would be silently ignored, so
 the field name should not suggest otherwise. `phase` accepts any
-`PhaseFunction` spec (`{"type": "hg", "g": 0.85}`), or a dataset/keyword
-converted to `ParticlePhaseFunction`.
+`PhaseFunction` spec (`{"type": "hg", "g": 0.85}`, `{"type": "rayleigh"}`),
+or a dataset/keyword converted to `ParticlePhaseFunction`;
+`force_polarized_phase` only affects the latter.
+
+`albedo` defaults to 0 (pure absorber, e.g. a gas plume whose σ_t is its
+absorption coefficient). `phase` is then unused and may be omitted. If the
+component scatters (`albedo` given and `has_scattering` is `True`), `phase` is
+required: no default phase function is plausible for both particles and
+gases.
 
 `particle_aot` does not support per-column AOT (`aot_ref` as a 2D array);
-`particle_extinction` covers that case with σ_t computed by the user. If
+`extinction` covers that case with σ_t computed by the user. If
 per-column AOT is needed later, it will be added as a helper
-(`ParticleExtinctionComponent.from_aot(...)`), not by making `particle_aot`
+(`ExtinctionComponent.from_aot(...)`), not by making `particle_aot`
 accept arrays.
 
 ## 5. Dict interface
@@ -177,7 +194,7 @@ atmosphere = {
             "properties": "govaerts_2021-continental",
         },
         "smoke": {
-            "type": "particle_extinction",
+            "type": "extinction",
             "sigma_t": sigma_t,             # xr.DataArray, dim w required, units attr
             "albedo": albedo,               # xr.DataArray, same rules
             "phase": {"type": "hg", "g": 0.7},
