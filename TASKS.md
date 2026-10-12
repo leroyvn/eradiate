@@ -29,19 +29,19 @@ This document must be deleted once the work on this branch is completed.
 - [x] Switch to attrs modern API.
 - [x] Enforce Python 3.10+ typing annotations.
 - [x] Move all compatibility shims to a `compat` module.
-- [x] Pint hygiene: apply relevant Pint usage guidelines.
 - [ ] Delete the `dev` environment.
 - [ ] Add ty type checking to prek.
 
 **Refactoring**
 
-- [ ] Hunt unnecessary Numpy array copies (using `np.array()` instead of `np.asarray()`).
+- [x] Pint hygiene: apply relevant Pint usage guidelines.
+- [x] Hunt unnecessary Numpy array copies (using `np.array()` instead of `np.asarray()`).
+- [ ] Rename `test_tools` to `testing`; keep a compatibility alias with deprecation warning.
 - [ ] Review raised exceptions for their type, and fix it if inappropriate.
+- [ ] Rewrite post-processing pipeline tests (make them cleaner, nicer to follow and debug).
 - [ ] Refactor the features of the `srf_tools` module into the `SRF` classes.
 - [ ] Issue a deprecation warning for DEM classes (decision: delete them?).
-- [ ] Rename `test_tools` to `testing`; keep a compatibility alias with deprecation warning.
 - [ ] Review full test suite: delete useless tests, refactor all tests into classes.
-- [ ] Rewrite post-processing pipeline tests (make them cleaner, nicer to follow and debug).
 - [ ] Benchmark makeover: switch from ASV to pytest-benchmark, following the pattern in other Eradiate repos.
 - [ ] Tutorial makeover: turn into smoke tests, sync with Jupytext.
 - [ ] Data validation: Remove Cerberus prototype, add Pandera validation (requires Python 3.10+).
