@@ -17,7 +17,7 @@ command:
 
 This will install the latest stable version of Eradiate, along with all the
 dependencies necessary to run it. If you want to install the latest development
-version, please refer to the :ref:`sec-developer_guide-dev_install`.
+version, please refer to the :ref:`sec-developer_guide-install`.
 
 .. warning::
 

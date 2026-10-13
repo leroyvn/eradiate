@@ -1,7 +1,11 @@
-.. _sec-developer_guide-design_atmosphere:
+.. _sec-design_notes-atmosphere_geometry:
 
-Design note: atmosphere
-=======================
+Atmosphere geometry
+===================
+
+:Status: Outdated
+:Last updated: 2025-09
+:Code: ``src/eradiate/scenes/geometry.py``, ``src/eradiate/scenes/atmosphere/_core.py``
 
 Eradiate internally represents the atmosphere as a cuboid and the surface as a
 rectangle. When positioning both shapes during kernel initialization, they must
@@ -33,3 +37,12 @@ shape vertically:
 .. only:: not latex
 
    .. figure:: /_images/atmosphere_attributes.svg
+
+.. admonition:: To be written
+   :class: warning
+
+   This note predates :class:`.SceneGeometry`. The attributes listed above
+   (``top``, ``bottom``, ``kernel_offset``, ``kernel_height``) no longer exist
+   on :class:`.Atmosphere`; altitude bounds are now ``toa_altitude`` and
+   ``ground_altitude`` on the scene geometry. Update the note and the figure,
+   and cover the spherical-shell geometry (:class:`.SphericalShellGeometry`).

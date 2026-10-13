@@ -111,6 +111,12 @@ Python and C++17. It relies on a radiometric kernel based on the
    :caption: Developers/contributors
 
    contributing
-   dependencies
-   maintainer_guide
    developer_guide/index
+
+.. toctree::
+   :maxdepth: 3
+   :hidden:
+   :titlesonly:
+   :caption: Design notes
+
+   design_notes/index

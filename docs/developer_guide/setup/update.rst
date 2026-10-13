@@ -1,4 +1,4 @@
-.. _sec-getting_started-update:
+.. _sec-developer_guide-update:
 
 Update guide
 ============
@@ -54,7 +54,7 @@ After updating, it's always better to rebuild the kernel:
 
 .. code:: shell
 
-   pixi run build-kernel
+   pixi run kernel-build
 
 Update data files
 -----------------
