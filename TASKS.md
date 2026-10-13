@@ -49,6 +49,7 @@ This document must be deleted once the work on this branch is completed.
 
 **Documentation**
 
+- [x] Update developer guide (concise dev guide, more consistent dev notes, good practices guide).
+- [x] Curate CLAUDE.md.
 - [ ] Rewrite user manual.
-- [ ] Update developer guide (concise dev guide, more consistent dev notes, good practices guide).
 - [ ] Add AI instructions (including AGENTS.md).
