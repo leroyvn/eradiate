@@ -18,9 +18,8 @@ Eradiate Documentation
    data/rami_scenes
 
    contributing
-   dependencies
-   maintainer_guide
    developer_guide/index
+   design_notes/index
 
    reference_api/index
    reference_plugins/index

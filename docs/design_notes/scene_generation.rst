@@ -1,15 +1,24 @@
-.. _sec-developer_guides-scene_generator:
+.. _sec-design_notes-scene_generation:
 
-Scene generator design
-======================
+Scene generation
+================
+
+:Status: Implemented
+:Last updated: 2025-09
+:Code: ``src/eradiate/scenes/core.py``
 
 Eradiate's scene generator design is tightly coupled with its radiometric kernel
-interface. This document presents the general underlying design and briefly
-explains how to create new scene elements.
+interface. This note presents the general underlying design. Adding a scene element
+class is covered in :ref:`sec-developer_guide-scene_element`.
 
 .. warning::
    The design presented in this page has several known issues which we hope to
    overcome in the future.
+
+.. admonition:: To be written
+   :class: warning
+
+   List the known issues of this design.
 
 Fundamentals
 ------------
@@ -59,35 +68,3 @@ function. This function outputs a pair consisting of a
 :term:`kernel scene parameter map template`,
 which are then used by the :class:`.Experiment` to assemble a Mitsuba scene and
 update it as part of the parametric loop.
-
-Writing a new scene element class
----------------------------------
-
-1. Decide whether the scene element is a :class:`.NodeSceneElement`,
-   an :class:`.InstanceSceneElement` or a :class:`.CompositeSceneElement`.
-   In most cases, the choice is constrained by the scene element subtype.
-   For example, :class:`.BSDF`\ s are all :class:`.NodeSceneElement`\ s,
-   :class:`.Surface`\ s are all :class:`.CompositeSceneElement`\ s, etc.
-2. Derive a new class from the selected type and make sure that the properties
-   mentioned in the `Fundamentals`_ section are all implemented.
-
-   .. list-table::
-      :widths: 1 2
-      :header-rows: 1
-
-      * - Type
-        - Properties
-      * - :class:`.NodeSceneElement`
-        - :attr:`~.NodeSceneElement.template`,
-          :attr:`~.NodeSceneElement.params` [,
-          :attr:`~.NodeSceneElement.objects`]
-      * - :class:`.InstanceSceneElement`
-        - :attr:`~.InstanceSceneElement.instance`,
-          :attr:`~.InstanceSceneElement.params`
-      * - :class:`.CompositeSceneElement`
-        - :attr:`~.CompositeSceneElement.template`,
-          :attr:`~.CompositeSceneElement.params` [,
-          :attr:`~.CompositeSceneElement.objects`]
-
-3. When writing unit tests, make sure to include a basic sanity check using the
-   :func:`.check_scene_element` function.

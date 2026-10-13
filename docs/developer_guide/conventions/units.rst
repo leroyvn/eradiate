@@ -1,28 +1,12 @@
-Coding guidelines
-=================
+.. _sec-developer_guide-units:
 
-*State: Draft.*
+Unit handling
+=============
 
-This document provides guidelines for coding in this project. It covers
-fundamental principles, patterns and style.
-
-Principles
-----------
-
-Keep expensive libraries at the boundary.
-    This includes Pint and xarray: most of the operations these libraries
-    perform add significant overhead which we'd rather do without in the hot
-    parts of processing.
-
-Cache expensive operations.
-    Do not recompute something that is already computed. This is critical in the
-    spectral loop, but also during scene initialization.
-
-Patterns
---------
-
-Pint best practices
-^^^^^^^^^^^^^^^^^^^
+Rules for using `Pint <https://pint.readthedocs.io>`__ in library code. Most of
+them are performance rules: Pint operations are expensive and some of them run
+in the spectral loop. The user-facing unit system is documented in
+:ref:`sec-user_guide-unit_guide_user`.
 
 .. seealso::
 
@@ -270,18 +254,3 @@ Pint best practices
 
     # Prefer (still quite compact)
     ureg.Quantity(1.0, "m")
-
-xarray usage
-^^^^^^^^^^^^
-
-*TBD*
-
-Value caching
-^^^^^^^^^^^^^
-
-*TBD*
-
-Style
------
-
-Ruff all the way.

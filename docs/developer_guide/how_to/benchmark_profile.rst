@@ -1,8 +1,12 @@
-Benchmarking
-============
+.. _sec-developer_guide-benchmark_profile:
 
-Run Benchmarks
---------------
+Benchmarking and profiling
+==========================
+
+How to run and write performance benchmarks, and how to profile Eradiate.
+
+Running benchmarks
+------------------
 
 Eradiate's benchmarking suite is based on the
 `Airspeed Velocity (ASV) <https://github.com/airspeed-velocity/asv>`__
@@ -10,9 +14,8 @@ package which enables tracking a project's performance over time. To run the ben
 
 .. code:: bash
 
-    conda activate <env name>
     cd benchmarks
-    python -m eradiate.testing.benchmark.cli
+    pixi run python -m eradiate.testing.benchmark.cli
 
 By default, it will run the benchmark using the currently active environment.
 For dev environments, this means that you need an operational version
@@ -47,10 +50,28 @@ publish to an html page and viewed by running:
 ASV commands are also available, for custom use of ASV, please refer
 to `the package documentation <https://asv.readthedocs.io/en/v0.6.1/>`__.
 
-Write Benchmarks
-----------------
+Writing benchmarks
+------------------
 
 Benchmarks are in the ``benchmarks`` folder. They follow the
 `ASV syntax <https://asv.readthedocs.io/en/v0.6.1/writing_benchmarks.html>`__.
 The test cases that are benchmarks are often also used for regression test.
 For this reason, they are stored in ``src/eradiate/testing/test_cases/``.
+
+Profiling
+---------
+
+Tests are a very good opportunity to profile Eradiate. We recommend running
+tests with `pytest-profiling <https://pypi.org/project/pytest-profiling/>`__ (see
+documentation for usage instructions, it's basically about installing the
+package then running pytest with the ``--profile`` option).
+
+Profiling stats can then be visualized with
+`SnakeViz <https://jiffyclub.github.io/snakeviz/>`__.
+
+.. admonition:: To be written
+   :class: warning
+
+   pytest-profiling and SnakeViz are not part of any Pixi environment. Decide
+   on the recommended profilers (*e.g.* pyinstrument for call stacks, memray
+   for memory) and document how to run them on Eradiate.

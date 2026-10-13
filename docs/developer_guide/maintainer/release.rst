@@ -1,51 +1,7 @@
-.. _sec-maintainer_guide:
+.. _sec-developer_guide-release:
 
-Maintainer guide
+Making a release
 ================
-
-.. _sec-maintainer_guide-dependencies:
-
-Managing dependencies
----------------------
-
-.. _Pixi: https://pixi.sh/
-.. _Pixi Basic usage: https://pixi.sh/latest/basic_usage/
-.. _Pixi Python development: https://pixi.sh/latest/tutorials/python/
-
-Eradiate is managed using the `Pixi`_ project manager. It notably allows
-us to maintain a Conda-based setup with most dependencies sourced from PyPI,
-with layered requirements. Be sure to read the relevant entries in the Pixi
-documentation:
-
-* `Pixi Basic usage`_
-* `Pixi Python development`_
-
-We use the following requirement groups, which manifest as `features` in the
-Pixi model:
-
-* ``optional``: Only contains the Eradiate kernel package. This is needed to
-  allow developers to install all dependencies except the kernel.
-* ``recommended``: Optional packages used by specific subcomponents of Eradiate.
-* ``docs``: Packages needed to compile the documentation.
-* ``test``: Packages needed to run the test suite.
-
-When adding new requirements, be sure to:
-
-* Prioritize PyPI packages, using the ``--pypi`` option.
-* Register the new requirement to the appropriate group.
-* Check in the lock file after it is updated.
-
-.. note::
-
-   Our Read The Docs build uses stock Python virtual environments and installs
-   dependencies with Pip. A specific requirement file is generated for that
-   purpose, using the ``docs-lock`` Pixi task. This task is automatically
-   executed upon committing, so the file is always up-to-date.
-
-.. _sec-maintainer_guide-release:
-
-Making a release of Eradiate
-----------------------------
 
 .. _start a Pixi shell: https://pixi.sh/latest/features/environment/#activation
 .. _Bump My Version: https://github.com/callowayproject/bump-my-version
