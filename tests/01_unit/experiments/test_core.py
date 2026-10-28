@@ -1,3 +1,4 @@
+import warnings
 from typing import Any
 
 import numpy as np
@@ -166,6 +167,7 @@ class TestContextsSpp:
         assert all(ctx.active_sensors == list(ctx.spp) for ctx in ctxs)
         # Weighted, BandSRF: a band total
         assert sum(spp[0]) == 1000
+        assert min(spp[0]) >= 2  # Default Measure.spp_min
         # Stratified sampler: rounded up to square numbers
         assert all(int(np.sqrt(n)) ** 2 == n for n in spp[1])
         assert sum(spp[1]) >= 100
@@ -187,6 +189,31 @@ class TestContextsSpp:
         monkeypatch.setattr(eradiate.config.settings, "SAMPLE_ALLOCATION", "uniform")
         experiment.postprocess(1)
         assert experiment.results["stratified"].attrs["sample_allocation"] == "weighted"
+
+    @pytest.mark.parametrize("spp_min", [1, 2])
+    def test_spp_min(self, spp_min):
+        """
+        With every iteration at ``spp_min`` samples, a value of 1 leaves the
+        band variance undefined (and warns), 2 does not.
+        """
+        band = BandSRF(wavelengths=[540.0, 550.0, 560.0], values=[0.0, 1.0, 0.0])
+        exp = AtmosphereExperiment(
+            atmosphere=None,
+            integrator={"type": "path", "moment": True},
+            measures={"type": "mdistant", "srf": band, "spp_min": spp_min},
+        )
+        exp.init()
+        exp.measures[0].spp = spp_min * sum(len(q.nodes) for q in exp.ckd_quads[0])
+
+        if spp_min == 1:
+            with pytest.warns(UserWarning, match="single sample"):
+                result = eradiate.run(exp)
+            assert np.all(np.isnan(result.radiance_srf_var.values))
+        else:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", UserWarning)
+                result = eradiate.run(exp)
+            assert np.all(np.isfinite(result.radiance_srf_var.values))
 
 
 def test_init_updates_ckd_quads(mode_ckd):

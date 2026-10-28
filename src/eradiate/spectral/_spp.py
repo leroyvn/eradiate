@@ -38,9 +38,10 @@ def _allocate(
 
     floor : int or array-like, default: 1
         Minimum sample count guaranteed to each iteration. The default is the
-        lowest count that can be rendered; the variance of an iteration with a
-        single sample is undefined (see
-        :func:`.pipelines.logic.moment2_to_variance`). Scalar (applied to
+        lowest count that can be rendered, but the variance of an iteration
+        with a single sample is undefined (see
+        :func:`.pipelines.logic.moment2_to_variance`): callers guaranteeing a
+        variance estimate pass a floor of at least 2. Scalar (applied to
         every iteration) or one value per iteration, *e.g.* the number of
         CKD g-points of the corresponding bin, when the result of this call is
         itself about to be split further downstream.
@@ -74,7 +75,8 @@ def _allocate(
         raise ValueError(
             f"cannot distribute {sample_count} samples across {n} spectral loop "
             f"iterations: the sample count must be at least {floor_total} "
-            "(alternatively, use the 'uniform' sample allocation policy)"
+            "(alternatively, lower the per-iteration minimum sample count or use "
+            "the 'uniform' sample allocation policy)"
         )
 
     result = floor.copy()
@@ -220,6 +222,7 @@ def srf_spp_distribution(
     spectral_grid: SpectralGrid,
     ckd_quads: list[Quad] | None = None,
     allocation: SampleAllocation | str | None = None,
+    spp_min: int = 2,
 ) -> np.ndarray:
     """
     Distribute a sample count across the spectral loop iterations driven by
@@ -247,6 +250,14 @@ def srf_spp_distribution(
         ``sample_allocation`` setting (environment variable
         ``ERADIATE_SAMPLE_ALLOCATION``) is used.
 
+    spp_min : int, default: 2
+        Minimum sample count per spectral loop iteration when the
+        ``"weighted"`` policy splits ``target`` (ckd mode). Ignored in mono
+        mode and by the ``"uniform"`` policy, which give every iteration
+        ``target`` samples. A value of 1 leaves the variance of single-sample
+        iterations undefined (NaN), which makes variance outputs aggregating
+        them (per-bin and SRF-weighted variances) NaN.
+
     Returns
     -------
     ndarray
@@ -258,7 +269,7 @@ def srf_spp_distribution(
     Raises
     ------
     ValueError
-        If ``target`` is too low to give every iteration at least one sample.
+        If ``target`` is too low to give every iteration ``spp_min`` samples.
 
     Notes
     -----
@@ -272,10 +283,11 @@ def srf_spp_distribution(
     * in ckd mode with a :class:`.BandSRF`, the band aggregate is the output
       value: ``target`` is split across bins proportionally to the SRF weight
       of each bin (see :func:`spectral_response_weights`), then across
-      g-points as above. Every bin gets at least one sample per g-point.
+      g-points as above. Every bin gets at least ``spp_min`` samples per
+      g-point.
 
     Counts sum exactly to ``target`` per output value, except that every
-    iteration gets at least one sample, which makes the split only
+    iteration gets at least ``spp_min`` samples, which makes the split only
     approximately proportional. Iterations with a single sample have an
     undefined (NaN) variance.
     Proportional allocation minimizes the variance of the aggregate if all
@@ -285,7 +297,7 @@ def srf_spp_distribution(
     With a :class:`.BandSRF` in ckd mode, only the band aggregate (*e.g.*
     ``radiance_srf``) gets ``target`` samples: per-bin results (*e.g.*
     ``radiance``) of low-weight bins are computed from few samples and are
-    correspondingly noisy, down to one sample per g-point in the SRF tails.
+    correspondingly noisy, down to ``spp_min`` samples per g-point in the SRF tails.
     Use the ``"uniform"`` policy if per-bin results matter.
 
     With the ``"uniform"`` policy, ``target`` applies in full to every
@@ -323,11 +335,14 @@ def srf_spp_distribution(
 
     if isinstance(srf, BandSRF):
         bin_spp = _allocate(
-            target, _bin_weights(srf, spectral_grid), floor=np.array(ng)
+            target, _bin_weights(srf, spectral_grid), floor=spp_min * np.array(ng)
         )
     else:
         bin_spp = np.full(len(ckd_quads), target, dtype=np.int64)
 
     return np.concatenate(
-        [_allocate(int(n), quad.weights) for n, quad in zip(bin_spp, ckd_quads)]
+        [
+            _allocate(int(n), quad.weights, floor=spp_min)
+            for n, quad in zip(bin_spp, ckd_quads)
+        ]
     )

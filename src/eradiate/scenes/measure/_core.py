@@ -178,8 +178,8 @@ class Measure(NodeSceneElement, ABC):
         doc='Sample count target. With the default ``"weighted"`` allocation '
         "policy (see :attr:`spp_allocation`), it is the number of samples per "
         "pixel spent on each output value: every wavelength (mono), every "
-        "spectral bin (ckd, split across its g-points), or the band as a "
-        "whole for a :class:`.BandSRF` in ckd mode. With the "
+        "spectral bin (CKD, split across its g-points), or the band as a "
+        "whole for a :class:`.BandSRF` in CKD mode. With the "
         '``"uniform"`` policy, it applies in full to every spectral loop '
         'iteration. Samplers other than ``"independent"`` may round '
         "per-iteration counts up. See :func:`.srf_spp_distribution` and "
@@ -200,6 +200,18 @@ class Measure(NodeSceneElement, ABC):
         type=".SampleAllocation or None",
         init_type='.SampleAllocation or {"weighted", "uniform"}, optional',
         default="None",
+    )
+
+    spp_min: int = documented(
+        attrs.field(default=2, converter=int, validator=validators.is_positive),
+        doc="Minimum sample count per spectral loop iteration when the "
+        '``"weighted"`` allocation policy splits :attr:`spp` (*e.g.* in CKD mode). '
+        'Ignored in mono mode and by the ``"uniform"`` policy. A value of 1 '
+        "may leave variance outputs undefined (NaN). Raising it raises the "
+        "minimum valid :attr:`spp`: in CKD mode with a :class:`.BandSRF`, "
+        ":attr:`spp_min` times the total number of g-points.",
+        type="int",
+        default="2",
     )
 
     mi_spp_allocation: SampleAllocation | None = documented(

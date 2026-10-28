@@ -4,6 +4,8 @@ Basic components of post-processing pipeline assembly.
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pint
 import pinttrs
@@ -198,7 +200,8 @@ def apply_spectral_response(
         ``True``, the weights are squared, which propagates the variance
         through the SRF weighting instead of averaging it. Per-bin estimates
         are assumed to be uncorrelated, which holds for the independent Monte
-        Carlo estimates the pipeline produces.
+        Carlo estimates the pipeline produces. A NaN (undefined) per-bin
+        variance with a nonzero weight makes the result NaN.
 
     Returns
     -------
@@ -212,7 +215,11 @@ def apply_spectral_response(
     result = xr.full_like(spectral_data, np.nan).isel(w=0, drop=True)
 
     # Apply SRF to variable and store result
-    band_values = (spectral_data * (weights**2 if is_variance else weights)).sum("w")
+    # Variance: do not skip NaN, an undefined per-bin variance would otherwise
+    # silently bias the band variance low
+    band_values = (spectral_data * (weights**2 if is_variance else weights)).sum(
+        "w", skipna=False if is_variance else None
+    )
     result.values = band_values.transpose(*result.dims).values
 
     if isinstance(srf, BandSRF):
@@ -956,7 +963,9 @@ def moment2_to_variance(
     sample mean), *i.e.* the unbiased per-sample variance estimate
     :math:`\frac{n}{n-1} (m_2 - E^2)` divided by the sample count :math:`n`,
     which simplifies to :math:`(m_2 - E^2) / (n - 1)`. The variance is
-    undefined (NaN) where fewer than 2 samples were taken.
+    undefined (NaN) where fewer than 2 samples were taken, and a
+    :class:`UserWarning` is emitted if this happens (see
+    :attr:`.Measure.spp_min`).
     """
 
     dims_m2 = set(m2.dims)
@@ -965,6 +974,18 @@ def moment2_to_variance(
         raise ValueError(
             "expectation and m2 must have the same dimensions, got "
             f"{expectation.dims = } and {m2.dims = }"
+        )
+
+    # NaN spp (missing spectral entries) compares False and is not counted
+    n_single = int((spp < 2).sum())
+    if n_single:
+        warnings.warn(
+            f"{n_single} spectral loop iteration(s) rendered with a single "
+            "sample: their variance is undefined (NaN), and so are SRF-weighted "
+            "variances including them. Set Measure.spp_min >= 2 or increase "
+            "Measure.spp.",
+            UserWarning,
+            stacklevel=2,
         )
 
     # Clamp at zero: when the per-sample variance is (close to) zero,

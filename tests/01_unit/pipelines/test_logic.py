@@ -7,6 +7,8 @@ fixtures; test bodies perform only data checks.
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pytest
 import xarray as xr
@@ -351,6 +353,27 @@ def test_04_apply_spectral_response_weights(experiment, aggregate_ckd_quad):
 
 @pytest.mark.parametrize("mode_id", ["ckd"])
 @pytest.mark.parametrize("srf", ["sentinel_2a-msi-3"])
+def test_04_apply_spectral_response_variance_nan(experiment, aggregate_ckd_quad):
+    """
+    An undefined (NaN) per-bin variance makes the band variance NaN; the mean
+    keeps skipping NaN bins.
+    """
+    srf = experiment.measures[0].srf
+    weights = logic.spectral_response_weights(aggregate_ckd_quad, srf)
+    i = int(np.argmax(weights.values))
+    data = xr.ones_like(aggregate_ckd_quad)
+    data[{"w": i}] = np.nan
+
+    variance = logic.apply_spectral_response(data, srf, is_variance=True)
+    assert np.all(np.isnan(variance.values))
+
+    mean = logic.apply_spectral_response(data, srf)
+    expected = float(weights.sum() - weights[i])
+    np.testing.assert_allclose(mean.values, expected, rtol=1e-12)
+
+
+@pytest.mark.parametrize("mode_id", ["ckd"])
+@pytest.mark.parametrize("srf", ["sentinel_2a-msi-3"])
 def test_05_apply_spectral_response_main(
     experiment, aggregate_ckd_quad, apply_spectral_response
 ):
@@ -525,14 +548,29 @@ def test_10_valid_mask():
     assert np.array_equal(result, valid)
 
 
-def test_moment2_to_variance_unbiased():
+@pytest.mark.parametrize(
+    "second, warns",
+    [
+        ((3.0, 9.0, 1), True),
+        ((np.nan, np.nan, np.nan), False),
+    ],
+    ids=["single_sample", "missing_entry"],
+)
+def test_moment2_to_variance_unbiased(second, warns):
     # Two samples {0, 2}: E = 1, m2 = 2, unbiased sample variance 2, variance
-    # of the mean 2 / 2 = 1. A single sample leaves the variance undefined.
-    expectation = xr.DataArray([1.0, 3.0], dims="w", name="radiance")
-    m2 = xr.DataArray([2.0, 9.0], dims="w", name="radiance_m2")
-    spp = xr.DataArray([2, 1], dims="w")
+    # of the mean 2 / 2 = 1. A single sample leaves the variance undefined and
+    # warns; a missing spectral entry (NaN spp) does not warn.
+    expectation = xr.DataArray([1.0, second[0]], dims="w", name="radiance")
+    m2 = xr.DataArray([2.0, second[1]], dims="w", name="radiance_m2")
+    spp = xr.DataArray([2, second[2]], dims="w")
 
-    result = logic.moment2_to_variance(expectation, m2, spp, False)
+    if warns:
+        with pytest.warns(UserWarning, match="1 spectral loop iteration"):
+            result = logic.moment2_to_variance(expectation, m2, spp, False)
+    else:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            result = logic.moment2_to_variance(expectation, m2, spp, False)
 
     assert result.name == "radiance_var"
     np.testing.assert_array_equal(result, [1.0, np.nan])

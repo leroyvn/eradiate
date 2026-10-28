@@ -119,15 +119,18 @@ class TestCKD:
     def per_bin(result, quads):
         return np.split(result, np.cumsum([len(q.nodes) for q in quads])[:-1])
 
+    @pytest.mark.parametrize("target", [1000, 1])
     @pytest.mark.parametrize("setup", SRFS.keys(), indirect=True)
-    def test_uniform(self, setup):
-        """Every (bin, g) iteration gets the full target."""
+    def test_uniform(self, setup, target):
+        """
+        Every (bin, g) iteration gets the full target, even below ``spp_min``.
+        """
         srf, grid, quads = setup
         result = srf_spp_distribution(
-            1000, srf, grid, ckd_quads=quads, allocation="uniform"
+            target, srf, grid, ckd_quads=quads, allocation="uniform"
         )
         assert len(result) == sum(len(q.nodes) for q in quads)
-        np.testing.assert_array_equal(result, 1000)
+        np.testing.assert_array_equal(result, target)
 
     @pytest.mark.parametrize("setup", ["delta", "uniform"], indirect=True)
     def test_weighted_per_bin(self, setup):
@@ -161,20 +164,30 @@ class TestCKD:
             bin_spp / target, weights / weights.sum(), atol=len(result) / target
         )
 
-    @pytest.mark.parametrize("setup", ["band"], indirect=True)
-    def test_weighted_band_floor(self, setup):
-        """Every bin needs at least one sample per g-point."""
+    @pytest.mark.parametrize("spp_min", [None, 1, 3])
+    @pytest.mark.parametrize("setup", ["band", "delta"], indirect=True)
+    def test_weighted_floor(self, setup, spp_min):
+        """Every iteration gets at least ``spp_min`` samples (default: 2)."""
         srf, grid, quads = setup
-        min_target = sum(len(q.nodes) for q in quads)
+        kwargs = {} if spp_min is None else {"spp_min": spp_min}
+        floor = 2 if spp_min is None else spp_min
+        ng = [len(q.nodes) for q in quads]
+        # Band: the target is split across bins; otherwise each bin gets it all
+        min_target = floor * (sum(ng) if isinstance(srf, BandSRF) else max(ng))
 
         with pytest.raises(ValueError, match=f"must be at least {min_target}"):
             srf_spp_distribution(
-                min_target - 1, srf, grid, ckd_quads=quads, allocation="weighted"
+                min_target - 1,
+                srf,
+                grid,
+                ckd_quads=quads,
+                allocation="weighted",
+                **kwargs,
             )
         result = srf_spp_distribution(
-            min_target, srf, grid, ckd_quads=quads, allocation="weighted"
+            min_target, srf, grid, ckd_quads=quads, allocation="weighted", **kwargs
         )
-        np.testing.assert_array_equal(result, 1)
+        np.testing.assert_array_equal(result, floor)
 
     @pytest.mark.parametrize("setup", ["band"], indirect=True)
     def test_setting(self, setup, monkeypatch):

@@ -642,6 +642,7 @@ class EarthObservationExperiment(Experiment, ABC):
                 self.spectral_grids[measure_index],
                 ckd_quads=self.ckd_quads[measure_index],
                 allocation=measure.mi_spp_allocation or measure.spp_allocation,
+                spp_min=measure.spp_min,
             )
 
             # Record the sample counts the sampler actually uses (only a few
