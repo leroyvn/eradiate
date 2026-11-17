@@ -105,13 +105,14 @@ data formats below need settling.
 
 ## Data formats
 
-**Open** for the molecular inputs, **Proposed** for particles. Three format changes are
+**Open** for the molecular inputs, **Settled** for particles. Three format changes are
 wanted:
 
 - **Aerosol / particle single-scattering properties** — derived from libRadtran's.
-  Proposed: `aer_core_v2` for state-free tables and `prt_v1` for tables with state
-  dimensions, plus `ppr_v1` for particle profiles. Specified on `partfield_review`;
-  see [`atmosphere.md`](atmosphere.md). Consumers: the particle components'
+  Settled: `prt_core_v1` and its extensions (`prt_ms_v1`, `prt_hum_v1`) for
+  single-scattering tables, `ppr_core_v1` and `ppr_ms_v1` for particle profiles;
+  `aer_*` deprecated. Specified in `docs/data/formats/`; see
+  [`atmosphere.md`](atmosphere.md). Consumers: the particle components'
   `properties` and `profile` fields.
 - **Absorption database** — new format, not specified. Consumer:
   `MolecularComponent.properties` (currently `axsdb.AbsorptionDatabase`).
