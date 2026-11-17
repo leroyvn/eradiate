@@ -21,6 +21,7 @@ from pydantic import ConfigDict, field_validator, model_validator
 
 from ._factory import Registry
 from .object import Object
+from ..._compat import trapezoid
 from ...spectral import CKDSpectralIndex, MonoSpectralIndex, SpectralIndex
 from ...units import PhysicalQuantity
 from ...units import unit_context_config as ucc
@@ -167,6 +168,9 @@ class UniformSpectrum(BaseSpectrum):
     @model_validator(mode="after")
     def _validate_units(self) -> UniformSpectrum:
         expected = ucc.get(self.quantity)
+        # Re-attach proper units if value arrived unit-less (dimensionless sentinel)
+        if self.value.units == ureg.dimensionless and expected != ureg.dimensionless:
+            self.value = self.value.magnitude * expected
         if not units_compatible(expected, self.value.units):
             raise pinttrs.exceptions.UnitsError(
                 self.value.units,
@@ -177,9 +181,6 @@ class UniformSpectrum(BaseSpectrum):
                     f"(expected '{expected}')"
                 ),
             )
-        # Re-attach proper units if value arrived unit-less (dimensionless sentinel)
-        if self.value.units == ureg.dimensionless and expected != ureg.dimensionless:
-            self.value = self.value.magnitude * expected
         return self
 
     def eval_mono(self, w: ArrayLike) -> pint.Quantity:
@@ -304,7 +305,7 @@ class InterpolatedSpectrum(BaseSpectrum):
         mask = (wl >= lo) & (wl <= hi)
         wl_seg = np.concatenate([[lo], wl[mask], [hi]])
         vals_seg = np.interp(wl_seg, wl, vals, left=0.0, right=0.0)
-        result = np.trapz(vals_seg, wl_seg)
+        result = trapezoid(vals_seg, wl_seg)
         return result * val_units * wl_units
 
 
@@ -332,11 +333,11 @@ class SolarIrradianceSpectrum(BaseSpectrum):
     # TODO: Cache this
     def _load(self) -> InterpolatedSpectrum:
         """Load the dataset and return an :class:`InterpolatedSpectrum`."""
-        from ...converters import load_dataset, resolve_keyword  # noqa: PLC0415
+        from ...converters import load_dataset, resolve_keyword
 
         path = resolve_keyword(lambda x: f"solar_irradiance/{x}.nc")(self.dataset)
         ds = load_dataset(path)
-        from ...units import to_quantity  # noqa: PLC0415
+        from ...units import to_quantity
 
         wavelengths = to_quantity(ds.w)
         values = to_quantity(ds.ssi)

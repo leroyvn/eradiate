@@ -40,6 +40,9 @@ class Registry(Generic[T]):
     def __repr__(self) -> str:
         return f"Registry({self.name!r}, types={sorted(self._registry)})"
 
+    def __contains__(self, type_id: object) -> bool:
+        return type_id in self._registry
+
     @overload
     def register(self, type_id: str, maybe_cls: type[T]) -> type[T]: ...
 

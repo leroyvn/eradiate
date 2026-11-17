@@ -69,7 +69,8 @@ concise entry point.
 
 ## Class hierarchy
 
-**Proposed.** Not implemented in v2.
+**Settled.** Implemented in `two/core/atmosphere.py` as configuration schema and
+validation; radiative property evaluation is not ported yet.
 
 ```
 Atmosphere (ABC)                                 atmosphere_registry

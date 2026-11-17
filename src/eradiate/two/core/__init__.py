@@ -20,7 +20,11 @@ register their concrete implementations:
         ...
 """
 
-from .atmosphere import atmosphere_component_registry, atmosphere_registry
+from .atmosphere import (
+    atmosphere_component_registry,
+    atmosphere_registry,
+    vertical_density_registry,
+)
 from .illumination import illumination_registry
 from .material import BaseMaterial, material_registry
 from .measurement import BaseMeasurement, measurement_registry
@@ -28,15 +32,16 @@ from .spectrum import BaseSpectrum, spectrum_registry
 from .surface import BaseSurface, surface_registry
 
 __all__ = [
-    "atmosphere_registry",
+    "BaseMaterial",
+    "BaseMeasurement",
+    "BaseSpectrum",
+    "BaseSurface",
     "atmosphere_component_registry",
-    "material_registry",
+    "atmosphere_registry",
     "illumination_registry",
+    "material_registry",
     "measurement_registry",
     "spectrum_registry",
     "surface_registry",
-    "BaseMaterial",
-    "BaseSpectrum",
-    "BaseSurface",
-    "BaseMeasurement",
+    "vertical_density_registry",
 ]
